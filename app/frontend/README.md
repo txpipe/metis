@@ -1,1 +1,0 @@
-# Metis Management Frontend
