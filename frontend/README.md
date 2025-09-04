@@ -1,87 +1,55 @@
-# Welcome to React Router!
+# Metis Management Frontend
 
-A modern, production-ready template for building full-stack React applications using React Router.
+**Status: Work in progress**
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+This frontend application provides the user interface for the Metis Management system. It is currently a placeholder for future development.
 
-## Features
+## Prerequisites
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+- Node.js (>= 16.x)
+- Yarn (or npm)
+- Docker (for building container images)
 
-## Getting Started
+## Local Development
 
-### Installation
+1. Install dependencies:
 
-Install the dependencies:
+   ```bash
+   cd frontend
+   yarn install
+   ```
 
-```bash
-npm install
-```
+2. Start the development server:
 
-### Development
+   ```bash
+   yarn dev
+   ```
 
-Start the development server with HMR:
+   The application will be available at `http://localhost:5173` by default.
 
-```bash
-npm run dev
-```
+3. Type-check the codebase:
 
-Your application will be available at `http://localhost:5173`.
+   ```bash
+   yarn typecheck
+   ```
 
-## Building for Production
+4. Build for production:
 
-Create a production build:
+   ```bash
+   yarn build
+   ```
 
-```bash
-npm run build
-```
+## Docker
 
-## Deployment
-
-### Docker Deployment
-
-To build and run using Docker:
+To build the Docker image locally:
 
 ```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
+docker build -f frontend/Dockerfile -t metis-frontend .
 ```
 
-The containerized application can be deployed to any platform that supports Docker, including:
+## CI Pipeline
 
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
+CI workflows are defined in the [`.github/workflows`](../.github/workflows) directory:
 
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
-```
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
-
----
-
-Built with ❤️ using React Router.
+- [check_frontend.yml](../.github/workflows/check_frontend.yml): Runs type checks on push and pull requests.
+- [build_frontend.yml](../.github/workflows/build_frontend.yml): Builds and publishes the container image to GitHub Container Registry.
