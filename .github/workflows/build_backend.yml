@@ -35,6 +35,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "release"
+          workspaces: backend -> target
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
@@ -43,6 +44,7 @@ jobs:
 
       - name: Run cargo build
         run: cargo build --target ${{ matrix.target }} ${{ matrix.args }}
+        working-directory: backend
 
       - name: rename binaries
         run: |
