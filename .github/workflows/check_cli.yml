@@ -1,0 +1,28 @@
+name: Check CLI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/check_cli.yml"
+      - "cli/**"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/check_cli.yml"
+      - "cli/**"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./cli
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Clippy check lints
+        run: cargo clippy -- -D warnings
