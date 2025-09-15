@@ -1,0 +1,1879 @@
+// Partner Chains Transaction Templates
+// =================================
+// 
+// This file defines comprehensive transaction templates for Partner Chain operations,
+// providing a complete framework for decentralized governance and validator management.
+// 
+// Key Components:
+// - Governance initialization and authority updates using multi-signature policies
+// - Governed map operations for decentralized key-value storage with governance oversight
+// - D-parameter management for controlling candidate registration limits
+// - Candidate registration/deregistration for both permissioned and registered validators
+// - Reserve management for token distribution and vesting mechanisms
+// - Illiquid circulation supply management for controlled token releases
+//
+// The system ensures secure, governed operations through cryptographic validation
+// and multi-signature authorization patterns throughout all transaction flows.
+
+// Party Address Declarations
+// =========================
+// All participating addresses in Partner Chain transactions, each serving specific roles
+// in the decentralized governance and validation ecosystem.
+
+party payment_address;                          // Primary funding address for transaction fees and change collection
+/// SPO Address
+party candidate_address;                        // Address for candidate validators to register and manage their status
+/// ----
+party governed_map_validator_address;           // Script address controlling governed key-value storage with governance oversight
+party version_oracle_validator_address;         // Script address managing governance tokens and authority verification
+party d_parameter_validator_address;            // Script address controlling candidate limit parameters (D-parameters)
+party committee_candidate_validator_address;    // Script address managing registered validator candidate registrations
+party permissioned_candidates_validator_address; // Script address controlling pre-approved validator candidate lists
+party reserve_validator_address;                // Script address managing token reserves and distribution mechanisms
+party illiquid_circulation_supply_validator_address; // Script address controlling illiquid token supply and vesting operations
+
+// Environment Configuration Variables
+// ==================================
+// Runtime configuration data, script parameters, and cryptographic material
+// required for Partner Chain operations and validation.
+
+env {
+    // === Governance System Configuration ===
+    // Core governance infrastructure for multi-signature authorization
+    governance_utxoref: UtxoRef,           // Current governance UTxO reference for authority validation
+    governance_asset_name: Bytes,          // Token name for governance tokens (typically "Version oracle")
+    governance_policy_script: Bytes,       // Multi-signature governance policy script bytecode
+
+    // === Script Identification and Validation ===
+    // References and hashes for script execution and validation
+    governed_map_script_id: Int,           // Numeric identifier for governed map operations in redeemers
+    multi_sig_policy_hash: Bytes,          // Cryptographic hash of the multi-signature policy for verification
+    governance_policy_hash: Bytes,         // Hash of the governance policy for token validation
+    governance_policy_utxoref: UtxoRef,    // UTxO reference containing governance policy script
+
+    // === Version Oracle System ===
+    // Manages governance tokens and authority verification mechanisms
+    version_oracle_policy_hash: Bytes,     // Policy ID for minting/burning version oracle tokens
+    version_oracle_policy_script: Bytes,   // Script bytecode for version oracle token policy
+    version_oracle_validator_script: Bytes, // Validator script controlling governance UTxOs
+    version_oracle_validator_hash: Bytes,   // Hash of the version oracle validator script
+    version_oracle_asset_name: Bytes,      // Asset name for version oracle governance tokens
+
+    // === Governed Map Infrastructure ===
+    // Decentralized key-value storage with governance oversight
+    governed_map_validator_utxoref: UtxoRef, // Reference UTxO for governed map validator script
+    governed_map_validator_hash: Bytes,      // Hash of the governed map validator script
+    governed_map_validator_script: Bytes,    // Validator script controlling map entry UTxOs
+    governed_map_utxoref: UtxoRef,          // Reference UTxO for governed map operations
+    governed_map_policy_hash: Bytes,        // Policy ID for minting/burning map entry tokens
+    governed_map_policy_script: Bytes,      // Policy script for governed map token operations
+    governed_map_asset_name: Bytes,         // Asset name for governed map entry tokens
+
+    // === D-Parameter Management ===
+    // Controls maximum number of validator candidates in the system
+    d_parameter_validator_hash: Bytes,      // Hash of D-parameter validator script
+    d_parameter_policy_hash: Bytes,         // Policy ID for D-parameter authentication tokens
+    d_parameter_validator_script: Bytes,    // Validator script controlling D-parameter UTxOs
+    d_parameter_policy_script: Bytes,       // Policy script for D-parameter token operations
+    d_parameter_asset_name: Bytes,          // Asset name for D-parameter tokens
+    d_parameter_script_id: Int,             // Numeric identifier for D-parameter operations
+
+    // === Authentication and Signing ===
+    // Cryptographic keys for transaction authorization
+    payment_key: Bytes,                     // Private key for payment address transaction signing
+    candidate_key: Bytes,                   // Private key for candidate address operations
+
+    // === Registered Candidates System ===
+    // Manages validator candidates who register through stake pool ownership
+    committee_candidate_validator_hash: Bytes,   // Hash of committee candidates validator script
+    committee_candidate_validator_script: Bytes, // Validator script controlling candidate registrations
+
+    // === Permissioned Candidates System ===
+    // Manages pre-approved validator candidates list
+    permissioned_candidates_validator_hash: Bytes,   // Hash of permissioned candidates validator
+    permissioned_candidates_validator_script: Bytes, // Validator script controlling candidate list
+    permissioned_candidates_policy_hash: Bytes,      // Policy ID for permissioned candidates tokens
+    permissioned_candidates_policy_script: Bytes,    // Policy script for candidate list operations
+    permissioned_candidates_asset_name: Bytes,       // Asset name for permissioned candidates tokens
+
+    // === Reserve Management System ===
+    // Controls token distribution, vesting, and reserve operations
+    reserve_validator_hash: Bytes,          // Hash of reserve management validator script
+    reserve_validator_script: Bytes,        // Validator script controlling reserve UTxOs
+    reserve_auth_policy_hash: Bytes,        // Policy ID for reserve authorization tokens
+    reserve_auth_policy_script: Bytes,      // Policy script for reserve authentication
+    reserve_auth_asset_name: Bytes,         // Asset name for reserve authorization tokens
+    reserve_auth_policy_version_utxo: UtxoRef,  // Version reference for reserve auth policy
+    reserve_validator_version_utxo: UtxoRef,    // Version reference for reserve validator
+    
+    // === Illiquid Circulation Supply Management ===
+    // Controls release of tokens from reserves with vesting mechanisms
+    illiquid_circulation_supply_validator_hash: Bytes,   // Hash of ICS validator script
+    illiquid_circulation_supply_validator_script: Bytes, // Validator script for ICS operations
+    illiquid_circulation_supply_validator_version_utxo: UtxoRef, // Version reference for ICS validator
+    illiquid_circulation_supply_authority_token_policy_hash: Bytes,      // Policy ID for ICS authority tokens
+    illiquid_circulation_supply_authority_token_policy_script: Bytes,    // Policy script for ICS authority
+    illiquid_circulation_supply_authority_token_asset_name: Bytes,       // Asset name for ICS authority tokens
+    illiquid_circulation_supply_authority_token_policy_version_utxo: UtxoRef, // Version reference for ICS authority policy
+    
+    // === Token and Reward Configuration ===
+    // Defines the managed tokens and reward distribution parameters
+    reward_token_policy_id: Bytes,          // Policy ID of the reward token being managed
+    reward_token_asset_name: Bytes,         // Asset name of the reward token for distribution
+    vesting_function_hash: Bytes,           // Cryptographic hash of the vesting calculation function
+    initial_incentive: Int,                 // Initial incentive amount for reward distribution
+}
+
+// Type Definitions for Partner Chain Operations
+// ============================================
+
+// MintRedeemer: Authentication data for token minting operations
+// Used to prove authorization for minting governance and validator tokens
+// through multi-signature policy validation
+type MintRedeemer {
+    script_id: Int,     // Numeric identifier for the operation type (e.g., GovernancePolicy = 32)
+                       // This maps to specific script operations in the Partner Chain protocol
+    policy_hash: Bytes, // Hash of the multi-signature policy providing authorization
+                       // Must match the current governance authority for validation
+}
+
+// CandidateRegistration: Complete registration data for validator candidates
+// Contains all cryptographic proofs and keys required for validator participation
+// in the Partner Chain consensus mechanism
+type CandidateRegistration {
+    stake_ownership_pub_key: Bytes,         // Cardano stake pool operator's public key for verification
+    stake_ownership_signature: Bytes,       // Cryptographic signature proving control of stake pool
+    partner_chain_pub_key: Bytes,           // Dedicated public key for Partner Chain operations
+    partner_chain_signature: Bytes,         // Signature with partner chain key proving ownership
+    registration_utxo: UtxoRef,             // UTxO reference used as registration proof/payment
+    own_pkh: Bytes,                         // Payment key hash identifying the registrant
+    candidate_keys: List<Bytes>,            // Additional consensus keys (Aura for block production,
+                                           // Grandpa for finality, and other protocol-specific keys)
+}
+
+// PermissionedCandidate: Pre-approved validator candidate information
+// Used for validators that don't require stake pool ownership proof
+// but are authorized through governance processes
+type PermissionedCandidate {
+    sidechain_public_key: Bytes,            // Primary public key for sidechain operations and identity
+    aura_public_key: Bytes,                 // Aura consensus public key for block production authority
+    grandpa_public_key: Bytes,              // Grandpa finality public key for block finalization voting
+}
+
+// ReserveSettings: Configuration for token reserve management and distribution
+// Defines the parameters for controlled token release and vesting mechanisms
+type ReserveSettings {
+    reward_token_policy_id: Bytes,          // Policy ID of the token being managed by the reserve
+    reward_token_asset_name: Bytes,         // Specific asset name within the policy for token identification
+    vesting_function_hash: Bytes,           // Hash of the mathematical function governing token release rates
+    incentive_amount: Int,                  // Current incentive amount available for distribution
+    total_accrued: Int,                     // Cumulative total of all rewards accrued since reserve creation
+}
+
+// Asset: Generic representation for any Cardano native asset
+// Used throughout the system for token identification and operations
+type Asset {
+    policy_id: Bytes,                       // Unique policy identifier for the asset class
+    asset_name: Bytes,                      // Specific name within the policy (can be empty for ADA)
+}
+
+// Initialize Partner Chain Governance System
+// ========================================
+// Bootstrap transaction that establishes the foundational governance infrastructure
+// for a new Partner Chain. This is typically the first governance transaction executed.
+//
+// Transaction Flow:
+// 1. Consumes a genesis UTxO to establish unique Partner Chain identity
+// 2. Mints the initial version oracle token using governance script authorization
+// 3. Creates the first governance UTxO containing the governance authority parameters
+// 4. Stores the multi-signature policy script reference for future governance operations
+//
+// Security Requirements:
+// - Must consume a specific genesis UTxO to prevent duplicate chains
+// - Requires multi-signature authorization through governance script
+// - Creates immutable initial governance state with upgrade capabilities
+//
+// Post-Conditions:
+// - Governance system is operational and ready for subsequent operations
+// - Version oracle validator contains the governance authority token
+// - Multi-signature policy is established for future governance decisions
+tx init_governance() {
+    locals {
+        governance_script_id: 32,        // Script ID for governance policy (constant)
+    }
+
+    // Input: Genesis UTxO that will identify this Partner Chain
+    input genesis_input {
+        from: payment_address,
+        min_amount: fees + min_utxo(version_oracle_output),
+    }
+
+    // Mint the initial version oracle token for governance
+    mint {
+        amount: AnyAsset(version_oracle_policy_hash, version_oracle_asset_name, 1),
+        redeemer: MintRedeemer {
+            script_id: governance_script_id,
+            policy_hash: multi_sig_policy_hash,
+        },
+    }
+    
+    // Create the governance UTxO at the version oracle validator
+    output version_oracle_output {
+        to: version_oracle_validator_address,
+        amount: AnyAsset(version_oracle_policy_hash, version_oracle_asset_name, 1) + min_utxo(version_oracle_output),
+        datum: [governance_script_id, version_oracle_policy_hash],
+        // Should use future cardano output script output
+        // script: 0x59012801000032332222232332232533535323322123300100300232332300100123300700c2233500d375c004660060060026eb0004d5d08009bad357426ae88004dd600391299a999ab9a3371066464644600400264600200244a66a00220064426600c00466008008002601a44002601844004600600400200800a200a20082930b19180080091299a80088051191099a806299aa99a98011bac357426ae88d5d11aba2357446ae88d5d11aba2357446aae78dd51aba135573c6ea802484020401852002148000cc014014004c8c00400488ccc02048800488c94cd4ccd5cd19b8f00600100a00911223002003133005005002375c004002244004244002444a666aae7c004400c4cc008d5d08009aba200112200212212233001004003233001223370000400290001
+    }
+
+    // Return change to the genesis address
+    output {
+        to: payment_address,
+        amount: genesis_input - fees - min_utxo(version_oracle_output),
+    }
+
+    // Collateral for script execution
+    collateral {
+        from: payment_address,
+    }
+
+    // Required signers
+    signers {
+        payment_key,
+    }
+
+    cardano::plutus_witness {
+        // VERSION_ORACLE_POLICY_SCRIPT
+        version: 2,
+        script: version_oracle_policy_script,
+    }
+}
+
+// Insert New Key-Value Pair into Governed Map
+// ==========================================
+// Creates a new entry in the decentralized governed map storage system.
+// All map operations require governance authorization to ensure controlled access.
+//
+// Transaction Flow:
+// 1. References governance UTxO to verify current authority (read-only)
+// 2. Mints a new governed map token to represent the storage entry
+// 3. Creates UTxO at governed map validator containing the key-value data
+// 4. Enforces uniqueness and governance oversight for all map entries
+//
+// Security Requirements:
+// - Must have valid governance reference for authorization
+// - Each entry requires a unique governed map token
+// - Key-value pairs are immutably stored in UTxO datums
+//
+// Parameters:
+// - key: The storage key (must be unique across the map)
+// - value: The associated data value to store
+//
+// Post-Conditions:
+// - New key-value pair is available for querying
+// - Governed map token exists representing the entry
+// - Entry can be updated or removed through subsequent transactions
+tx insert_key_value(
+    key: Bytes,         // The unique key identifier for this map entry
+    value: Bytes,       // The data value to associate with the key
+) {
+    // Reference the governance UTxO for authorization (read-only access)
+    // This validates current governance authority without consuming the governance token
+    reference governance_ref {
+        ref: governance_utxoref,
+    }
+
+    // input governance {
+    //     ref: governance_utxoref,
+    // }
+
+    // Input for transaction fees and minimum UTxO value for the new entry
+    input source {
+        from: payment_address,
+        min_amount: fees + min_utxo(new_entry),  // Calculate exact amount needed
+    }
+
+    // Mint a new governed map token to represent this specific entry
+    // Each entry requires its own unique token for identification and control
+    mint {
+        amount: AnyAsset(governed_map_policy_hash, governed_map_asset_name, 1),
+        redeemer: (),  // Unit redeemer - authorization comes from governance reference
+    }
+
+    // Create the new entry UTxO at the governed map validator
+    // The key-value pair is stored directly in the datum for efficient querying
+    output new_entry {
+        to: governed_map_validator_address,
+        amount: AnyAsset(governed_map_policy_hash, governed_map_asset_name, 1) + min_utxo(new_entry),
+        datum: [key, value],    // Store the key-value pair as a list in the datum
+    }
+
+    // Return remaining change to the payment address
+    output {
+        to: payment_address,
+        amount: source - fees - min_utxo(new_entry),
+    }
+
+    cardano::plutus_witness {
+        // GOVERNED_MAP_POLICY
+        version: 2,
+        script: governed_map_policy_script,
+    }
+
+    // Collateral for script execution
+    collateral {
+        from: payment_address,
+    }
+
+    // Required signers for the transaction
+    signers {
+        payment_key,
+    }
+}
+
+// Update Existing Key-Value Pair in Governed Map
+// =============================================
+// Modifies an existing entry in the governed map with new value data.
+// Ensures atomic updates while maintaining governance oversight and token consistency.
+//
+// Transaction Flow:
+// 1. References governance UTxO for authorization validation
+// 2. Consumes the existing UTxO containing the current key-value pair
+// 3. Creates new UTxO with the same key but updated value
+// 4. Preserves exactly one governed map token for the entry
+// 5. Handles token consolidation if multiple UTxOs exist for the same key
+//
+// Security Requirements:
+// - Must have valid governance authorization
+// - Existing UTxO must contain the specified key
+// - Token count must remain consistent (no inflation)
+// - Atomic update ensures no intermediate invalid states
+//
+// Parameters:
+// - key: The existing key to update
+// - new_value: The new value to associate with the key
+// - existing_utxo: Reference to current UTxO containing the key-value pair
+//
+// Post-Conditions:
+// - Key now maps to the new value
+// - Previous value is permanently replaced
+// - Map token count remains unchanged
+tx update_key_value(
+    key: Bytes,             // The existing key identifier to update
+    new_value: Bytes,       // The new value to associate with the key
+    existing_utxo: UtxoRef, // UTxO reference containing the current key-value pair
+) {
+    // Reference the governance UTxO for authorization
+    reference governance_ref {
+        ref: governance_utxoref,
+    }
+
+    // Reference the governed map validator for script execution
+    // reference governed_map_validator_ref {
+    //     ref: governed_map_validator_utxoref,
+    // }
+
+    // Input for fees and minimum UTxO value
+    input source {
+        from: payment_address,
+        min_amount: fees + min_utxo(updated_entry),
+    }
+
+    // Consume the existing entry with the old value
+    input existing_entry {
+        from: governed_map_validator_address,
+        ref: existing_utxo,
+        min_amount: AnyAsset(governed_map_policy_hash, governed_map_asset_name, 1),
+        // datum_is: [key, value] - The current datum should match the key
+        redeemer: (),
+    }
+
+    // Create the updated entry with the new value
+    output updated_entry {
+        to: governed_map_validator_address,
+        amount: existing_entry + min_utxo(updated_entry),
+        datum: [key, new_value],    // Store the key with the new value
+    }
+
+    // Return change to the payment address
+    output {
+        to: payment_address,
+        amount: source - fees - min_utxo(updated_entry),
+    }
+
+    cardano::plutus_witness {
+        // GOVERNED_MAP_VALIDATOR
+        version: 2,
+        script: governed_map_validator_script,
+    }
+
+    collateral {
+        from: payment_address,
+    }
+
+    // Required signers for the transaction
+    signers {
+        payment_key,
+    }
+}
+
+// Remove Key-Value Pair from Governed Map
+// ======================================
+// Permanently removes an existing entry from the governed map storage system.
+// This operation requires governance authorization and properly handles token burning.
+//
+// Transaction Flow:
+// 1. References governance UTxO for authorization validation (read-only)
+// 2. Consumes the existing UTxO containing the key-value pair to be removed
+// 3. Burns the governed map token associated with the removed entry
+// 4. Returns the ADA value to the payment address
+//
+// Security Requirements:
+// - Must have valid governance authorization for map modifications
+// - Target UTxO must exist and contain a valid governed map token
+// - Ensures complete removal of the key-value mapping
+//
+// Current Implementation Note:
+// - Token burning is commented out due to tx3 version limitations
+// - Creates a placeholder UTxO instead of true token burning
+// - Future versions should implement proper token burning mechanism
+//
+// Parameters:
+// - existing_utxo: Reference to the UTxO containing the key-value pair to remove
+//
+// Post-Conditions:
+// - Key-value pair is no longer accessible in the governed map
+// - Associated map token is effectively removed from circulation
+// - ADA value is returned to the payment address
+tx remove_key_value(
+    existing_utxo: UtxoRef,     // Reference to the UTxO containing the key-value pair to remove
+) {
+    // Reference the governance UTxO for authorization
+    reference governance_ref {
+        ref: governance_utxoref,
+    }
+
+    // // Reference the governed map validator for script execution
+    // reference governed_map_validator_ref {
+    //     ref: governed_map_validator_utxoref,
+    // }
+
+    // // Reference the governed map UTxO for additional validation
+    // reference governed_map_ref {
+    //     ref: governed_map_utxoref,
+    // }
+
+    // Input for transaction fees
+    input source {
+        from: payment_address,
+        min_amount: fees + min_utxo(removed_entry),
+    }
+
+    // Consume the entry to be removed
+    input entry_to_remove {
+        from: governed_map_validator_address,
+        ref: existing_utxo,
+        min_amount: AnyAsset(governed_map_policy_hash, governed_map_asset_name, 1),
+        // datum_is: [key, value] - The current datum should match the key
+        redeemer: (),
+    }
+
+    // Burn the governed map token (negative amount)
+    // Cant burn tokens in this version of tx3
+    // burn {
+    //     amount: AnyAsset(governed_map_policy_hash, governed_map_asset_name, 1),
+    //     redeemer: (),
+    // }
+
+    // Return the ADA value (minus the burned token) to the payment address
+    output {
+        to: payment_address,
+        amount: source - fees - min_utxo(removed_entry),
+    }
+
+    output removed_entry {
+        to: governed_map_validator_address,
+        amount: entry_to_remove + min_utxo(removed_entry), // - AnyAsset(governed_map_policy_hash, governed_map_asset_name, 1),
+    }
+
+    collateral {
+        from: payment_address,
+    }
+
+    // Required signers for the transaction
+    signers {
+        payment_key,
+    }
+
+    cardano::plutus_witness {
+        // GOVERNED_MAP_VALIDATOR
+        version: 2,
+        script: governed_map_validator_script,
+    }
+}
+
+// Insert D-Parameter Values for Candidate Limits
+// =============================================
+// Establishes the initial D-parameter configuration that controls the maximum
+// number of permissioned and registered candidates allowed in the Partner Chain system.
+//
+// Transaction Flow:
+// 1. References governance UTxO for authorization validation (read-only)
+// 2. Mints a D-parameter token to authenticate and identify the parameter entry
+// 3. Mints additional multi-signature policy token for governance operations
+// 4. Creates D-parameter UTxO containing the candidate limit configuration
+// 5. Returns change including the minted multi-sig token to payment address
+//
+// Security Requirements:
+// - Must have valid governance authorization for parameter creation
+// - D-parameter token provides unique identification for the parameter set
+// - Multi-signature token enables future governance operations
+// - Parameter values must be within acceptable ranges for system operation
+//
+// System Impact:
+// - Defines maximum validator candidate limits for the Partner Chain
+// - Establishes governance control over candidate registration processes
+// - Enables future updates to candidate limits through governance decisions
+//
+// Parameters:
+// - num_permissioned_candidates: Maximum number of pre-approved candidates allowed
+// - num_registered_candidates: Maximum number of stake pool registered candidates allowed
+//
+// Post-Conditions:
+// - D-parameter system is operational with defined candidate limits
+// - Governance can modify these parameters through update transactions
+// - Candidate registration processes respect these defined limits
+tx insert_d_parameter(
+    num_permissioned_candidates: Int,   // Maximum number of permissioned candidates allowed in the system
+    num_registered_candidates: Int,     // Maximum number of registered candidates allowed in the system
+) {
+    // Reference the governance UTxO for authorization
+    reference governance_ref {
+        ref: governance_utxoref,
+    }
+
+    // Input for fees and minimum UTxO value
+    input source {
+        from: payment_address,
+        min_amount: fees + min_utxo(d_param_output),
+    }
+
+    // Mint a D-parameter token for this entry
+    mint {
+        amount: AnyAsset(d_parameter_policy_hash, d_parameter_asset_name, 1),
+        redeemer: (),
+    }
+
+    mint {
+        amount: AnyAsset(multi_sig_policy_hash, "", 1),
+        redeemer: (),
+    }
+
+    // Create the D-parameter UTxO at the D-parameter validator
+    output d_param_output {
+        to: d_parameter_validator_address,
+        amount: AnyAsset(d_parameter_policy_hash, d_parameter_asset_name, 1) + min_utxo(d_param_output),
+        datum: [(), [num_permissioned_candidates, num_registered_candidates], 0],   // Store the D-parameter values
+    }
+
+    // Return change to the payment address
+    output {
+        to: payment_address,
+        amount: source - fees - min_utxo(d_param_output) + AnyAsset(multi_sig_policy_hash, "", 1),
+    }
+
+    // Required signers for the transaction
+    signers {
+        payment_key,
+    }
+
+    collateral {
+        from: payment_address,
+    }
+
+    cardano::plutus_witness {
+        // D_PARAMETER_POLICY
+        version: 2,
+        script: d_parameter_policy_script,
+    }
+}
+
+// Update Existing D-Parameter Values
+// =================================
+// Modifies the existing D-parameter configuration to change candidate limits.
+// This enables governance to dynamically adjust validator candidate constraints.
+//
+// Transaction Flow:
+// 1. References governance UTxO for authorization validation (read-only)
+// 2. Consumes the existing D-parameter UTxO containing current limits
+// 3. Creates new D-parameter UTxO with updated candidate limit values
+// 4. Preserves the D-parameter token (no token burning or minting required)
+// 5. Returns change to the payment address
+//
+// Security Requirements:
+// - Must have valid governance authorization for parameter modifications
+// - Existing D-parameter UTxO must be properly identified and consumed
+// - New parameter values must be within acceptable operational ranges
+// - Atomic update ensures no intermediate invalid parameter states
+//
+// System Impact:
+// - Immediately affects candidate registration limits across the Partner Chain
+// - May require existing candidates to be reviewed against new limits
+// - Governance decision reflected in updated on-chain parameter storage
+//
+// Parameters:
+// - num_permissioned_candidates: New maximum for pre-approved candidates
+// - num_registered_candidates: New maximum for stake pool registered candidates
+// - existing_utxo: Reference to the current D-parameter UTxO to update
+//
+// Post-Conditions:
+// - D-parameter system operates with the new candidate limits
+// - Previous parameter values are permanently replaced
+// - All future candidate operations respect the updated limits
+tx update_d_parameter(
+    num_permissioned_candidates: Int,   // New maximum number of permissioned candidates allowed
+    num_registered_candidates: Int,     // New maximum number of registered candidates allowed
+    existing_utxo: UtxoRef,            // Reference to the existing D-parameter UTxO to update
+) {
+    // Reference the governance UTxO for authorization
+    reference governance_ref {
+        ref: governance_utxoref,
+    }
+
+    // Input for fees and minimum UTxO value
+    input source {
+        from: payment_address,
+        min_amount: fees + AnyAsset(multi_sig_policy_hash, "", 1),
+    }
+
+    // Consume the existing D-parameter UTxO
+    input existing_d_param {
+        from: d_parameter_validator_address,
+        ref: existing_utxo,
+        min_amount: AnyAsset(d_parameter_policy_hash, d_parameter_asset_name, 1),
+        redeemer: (),
+    }
+
+    // Create the updated D-parameter UTxO
+    output updated_d_param {
+        to: d_parameter_validator_address,
+        amount: existing_d_param,
+        datum: [(), [num_permissioned_candidates, num_registered_candidates], 0],   // Store the updated values
+    }
+
+    // Return change to the payment address
+    output {
+        to: payment_address,
+        amount: source - fees,
+    }
+
+    // Required signers for the transaction
+    signers {
+        payment_key,
+    }
+
+    collateral {
+        from: payment_address,
+    }
+
+    // cardano::plutus_witness {
+    //     // D_PARAMETER_POLICY
+    //     version: 2,
+    //     script: d_parameter_policy_script,
+    // }
+
+    cardano::plutus_witness {
+        // D_PARAMETER_VALIDATOR
+        version: 2,
+        script: d_parameter_validator_script,
+    }
+}
+
+// Update Governance Authority and Transfer Control
+// ==============================================
+// Critical transaction that transfers governance control to new authority parameters.
+// This enables governance evolution and multi-signature policy updates for Partner Chains.
+//
+// Transaction Flow:
+// 1. Consumes the current governance UTxO containing existing authority tokens
+// 2. Burns the old version oracle token (effectively ending previous governance)
+// 3. Mints new version oracle token with updated governance policy parameters
+// 4. Creates new governance UTxO with the updated authority configuration
+// 5. Establishes the new multi-signature parameters for future operations
+//
+// Security Requirements:
+// - Must be authorized by the current governance authority
+// - Atomic transition ensures no governance power vacuum or overlap
+// - New governance parameters must be cryptographically valid
+// - Multi-signature policy must be properly formatted and secure
+//
+// Critical Security Implications:
+// - This transaction effectively transfers complete control of the Partner Chain
+// - New governance authority gains control over all governed operations
+// - Previous governance authority is permanently revoked after execution
+// - All future governance decisions require the new multi-signature policy
+//
+// Governance Continuity:
+// - Ensures seamless transition between governance authorities
+// - Maintains governance token uniqueness (only one valid at a time)
+// - Preserves governance UTxO reference for subsequent operations
+//
+// Parameters:
+// - old_version_oracle_policy_hash: Hash of the current governance policy to revoke
+//
+// Post-Conditions:
+// - New governance authority has exclusive control over Partner Chain operations
+// - Previous governance tokens are permanently burned and invalid
+// - All governed systems (maps, parameters, candidates) respect new authority
+// - Governance evolution mechanism remains available for future updates
+tx update_governance(
+    old_version_oracle_policy_hash: Bytes,   // Current governance policy hash to be replaced
+) {
+    locals {
+        governance_script_id: 32,  // Script ID for the governance policy
+    }
+
+    // Input for fees and minimum UTxO value
+    input source {
+        from: payment_address,
+        min_amount: fees + min_utxo(new_governance_output),
+    }
+
+    // Consume the current governance UTxO (burns the previous governance state)
+    input current_governance {
+        from: version_oracle_validator_address,
+        ref: governance_utxoref,
+        min_amount: AnyAsset(old_version_oracle_policy_hash, version_oracle_asset_name, 1),
+        redeemer: MintRedeemer {
+            script_id: governance_script_id,
+            policy_hash: multi_sig_policy_hash,
+        },
+    }
+
+    // burn {
+    //     amount: AnyAsset(old_version_oracle_policy_hash, version_oracle_asset_name, 1),
+    //     redeemer: MintRedeemer {
+    //         script_id: governance_script_id,
+    //         policy_hash: multi_sig_policy_hash,
+    //     },
+    // }
+
+    mint {
+        amount: AnyAsset(version_oracle_policy_hash, version_oracle_asset_name, 1),
+        redeemer: MintRedeemer {
+            script_id: governance_script_id,
+            policy_hash: multi_sig_policy_hash,
+        },    // GovernancePolicy script id for authorization
+    }
+
+    // Create the new governance UTxO with updated parameters
+    output new_governance_output {
+        to: version_oracle_validator_address,
+        amount: current_governance + AnyAsset(version_oracle_policy_hash, version_oracle_asset_name, 1), // + min_utxo(new_governance_output),
+        datum: [governance_script_id, version_oracle_policy_hash],  // [script_id, new_policy_hash]
+    }
+
+    // Collateral for script execution
+    collateral {
+        from: payment_address,
+    }
+
+    // Return change to the payment address
+    output {
+        to: payment_address,
+        amount: source - fees, // - min_utxo(new_governance_output),
+    }
+
+    // Required signers for the transaction
+    signers {
+        payment_key,
+    }
+
+    cardano::plutus_witness {
+        // VERSION_ORACLE_POLICY
+        version: 2,
+        script: version_oracle_policy_script,
+    }
+
+    // cardano::plutus_witness {
+    //     // VERSION_ORACLE_VALIDATOR
+    //     version: 2,
+    //     script: version_oracle_validator_script,
+    // }
+
+    // cardano::plutus_witness {
+    //     // MULTI_SIG_POLICY
+    //     version: 2,
+    //     script: multi_sig_policy_script,
+    // }
+}
+
+// Register New Validator Candidate
+// ===============================
+// Enables stake pool operators to register as validator candidates for the Partner Chain.
+// Registration requires cryptographic proof of stake pool ownership and control.
+//
+// Transaction Flow:
+// 1. Consumes registration UTxO as proof of registration rights/payment
+// 2. Optionally consumes existing registration UTxOs for the same candidate (updates)
+// 3. Creates new candidate UTxO with complete registration data and cryptographic proofs
+// 4. Validates stake pool ownership through signature verification
+// 5. Stores all consensus keys required for validator participation
+//
+// Security Requirements:
+// - Must provide valid stake pool ownership signature
+// - Partner chain signature must be verifiable with provided public key
+// - Registration UTxO proves payment/authorization for registration
+// - All consensus keys must be properly formatted for their respective protocols
+//
+// Cryptographic Validations:
+// - Stake ownership signature validates control of existing Cardano stake pool
+// - Partner chain signature proves control of dedicated validator keys
+// - Multiple consensus keys support different aspects of validation (Aura, Grandpa, etc.)
+//
+// Parameters:
+// - stake_ownership_pub_key: Public key of the Cardano stake pool
+// - stake_ownership_signature: Signature proving stake pool control
+// - partner_chain_pub_key: Dedicated public key for Partner Chain operations
+// - partner_chain_signature: Signature with partner chain key
+// - registration_utxo: UTxO used as registration proof/payment
+// - own_pkh: Payment key hash identifying the registrant
+// - candidate_keys: Additional consensus keys for validation protocols
+// - existing_registration_utxos: Any existing registrations to update
+//
+// Post-Conditions:
+// - Candidate is registered and eligible for validator selection
+// - All cryptographic proofs are stored for verification
+// - Previous registrations for this candidate are replaced
+tx register_candidate(
+    stake_ownership_pub_key: Bytes,         // Cardano stake pool public key for ownership verification
+    stake_ownership_signature: Bytes,       // Cryptographic proof of stake pool control
+    partner_chain_pub_key: Bytes,           // Dedicated public key for Partner Chain validator operations
+    partner_chain_signature: Bytes,         // Signature proving control of partner chain key
+    registration_utxo: UtxoRef,             // UTxO reference providing registration authorization/payment
+    own_pkh: Bytes,                         // Payment key hash uniquely identifying the registrant
+    candidate_keys: List<Bytes>,            // Additional consensus keys (Aura, Grandpa, protocol-specific)
+    existing_registration_utxos: List<UtxoRef>, // Any existing registration UTxOs to replace/update
+) {
+    // Input for transaction fees and minimum UTxO value for candidate registration
+    input source {
+        from: candidate_address,
+        min_amount: fees + min_utxo(candidate_output),
+    }
+
+    // Consume the registration UTxO as proof of registration authorization/payment
+    // This UTxO serves as both payment mechanism and proof of registration rights
+    input registration_input {
+        from: candidate_address,
+        ref: registration_utxo,  // Specific UTxO reference provided as parameter
+    }
+
+    // Consume any existing registration UTxOs for this candidate to enable updates
+    // Using input* pattern allows for multiple UTxO consumption (0 or more)
+    // This enables updating existing registrations with new keys or parameters
+    input* existing_registrations {
+        from: committee_candidate_validator_address,
+        ref: existing_registration_utxos,  // Would reference the list parameter if uncommented
+        redeemer: (),  // Unit redeemer for validator script execution
+    }
+
+    // Create the new candidate registration UTxO with complete validator information
+    // Version: 1 indicates the registration data format version
+    // References: src/registered_candidates.rs for data structure definition
+    output candidate_output {
+        to: committee_candidate_validator_address,
+        amount: existing_registrations + min_utxo(candidate_output),  // Consolidate value from existing registrations
+        datum: [
+            own_pkh,  // Payment key hash identifying the registrant (first element)
+            [
+                stake_ownership_pub_key,     // Cardano stake pool public key for verification
+                partner_chain_pub_key,       // Dedicated Partner Chain validator public key
+                partner_chain_signature,     // Signature proving control of partner chain key
+                registration_utxo,           // UTxO reference used for registration proof
+                candidate_keys,              // List of additional consensus keys (Aura, Grandpa, etc.)
+            ],
+            1,  // Version number for registration data format
+        ],
+    }
+
+    // Return change and registration input value to the candidate address
+    output {
+        to: candidate_address,
+        amount: source + registration_input - fees - min_utxo(candidate_output),
+    }
+
+    // Collateral for script execution
+    collateral {
+        from: candidate_address,
+    }
+
+    // Required signers
+    signers {
+        candidate_key,
+    }
+
+    cardano::plutus_witness {
+        // COMMITTEE_CANDIDATE_VALIDATOR
+        version: 2,
+        script: committee_candidate_validator_script,
+    }
+}
+
+// Deregister Existing Validator Candidate
+// ======================================
+// Removes a validator candidate from the Partner Chain registration system.
+// This allows candidates to voluntarily exit or be removed from validator eligibility.
+//
+// Transaction Flow:
+// 1. Consumes all existing registration UTxOs associated with the candidate
+// 2. Validates stake pool ownership to ensure only authorized deregistration
+// 3. Burns registered candidate tokens (effectively removing candidate status)
+// 4. Returns all ADA value to the candidate address
+// 5. Permanently removes candidate from validator selection eligibility
+//
+// Security Requirements:
+// - Must be initiated by the candidate address (self-deregistration)
+// - Stake pool public key must match existing registration records
+// - All registration UTxOs for the candidate must be properly consumed
+// - Candidate key signature required for transaction authorization
+//
+// Validation Process:
+// - Identifies all registration UTxOs associated with the stake pool
+// - Ensures complete removal of candidate registration data
+// - Prevents partial deregistration that could leave invalid states
+//
+// Parameters:
+// - stake_ownership_pub_key: Stake pool public key to identify the candidate
+// - existing_registration_utxos: List of all registration UTxOs to remove
+//
+// Post-Conditions:
+// - Candidate is no longer eligible for validator selection
+// - All registration tokens are burned and removed from circulation
+// - Registration data is permanently deleted from the Partner Chain
+// - ADA value is returned to the candidate for potential re-registration
+tx deregister_candidate(
+    stake_ownership_pub_key: Bytes,         // Stake pool public key identifying the candidate to deregister
+    existing_registration_utxos: List<UtxoRef>, // All registration UTxOs associated with this candidate
+) {
+    // Input for transaction fees
+    input source {
+        from: candidate_address,
+        min_amount: fees,
+    }
+
+    // Consume the registration UTxOs to be removed
+    input* registrations_to_remove {
+        from: committee_candidate_validator_address,
+        ref: existing_registration_utxos, // From the provided list
+        redeemer: (),
+    }
+    
+    // Return the ADA value to the candidate address
+    output {
+        to: candidate_address,
+        amount: source + registrations_to_remove - fees,
+    }
+
+    // Collateral for script execution
+    collateral {
+        from: candidate_address,
+    }
+
+    // Required signers
+    signers {
+        candidate_key,
+    }
+
+    cardano::plutus_witness {
+        // COMMITTEE_CANDIDATE_VALIDATOR
+        version: 2,
+        script: committee_candidate_validator_script,
+    }
+}
+
+// Insert Initial Permissioned Candidates List
+// ==========================================
+// Establishes the first permissioned candidates list for the Partner Chain.
+// This creates governance-approved validators that don't require stake pool ownership.
+//
+// Transaction Flow:
+// 1. References governance UTxO for authorization validation (read-only)
+// 2. Mints a permissioned candidates token to authenticate the candidate list
+// 3. Creates permissioned candidates UTxO containing the approved validator list
+// 4. Stores candidate data including consensus keys for each validator
+// 5. Returns change to the payment address
+//
+// Security Requirements:
+// - Must have valid governance authorization for candidate list creation
+// - Permissioned candidates token provides unique identification for the list
+// - All candidate data must be properly formatted for consensus participation
+// - Governance oversight ensures only approved validators are included
+//
+// Candidate Management:
+// - Pre-approved validators bypass stake pool ownership requirements
+// - Each candidate includes multiple consensus keys (Aura, Grandpa, sidechain)
+// - Governance has full control over permissioned candidate selection
+// - List can be updated through subsequent governance transactions
+//
+// System Integration:
+// - Permissioned candidates participate alongside registered candidates
+// - Subject to D-parameter limits for total candidate count
+// - Enables hybrid validator selection (governance + stake-based)
+//
+// Parameters:
+// - candidates: List of pre-approved validator candidates with consensus keys
+//
+// Post-Conditions:
+// - Permissioned candidates are eligible for validator selection
+// - Governance maintains control over the approved candidate list
+// - System supports both permissioned and registered validation models
+tx insert_permissioned_candidates(
+    candidates: List<PermissionedCandidate>,    // List of governance-approved validator candidates
+) {
+    // Reference the governance UTxO for authorization
+    reference governance_ref {
+        ref: governance_utxoref,
+    }
+
+    // Input for fees and minimum UTxO value
+    input source {
+        from: payment_address,
+        min_amount: fees + min_utxo(candidates_output),
+    }
+
+    // Mint a permissioned candidates token
+    mint {
+        amount: AnyAsset(permissioned_candidates_policy_hash, permissioned_candidates_asset_name, 1),
+        redeemer: (),
+    }
+
+    // Create the permissioned candidates UTxO
+    output candidates_output {
+        to: permissioned_candidates_validator_address,
+        amount: AnyAsset(permissioned_candidates_policy_hash, permissioned_candidates_asset_name, 1) + min_utxo(candidates_output),
+        datum: [(), candidates, 0],  // Store the list of permissioned candidates
+    }
+
+    // Return change to the payment address
+    output {
+        to: payment_address,
+        amount: source - fees - min_utxo(candidates_output),
+    }
+
+    // Collateral for script execution
+    collateral {
+        from: payment_address,
+    }
+
+    // Required signers
+    signers {
+        payment_key,
+    }
+
+    cardano::plutus_witness {
+        // PERMISSIONED_CANDIDATES_POLICY
+        version: 2,
+        script: permissioned_candidates_policy_script,
+    }
+}
+
+// Update Existing Permissioned Candidates List
+// ===========================================
+// Modifies the existing permissioned candidates list with new validator selections.
+// This enables governance to dynamically manage pre-approved validator candidates.
+//
+// Transaction Flow:
+// 1. References governance UTxO for authorization validation (read-only)
+// 2. Consumes the existing permissioned candidates UTxO containing current list
+// 3. Creates new permissioned candidates UTxO with updated validator list
+// 4. Preserves the permissioned candidates token (no token operations required)
+// 5. Returns change to the payment address
+//
+// Security Requirements:
+// - Must have valid governance authorization for candidate list modifications
+// - Existing candidates UTxO must be properly identified and consumed
+// - New candidate data must be properly formatted for consensus participation
+// - Atomic update ensures no intermediate invalid candidate states
+//
+// Governance Control:
+// - Enables adding new pre-approved validators to the system
+// - Allows removal of validators who should no longer participate
+// - Supports updating consensus keys for existing candidates
+// - Maintains governance oversight over validator selection process
+//
+// System Impact:
+// - Immediately affects validator eligibility for Partner Chain consensus
+// - Updated candidates become available for validator selection
+// - Removed candidates are no longer eligible for validation
+// - Changes are permanent until subsequent governance updates
+//
+// Parameters:
+// - candidates: Updated list of governance-approved validator candidates
+// - existing_utxo: Reference to the current permissioned candidates UTxO
+//
+// Post-Conditions:
+// - Permissioned candidates list reflects the new governance decisions
+// - Previous candidate list is permanently replaced
+// - All consensus systems respect the updated candidate eligibility
+tx update_permissioned_candidates(
+    candidates: List<PermissionedCandidate>,    // Updated list of governance-approved validator candidates
+    existing_utxo: UtxoRef,                     // Reference to the existing permissioned candidates UTxO
+) {
+    // Reference the governance UTxO for authorization
+    reference governance_ref {
+        ref: governance_utxoref,
+    }
+
+    // Input for fees and minimum UTxO value
+    input source {
+        from: payment_address,
+        min_amount: fees,
+    }
+
+    // Consume the existing permissioned candidates UTxO
+    input existing_candidates {
+        from: permissioned_candidates_validator_address,
+        ref: existing_utxo,
+        min_amount: AnyAsset(permissioned_candidates_policy_hash, permissioned_candidates_asset_name, 1),
+        redeemer: (),
+    }
+
+    // Create the updated permissioned candidates UTxO
+    output updated_candidates {
+        to: permissioned_candidates_validator_address,
+        amount: existing_candidates,
+        datum: [(), candidates, 0],  // Store the updated list of permissioned candidates
+    }
+
+    // Return change to the payment address
+    output {
+        to: payment_address,
+        amount: source - fees,
+    }
+
+    // Collateral for script execution
+    collateral {
+        from: payment_address,
+    }
+
+    // Required signers
+    signers {
+        payment_key,
+    }
+
+    cardano::plutus_witness {
+        // PERMISSIONED_CANDIDATES_VALIDATOR
+        version: 2,
+        script: permissioned_candidates_validator_script,
+    }
+}
+
+// Create Token Reserve for Controlled Distribution
+// ==============================================
+// Establishes a new token reserve system for managing reward distribution and vesting.
+// Creates the complete infrastructure for controlled token release mechanisms.
+//
+// Transaction Flow:
+// 1. References multiple script versions for validation and minting authorization
+// 2. Mints essential tokens: Reserve Auth, Governance, and ICS Authority tokens
+// 3. Creates primary reserve UTxO with initial token deposits and configuration
+// 4. Creates multiple ICS (Illiquid Circulation Supply) UTxOs for token management
+// 5. Establishes vesting function and reward distribution parameters
+//
+// Security Requirements:
+// - Must have valid governance authorization for reserve creation
+// - Reserve auth token provides exclusive control over reserve operations
+// - ICS authority tokens control illiquid supply management
+// - Vesting function hash must be cryptographically secure
+//
+// Token Management:
+// - Deposits specified reward tokens into the reserve for distribution
+// - Creates multiple ICS UTxOs for granular token release control
+// - Establishes mathematical vesting function for time-based releases
+//
+// Parameters:
+// - reward_tokens_amount: Initial amount of reward tokens to deposit
+// - total_accrued_function_script_hash: Hash of the vesting calculation function
+// - ics_initial_utxos_amount: Number of ICS UTxOs to create for management
+//
+// Post-Conditions:
+// - Reserve is operational and ready for token distribution
+// - Vesting mechanism is configured and functional
+// - ICS system is initialized for controlled token releases
+// - Governance has authority over reserve configuration changes
+tx create_reserve(
+    reward_tokens_amount: Int,              // Initial reward token deposit amount
+    total_accrued_function_script_hash: Bytes, // Hash of the V-function for vesting calculations
+    ics_initial_utxos_amount: Int,          // Number of ICS UTxOs to create for token management
+) {
+    // Reference scripts for minting
+    reference reserve_auth_policy_ref {
+        ref: reserve_auth_policy_version_utxo,
+    }
+    
+    reference reserve_validator_ref {
+        ref: reserve_validator_version_utxo,
+    }
+    
+    reference governance_ref {
+        ref: governance_utxoref,
+    }
+    
+    reference illiquid_circulation_supply_authority_token_policy_ref {
+        ref: illiquid_circulation_supply_authority_token_policy_version_utxo,
+    }
+
+    // Input for fees, minimum UTxO value, and reward tokens
+    input source {
+        from: payment_address,
+        min_amount: fees + min_utxo(reserve_output) + AnyAsset(reward_token_policy_id, reward_token_asset_name, reward_tokens_amount),
+    }
+
+    // Mint a reserve auth token
+    mint {
+        amount: AnyAsset(reserve_auth_policy_hash, reserve_auth_asset_name, 1),
+        redeemer: (),
+    }
+
+    // Mint governance token
+    mint {
+        amount: AnyAsset(governance_policy_hash, governance_asset_name, 1),
+        redeemer: (),
+    }
+
+    // Mint ICS authority tokens
+    mint {
+        amount: AnyAsset(illiquid_circulation_supply_authority_token_policy_hash, illiquid_circulation_supply_authority_token_asset_name, ics_initial_utxos_amount),
+        redeemer: (),
+    }
+
+    // Create the reserve UTxO with initial settings
+    output reserve_output {
+        to: reserve_validator_address,
+        amount: AnyAsset(reserve_auth_policy_hash, reserve_auth_asset_name, 1) + 
+                AnyAsset(reward_token_policy_id, reward_token_asset_name, reward_tokens_amount) + 
+                min_utxo(reserve_output),
+        datum: [
+            [reward_token_policy_id, reward_token_asset_name],     // ReserveImmutableSettings.token
+            [total_accrued_function_script_hash, 0],               // ReserveMutableSettings (hash, initial_incentive=0)
+            [0]                                                    // ReserveStats.token_total_amount_transferred
+        ],
+    }
+
+    // Create ICS Authorized UTxOs (multiple individual outputs)
+    // Note: In practice, this would need to be generated for the specific number needed
+    output ics_output_1 {
+        to: illiquid_circulation_supply_validator_address,
+        amount: AnyAsset(illiquid_circulation_supply_authority_token_policy_hash, illiquid_circulation_supply_authority_token_asset_name, 1) + 
+                min_utxo(ics_output_1),
+        datum: (),  // Unit datum
+    }
+
+    // Return change to the payment address (including governance token)
+    output {
+        to: payment_address,
+        amount: source - fees - min_utxo(reserve_output) - AnyAsset(reward_token_policy_id, reward_token_asset_name, reward_tokens_amount) + 
+                AnyAsset(governance_policy_hash, governance_asset_name, 1),
+    }
+
+    // Collateral for script execution
+    collateral {
+        from: payment_address,
+    }
+
+    // Required signers
+    signers {
+        payment_key,
+    }
+
+    cardano::plutus_witness {
+        // RESERVE_AUTH_POLICY
+        version: 2,
+        script: reserve_auth_policy_script,
+    }
+
+    cardano::plutus_witness {
+        // GOVERNANCE_POLICY
+        version: 2,
+        script: governance_policy_script,
+    }
+
+    cardano::plutus_witness {
+        // ILLIQUID_CIRCULATION_SUPPLY_AUTHORITY_TOKEN_POLICY
+        version: 2,
+        script: illiquid_circulation_supply_authority_token_policy_script,
+    }
+}
+
+// Deposit Additional Tokens to Existing Reserve
+// =============================================
+// Adds more reward tokens to an operational reserve system for future distribution.
+// This enables ongoing funding of validator rewards and token distribution mechanisms.
+//
+// Transaction Flow:
+// 1. References multiple script versions for validation and authorization
+// 2. Mints governance token to prove authorization for reserve operations
+// 3. Consumes existing reserve UTxO containing current token balance
+// 4. Creates updated reserve UTxO with additional deposited tokens
+// 5. Returns governance token and change to the payment address
+//
+// Security Requirements:
+// - Must have valid governance authorization for reserve modifications
+// - Reserve auth token must be present in the existing reserve UTxO
+// - Deposit amount must be available in the source input
+// - Governance token minting proves authorization for this operation
+//
+// Economic Impact:
+// - Increases total token pool available for validator rewards
+// - Extends the operational lifetime of the reserve system
+// - Enables flexible reserve funding based on Partner Chain needs
+// - Maintains reserve settings while increasing token balance
+//
+// Parameters:
+// - deposit_amount: Amount of reward tokens to add to the reserve
+// - existing_reserve_utxo: Reference to the current reserve UTxO
+//
+// Post-Conditions:
+// - Reserve contains additional tokens available for distribution
+// - Reserve configuration and vesting parameters remain unchanged
+// - Enhanced funding supports extended validator reward operations
+tx deposit_to_reserve(
+    deposit_amount: Int,                    // Amount of reward tokens to deposit into the reserve
+    existing_reserve_utxo: UtxoRef,         // Reference to the existing reserve UTxO to enhance
+) {
+    // Reference scripts for validation
+    reference reserve_validator_ref {
+        ref: reserve_validator_version_utxo,
+    }
+    
+    reference reserve_auth_policy_ref {
+        ref: reserve_auth_policy_version_utxo,
+    }
+    
+    reference governance_ref {
+        ref: governance_utxoref,
+    }
+    
+    reference illiquid_circulation_supply_validator_ref {
+        ref: illiquid_circulation_supply_validator_version_utxo,
+    }
+
+    // Input for fees and tokens to deposit
+    input source {
+        from: payment_address,
+        min_amount: fees + AnyAsset(reward_token_policy_id, reward_token_asset_name, deposit_amount),
+    }
+
+    // Consume the existing reserve UTxO
+    input existing_reserve {
+        from: reserve_validator_address,
+        ref: existing_reserve_utxo,
+        min_amount: AnyAsset(reserve_auth_policy_hash, reserve_auth_asset_name, 1),
+        redeemer: 0,  // DepositToReserve redeemer
+    }
+
+    // Mint governance token for authorization
+    mint {
+        amount: AnyAsset(governance_policy_hash, governance_asset_name, 1),
+        redeemer: (),
+    }
+
+    // Create the updated reserve UTxO with additional tokens
+    output updated_reserve {
+        to: reserve_validator_address,
+        amount: existing_reserve + AnyAsset(reward_token_policy_id, reward_token_asset_name, deposit_amount),
+        // datum: preserve existing datum (same reserve settings)
+    }
+
+    // Return change to the payment address (including governance token)
+    output {
+        to: payment_address,
+        amount: source - fees - AnyAsset(reward_token_policy_id, reward_token_asset_name, deposit_amount) + 
+                AnyAsset(governance_policy_hash, governance_asset_name, 1),
+    }
+
+    // Collateral for script execution
+    collateral {
+        from: payment_address,
+    }
+
+    // Required signers
+    signers {
+        payment_key,
+    }
+
+    cardano::plutus_witness {
+        // RESERVE_VALIDATOR
+        version: 2,
+        script: reserve_validator_script,
+    }
+
+    cardano::plutus_witness {
+        // GOVERNANCE_POLICY
+        version: 2,
+        script: governance_policy_script,
+    }
+}
+
+// Release Tokens from Reserve According to Vesting Schedule
+// ========================================================
+// Releases reward tokens from the reserve to illiquid circulation supply based on
+// mathematical vesting function validation. This implements controlled token distribution.
+//
+// Transaction Flow:
+// 1. References multiple validator scripts for comprehensive validation
+// 2. Consumes both reserve UTxO and ICS (Illiquid Circulation Supply) UTxO
+// 3. Mints V-function tokens equal to cumulative transfers for mathematical validation
+// 4. Creates updated reserve UTxO with reduced token balance
+// 5. Creates updated ICS UTxO with transferred tokens and ReserveTransfer datum
+// 6. Uses validity interval for temporal validation of release timing
+//
+// Security Requirements:
+// - Reserve auth token must authorize the token release operation
+// - ICS authority token must control the receiving illiquid supply system
+// - V-function validation must prove the release follows vesting mathematics
+// - Validity interval ensures time-based release constraints are respected
+//
+// Vesting Mechanism:
+// - V-function tokens validate cumulative total against mathematical curve
+// - Release amount must comply with predefined vesting schedule
+// - Temporal validation ensures releases happen at appropriate intervals
+// - Mathematical proof prevents premature or excessive token releases
+//
+// Economic Controls:
+// - Implements controlled token inflation through vesting
+// - Prevents arbitrary token releases outside vesting parameters
+// - Maintains economic security through mathematical validation
+// - Supports sustainable validator reward distribution
+//
+// Parameters:
+// - release_amount: Amount of tokens to release from reserve
+// - existing_reserve_utxo: Current reserve UTxO containing tokens
+// - existing_ics_utxo: Current ICS UTxO to receive tokens
+// - v_function_reference_utxo: UTxO containing vesting function script
+// - v_function_policy_hash: Policy hash for V-function token validation
+// - cumulative_total_transfer: Total amount transferred including this release
+// - latest_slot: Current slot for validity start interval validation
+//
+// Post-Conditions:
+// - Tokens are released to illiquid circulation supply according to vesting
+// - Reserve balance is reduced by the exact release amount
+// - Mathematical proof validates compliance with vesting function
+// - Release timing is validated against blockchain slot constraints
+tx release_from_reserve(
+    release_amount: Int,                    // Amount of reward tokens to release from reserve
+    existing_reserve_utxo: UtxoRef,         // Reference to the current reserve UTxO
+    existing_ics_utxo: UtxoRef,             // Reference to the current ICS UTxO
+    v_function_reference_utxo: UtxoRef,     // Reference UTxO containing V-function validation script
+    v_function_policy_hash: Bytes,          // Policy hash for V-function mathematical validation
+    cumulative_total_transfer: Int,         // Total cumulative amount transferred (including this release)
+    latest_slot: Int,                       // Current blockchain slot for validity interval validation
+) {
+    // Reference scripts for validation
+    reference reserve_validator_ref {
+        ref: reserve_validator_version_utxo,
+    }
+    
+    reference reserve_auth_policy_ref {
+        ref: reserve_auth_policy_version_utxo,
+    }
+    
+    reference illiquid_circulation_supply_validator_ref {
+        ref: illiquid_circulation_supply_validator_version_utxo,
+    }
+    
+    reference illiquid_circulation_supply_authority_token_policy_ref {
+        ref: illiquid_circulation_supply_authority_token_policy_version_utxo,
+    }
+    
+    reference v_function_ref {
+        ref: v_function_reference_utxo,
+    }
+
+    // Input for transaction fees
+    input source {
+        from: payment_address,
+        min_amount: fees,
+    }
+
+    // Consume the existing reserve UTxO
+    input existing_reserve {
+        from: reserve_validator_address,
+        ref: existing_reserve_utxo,
+        min_amount: AnyAsset(reserve_auth_policy_hash, reserve_auth_asset_name, 1) + 
+                    AnyAsset(reward_token_policy_id, reward_token_asset_name, release_amount),
+        redeemer: 1,  // ReleaseFromReserve redeemer
+    }
+
+    // Consume the existing ICS UTxO
+    input existing_ics {
+        from: illiquid_circulation_supply_validator_address,
+        ref: existing_ics_utxo,
+        min_amount: AnyAsset(illiquid_circulation_supply_authority_token_policy_hash, illiquid_circulation_supply_authority_token_asset_name, 1),
+        redeemer: (),  // Unit redeemer for ICS
+    }
+
+    // Mint V-function tokens for validation (cumulative total)
+    // This validates the v-function evaluation against total released tokens
+    mint {
+        amount: AnyAsset(v_function_policy_hash, reserve_auth_asset_name, cumulative_total_transfer),
+        redeemer: (),
+    }
+
+    // Create the updated reserve UTxO with reduced tokens
+    output updated_reserve {
+        to: reserve_validator_address,
+        amount: existing_reserve - AnyAsset(reward_token_policy_id, reward_token_asset_name, release_amount),
+        // datum: updated ReserveDatum with incremented token_total_amount_transferred
+    }
+
+    // Transfer released tokens to the illiquid supply with ReserveTransfer datum
+    output updated_ics {
+        to: illiquid_circulation_supply_validator_address,
+        amount: existing_ics + AnyAsset(reward_token_policy_id, reward_token_asset_name, release_amount),
+        datum: 0,  // TokenTransferDatumV1::ReserveTransfer (Constr 0 [])
+    }
+
+    // Return change to the payment address
+    output {
+        to: payment_address,
+        amount: source - fees,
+    }
+
+    // Set validity start interval for temporal validation
+    validity {
+        since_slot: latest_slot,
+    }
+
+    // Collateral for script execution
+    collateral {
+        from: payment_address,
+    }
+
+    // Required signers
+    signers {
+        payment_key,
+    }
+
+    cardano::plutus_witness {
+        // RESERVE_VALIDATOR
+        version: 2,
+        script: reserve_validator_script,
+    }
+
+    cardano::plutus_witness {
+        // ILLIQUID_CIRCULATION_SUPPLY_VALIDATOR
+        version: 2,
+        script: illiquid_circulation_supply_validator_script,
+    }
+}
+
+// Update Reserve Configuration and Vesting Parameters
+// =================================================
+// Modifies the operational parameters of an existing reserve system.
+// This enables governance to adjust vesting functions and reward distribution logic.
+//
+// Transaction Flow:
+// 1. References multiple validator scripts for comprehensive authorization
+// 2. Mints governance token to prove authorization for configuration changes
+// 3. Consumes existing reserve UTxO containing current settings
+// 4. Creates updated reserve UTxO with new vesting function configuration
+// 5. Preserves all tokens and auth tokens while updating settings
+// 6. Returns governance token and change to payment address
+//
+// Security Requirements:
+// - Must have valid governance authorization for reserve modifications
+// - Reserve auth token must be present to authorize configuration changes
+// - New vesting function hash must be cryptographically secure
+// - All existing tokens and balances must be preserved during update
+//
+// Configuration Management:
+// - Updates the mathematical vesting function controlling token releases
+// - Enables governance to respond to changing economic conditions
+// - Allows optimization of reward distribution mechanisms
+// - Maintains operational continuity while updating parameters
+//
+// Economic Impact:
+// - Changes future token release patterns according to new vesting function
+// - Does not affect past releases or current token balances
+// - Enables adaptive economic policy for validator rewards
+// - Supports long-term sustainability of reward distribution
+//
+// Parameters:
+// - new_total_accrued_function_script_hash: Hash of the new V-function for vesting
+// - existing_reserve_utxo: Reference to the current reserve UTxO to update
+//
+// Post-Conditions:
+// - Reserve operates with updated vesting function parameters
+// - All existing tokens and auth tokens remain unchanged
+// - Future token releases follow the new vesting mathematics
+// - Governance retains control over subsequent configuration changes
+tx update_reserve_settings(
+    new_total_accrued_function_script_hash: Bytes, // Hash of the new V-function for vesting calculations
+    existing_reserve_utxo: UtxoRef,         // Reference to the existing reserve UTxO to update
+) {
+    // Reference scripts for validation
+    reference reserve_validator_ref {
+        ref: reserve_validator_version_utxo,
+    }
+    
+    reference reserve_auth_policy_ref {
+        ref: reserve_auth_policy_version_utxo,
+    }
+    
+    reference governance_ref {
+        ref: governance_utxoref,
+    }
+    
+    reference illiquid_circulation_supply_validator_ref {
+        ref: illiquid_circulation_supply_validator_version_utxo,
+    }
+
+    // Input for transaction fees
+    input source {
+        from: payment_address,
+        min_amount: fees,
+    }
+
+    // Consume the existing reserve UTxO
+    input existing_reserve {
+        from: reserve_validator_address,
+        ref: existing_reserve_utxo,
+        min_amount: AnyAsset(reserve_auth_policy_hash, reserve_auth_asset_name, 1),
+        redeemer: 2,  // UpdateReserve redeemer
+    }
+
+    // Mint governance token for authorization
+    mint {
+        amount: AnyAsset(governance_policy_hash, governance_asset_name, 1),
+        redeemer: (),
+    }
+
+    // Create the updated reserve UTxO with new settings
+    output updated_reserve {
+        to: reserve_validator_address,
+        amount: existing_reserve,
+        // datum: Updated ReserveDatum with new total_accrued_function_asset_name
+        datum: [
+            [reward_token_policy_id, reward_token_asset_name],        // ReserveImmutableSettings.token (unchanged)
+            [new_total_accrued_function_script_hash, 0],              // ReserveMutableSettings (updated hash, initial_incentive=0)
+            [0]                                                       // ReserveStats.token_total_amount_transferred (preserved from existing)
+        ],
+    }
+
+    // Return change to the payment address (including governance token)
+    output {
+        to: payment_address,
+        amount: source - fees + AnyAsset(governance_policy_hash, governance_asset_name, 1),
+    }
+
+    // Collateral for script execution
+    collateral {
+        from: payment_address,
+    }
+
+    // Required signers
+    signers {
+        payment_key,
+    }
+
+    cardano::plutus_witness {
+        // RESERVE_VALIDATOR
+        version: 2,
+        script: reserve_validator_script,
+    }
+
+    cardano::plutus_witness {
+        // GOVERNANCE_POLICY
+        version: 2,
+        script: governance_policy_script,
+    }
+}
+
+// Handover Reserve Control to Illiquid Circulation Supply
+// ======================================================
+// Transfers complete reserve control to the illiquid circulation supply system.
+// This represents a permanent transition from controlled reserve to open circulation.
+//
+// Transaction Flow:
+// 1. References multiple validator scripts for authorization and validation
+// 2. Mints governance token to prove authorization for this critical operation
+// 3. Consumes the existing reserve UTxO containing all reserve assets
+// 4. Burns the reserve auth token, permanently disabling reserve operations
+// 5. Transfers all reserve tokens to illiquid circulation supply validator
+// 6. Creates ICS output with appropriate datum based on token content
+//
+// Security Requirements:
+// - Must have valid governance authorization for this irreversible operation
+// - Reserve auth token burning ensures no future reserve operations are possible
+// - All reserve tokens must be completely transferred to ICS system
+// - Governance token validates the authority for this critical transition
+//
+// Permanent Transition:
+// - This operation is irreversible once executed successfully
+// - Reserve system becomes permanently non-operational after handover
+// - All token management transitions to illiquid circulation supply
+// - No future reserve deposits, releases, or updates are possible
+//
+// Economic Impact:
+// - Completes the transition from controlled reserve to open circulation
+// - All remaining tokens become available through ICS mechanisms
+// - Eliminates central reserve control over token distribution
+// - Represents final stage of token distribution lifecycle
+//
+// Token Management:
+// - Creates ReserveTransfer datum if tokens are present in output
+// - Creates unit datum for minimal ADA-only outputs
+// - Ensures proper ICS integration for continued token management
+//
+// Parameters:
+// - existing_reserve_utxo: Reference to the reserve UTxO to be handed over
+//
+// Post-Conditions:
+// - Reserve system is permanently disabled and non-operational
+// - All reserve tokens are under illiquid circulation supply control
+// - Reserve auth tokens are burned and cannot be recreated
+// - Token distribution continues through ICS mechanisms only
+tx handover_reserve(
+    existing_reserve_utxo: UtxoRef,         // Reference to the existing reserve UTxO to hand over
+) {
+    // Reference scripts for validation
+    reference reserve_validator_ref {
+        ref: reserve_validator_version_utxo,
+    }
+    
+    reference reserve_auth_policy_ref {
+        ref: reserve_auth_policy_version_utxo,
+    }
+    
+    reference governance_ref {
+        ref: governance_utxoref,
+    }
+    
+    reference illiquid_circulation_supply_validator_ref {
+        ref: illiquid_circulation_supply_validator_version_utxo,
+    }
+
+    // Input for transaction fees
+    input source {
+        from: payment_address,
+        min_amount: fees,
+    }
+
+    // Consume the existing reserve UTxO
+    input existing_reserve {
+        from: reserve_validator_address,
+        ref: existing_reserve_utxo,
+        min_amount: AnyAsset(reserve_auth_policy_hash, reserve_auth_asset_name, 1),
+        redeemer: 3,  // Handover redeemer
+    }
+
+    // Mint governance token for authorization
+    mint {
+        amount: AnyAsset(governance_policy_hash, governance_asset_name, 1),
+        redeemer: (),
+    }
+
+    // Burn the reserve auth token (negative amount)
+    mint {
+        amount: AnyAsset(reserve_auth_policy_hash, reserve_auth_asset_name, -1),
+        redeemer: (),
+    }
+
+    // Transfer all reserve tokens to the illiquid circulation supply validator
+    // Note: The datum is set to ReserveTransfer if tokens > 0, otherwise unit datum
+    output illiquid_supply_output {
+        to: illiquid_circulation_supply_validator_address,
+        amount: existing_reserve - AnyAsset(reserve_auth_policy_hash, reserve_auth_asset_name, 1),
+        datum: 0,  // TokenTransferDatumV1::ReserveTransfer (Constr 0 []) if tokens > 0, otherwise unit
+    }
+
+    // Return change to the payment address (including governance token)
+    output {
+        to: payment_address,
+        amount: source - fees + AnyAsset(governance_policy_hash, governance_asset_name, 1),
+    }
+
+    // Collateral for script execution
+    collateral {
+        from: payment_address,
+    }
+
+    // Required signers
+    signers {
+        payment_key,
+    }
+
+    cardano::plutus_witness {
+        // RESERVE_VALIDATOR
+        version: 2,
+        script: reserve_validator_script,
+    }
+
+    cardano::plutus_witness {
+        // RESERVE_AUTH_POLICY (for burning)
+        version: 2,
+        script: reserve_auth_policy_script,
+    }
+
+    cardano::plutus_witness {
+        // GOVERNANCE_POLICY
+        version: 2,
+        script: governance_policy_script,
+    }
+}
+
+
+// Create Genesis UTxO for Partner Chain Initialization
+// ===================================================
+// Utility transaction that creates a genesis UTxO for subsequent Partner Chain initialization.
+// This serves as a preparation step before executing the main governance initialization.
+//
+// Transaction Flow:
+// 1. Consumes source funds from the payment address
+// 2. Creates a designated genesis UTxO with specific ADA amount
+// 3. Returns remaining change to the payment address
+// 4. Prepares the foundation for subsequent init_governance transaction
+//
+// Purpose and Usage:
+// - Provides a specific UTxO that can be consumed by init_governance
+// - Ensures deterministic Partner Chain identity through UTxO consumption
+// - Separates funding preparation from governance initialization logic
+// - Enables controlled genesis UTxO creation with exact specifications
+//
+// Integration with Governance:
+// - The created UTxO serves as input for init_governance transaction
+// - Consumption of this UTxO establishes unique Partner Chain identity
+// - Prevents duplicate Partner Chain creation through UTxO uniqueness
+// - Provides clean separation between funding and governance setup
+//
+// Economic Considerations:
+// - Creates a substantial ADA amount (50,000,000 ADA) for genesis operations
+// - Ensures sufficient funding for subsequent governance operations
+// - Provides liquidity for initial Partner Chain transaction fees
+// - Establishes economic foundation for Partner Chain operations
+//
+// Post-Conditions:
+// - Genesis UTxO is available for init_governance consumption
+// - Partner Chain initialization can proceed with deterministic identity
+// - Sufficient ADA is allocated for governance system bootstrap
+tx create_genesis_utxo() {
+    locals {
+        total_ada: Ada(50000000),
+    }
+
+    input source {
+        from: payment_address,
+        min_amount: fees + total_ada,
+    }
+
+    output {
+        to: payment_address,
+        amount: total_ada,
+    }
+
+    output {
+        to: payment_address,
+        amount: source - fees - total_ada,
+    }
+}

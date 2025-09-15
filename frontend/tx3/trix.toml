@@ -1,0 +1,42 @@
+[protocol]
+name = "metis"
+scope = "txpipe"
+version = "0.0.0"
+description = ""
+main = "main.tx3"
+
+[registry]
+url = "https://tx3.land"
+
+[profiles.devnet]
+chain = "CardanoDevnet"
+env_file = ".env"
+
+[profiles.preview]
+chain = "CardanoPreview"
+env_file = ".env"
+
+[profiles.preprod]
+chain = "CardanoPreprod"
+env_file = ".env"
+
+[profiles.mainnet]
+chain = "CardanoMainnet"
+env_file = ".env"
+
+[[bindings]]
+output_dir = "./typescript"
+options = { standalone = false }
+
+[bindings.template]
+repo = "tx3-lang/web-sdk"
+path = ".trix/client-lib"
+ref = "bindgen-v1alpha2"
+
+[[wallets]]
+name = "alice"
+random_key = true
+
+[[wallets]]
+name = "bob"
+random_key = true
