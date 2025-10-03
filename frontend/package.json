@@ -13,17 +13,26 @@
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.9",
+    "@react-router/fs-routes": "^7.9.3",
     "@react-router/node": "^7.9.3",
     "@react-router/serve": "^7.9.3",
+    "bech32": "^2.0.0",
+    "buffer": "^6.0.3",
+    "cbor2": "^2.0.1",
+    "clsx": "^2.1.1",
     "isbot": "^5.1.31",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router": "^7.0.3"
+    "react-router": "^7.0.3",
+    "tailwind-merge": "^3.3.1",
+    "tailwind-variants": "^3.1.1"
   },
   "devDependencies": {
     "@eslint/compat": "^1.4.0",
     "@react-router/dev": "^7.9.3",
     "@stylistic/eslint-plugin": "^5.4.0",
+    "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/vite": "^4.1.13",
     "@types/node": "^22",
     "@types/react": "^19.1.16",
