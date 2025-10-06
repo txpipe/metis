@@ -16,7 +16,7 @@ export default function WizardStep2() {
     setStepStatus(StepStatus.PROCESSING);
 
     // eslint-disable-next-line no-console
-    console.log('Simulating wallt signature...');
+    console.log('Simulating wallet signature...');
     setTimeout(() => {
       navigate('/step/4');
     }, 1000);

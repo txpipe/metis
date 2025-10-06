@@ -1,14 +1,13 @@
 import type { SVGProps } from 'react';
 
 // Tabler Icon => alert-circle
-export function AlertCircleIcon({ strokeWidth = 2, ...props }: SVGProps<SVGSVGElement>) {
+export function AlertCircleIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="24"
       height="24"
       fill="currentColor"
-      strokeWidth={strokeWidth}
       viewBox="0 0 24 24"
       {...props}
     >
