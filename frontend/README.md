@@ -7,7 +7,7 @@ This frontend application provides the user interface for the Metis Management s
 ## Prerequisites
 
 - Node.js (>= 16.x)
-- Npm
+- Yarn (or npm)
 - Docker (for building container images)
 
 ## Local Development
@@ -16,13 +16,13 @@ This frontend application provides the user interface for the Metis Management s
 
    ```bash
    cd frontend
-   npm install
+   yarn install
    ```
 
 2. Start the development server:
 
    ```bash
-   npm run dev
+   yarn dev
    ```
 
    The application will be available at `http://localhost:5173` by default.
@@ -30,13 +30,13 @@ This frontend application provides the user interface for the Metis Management s
 3. Type-check the codebase:
 
    ```bash
-   npm run typecheck
+   yarn typecheck
    ```
 
 4. Build for production:
 
    ```bash
-   npm run build
+   yarn build
    ```
 
 ## Docker
