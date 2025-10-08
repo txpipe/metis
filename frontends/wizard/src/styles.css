@@ -1,0 +1,28 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Inter-Variable.woff2") format("woff2");
+}
+
+@theme {
+  --font-sans: "Inter", sans-serif;
+}
+
+html,
+body {
+  @apply bg-white;
+}
+
+body, #metis-wizard {
+  @apply m-0 flex flex-col min-h-dvh;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
