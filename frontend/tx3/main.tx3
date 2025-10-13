@@ -140,16 +140,17 @@ type MintRedeemer {
 // CandidateRegistration: Complete registration data for validator candidates
 // Contains all cryptographic proofs and keys required for validator participation
 // in the Partner Chain consensus mechanism
-type CandidateRegistration {
-    stake_ownership_pub_key: Bytes,         // Cardano stake pool operator's public key for verification
-    stake_ownership_signature: Bytes,       // Cryptographic signature proving control of stake pool
-    partner_chain_pub_key: Bytes,           // Dedicated public key for Partner Chain operations
-    partner_chain_signature: Bytes,         // Signature with partner chain key proving ownership
-    registration_utxo: UtxoRef,             // UTxO reference used as registration proof/payment
-    own_pkh: Bytes,                         // Payment key hash identifying the registrant
-    candidate_keys: List<Bytes>,            // Additional consensus keys (Aura for block production,
-                                           // Grandpa for finality, and other protocol-specific keys)
+type CandidateRegistration { // V0
+    spo_info: AdaBasedStaking,   // Information on ADA stake pool ownership
+    pc_pub_key: Bytes,           // Dedicated public key for Partner Chain operations
+    pc_signature: Bytes,         // Signature with partner chain key proving ownership
+    reg_utxo: CustomUtxoRef,     // UTxO reference used as registration proof/payment
+    a_key: Bytes,                // Aura consensus public key for block production authority
+    gp_key: Bytes,               // Grandpa finality public key for block finalization voting
 }
+// V1 includes candidate_keys in replacement of aura/grandpa keys
+//     candidate_keys: List<Bytes>,            // Additional consensus keys (Aura for block production,
+//                                             // Grandpa for finality, and other protocol-specific keys)
 
 // PermissionedCandidate: Pre-approved validator candidate information
 // Used for validators that don't require stake pool ownership proof
@@ -176,6 +177,23 @@ type Asset {
     policy_id: Bytes,                       // Unique policy identifier for the asset class
     asset_name: Bytes,                      // Specific name within the policy (can be empty for ADA)
 }
+
+/// Information on ADA stake pool ownership
+/// AdaBasedStaking is a variant of Plutus type StakeOwnership. The other variant, TokenBasedStaking, is not supported.
+type AdaBasedStaking {
+    pub_key: Bytes, /// Public key of the stake pool operator
+    signature: Bytes, /// Signature confirming ownership of `pub_key`
+}
+
+type TxId {
+    hash: Bytes,
+}
+
+type CustomUtxoRef {
+    txid: TxId,
+    index: Int,
+}
+
 
 // Initialize Partner Chain Governance System
 // ========================================
@@ -851,55 +869,69 @@ tx register_candidate(
     partner_chain_pub_key: Bytes,           // Dedicated public key for Partner Chain validator operations
     partner_chain_signature: Bytes,         // Signature proving control of partner chain key
     registration_utxo: UtxoRef,             // UTxO reference providing registration authorization/payment
+    reg_hash: Bytes,
+    reg_index: Int,
     own_pkh: Bytes,                         // Payment key hash uniquely identifying the registrant
     candidate_keys: List<Bytes>,            // Additional consensus keys (Aura, Grandpa, protocol-specific)
+    aura_key: Bytes,
+    grandpa_key: Bytes,
     existing_registration_utxos: List<UtxoRef>, // Any existing registration UTxOs to replace/update
 ) {
     // Input for transaction fees and minimum UTxO value for candidate registration
-    input source {
-        from: candidate_address,
-        min_amount: fees + min_utxo(candidate_output),
-    }
+    // input* source {
+    //     from: candidate_address,
+    //     min_amount: fees + min_utxo(candidate_output),
+    // }
 
     // Consume the registration UTxO as proof of registration authorization/payment
     // This UTxO serves as both payment mechanism and proof of registration rights
     input registration_input {
         from: candidate_address,
         ref: registration_utxo,  // Specific UTxO reference provided as parameter
+        min_amount: fees + min_utxo(candidate_output),
     }
 
     // Consume any existing registration UTxOs for this candidate to enable updates
-    // Using input* pattern allows for multiple UTxO consumption (0 or more)
     // This enables updating existing registrations with new keys or parameters
-    input* existing_registrations {
-        from: committee_candidate_validator_address,
-        ref: existing_registration_utxos,  // Would reference the list parameter if uncommented
-        redeemer: (),  // Unit redeemer for validator script execution
-    }
+    // input existing_registrations {
+    //     from: committee_candidate_validator_address,
+    //     ref: existing_registration_utxos,  // Would reference the list parameter if uncommented
+    //     redeemer: (),  // Unit redeemer for validator script execution
+    // }
 
     // Create the new candidate registration UTxO with complete validator information
-    // Version: 1 indicates the registration data format version
-    // References: src/registered_candidates.rs for data structure definition
+    // Version: 0 indicates the registration data format version
     output candidate_output {
         to: committee_candidate_validator_address,
-        amount: existing_registrations + min_utxo(candidate_output),  // Consolidate value from existing registrations
+        // amount: existing_registrations + min_utxo(candidate_output),  // Consolidate value from existing registrations
+        amount: min_utxo(candidate_output),  // Consolidate value from existing registrations
         datum: [
             own_pkh,  // Payment key hash identifying the registrant (first element)
-            [
-                stake_ownership_pub_key,     // Cardano stake pool public key for verification
-                partner_chain_pub_key,       // Dedicated Partner Chain validator public key
-                partner_chain_signature,     // Signature proving control of partner chain key
-                registration_utxo,           // UTxO reference used for registration proof
-                candidate_keys,              // List of additional consensus keys (Aura, Grandpa, etc.)
-            ],
-            1,  // Version number for registration data format
+            CandidateRegistration {
+                spo_info: AdaBasedStaking {
+                    pub_key: stake_ownership_pub_key,
+                    signature: stake_ownership_signature,
+                },
+                pc_pub_key: partner_chain_pub_key,
+                pc_signature: partner_chain_signature,
+                reg_utxo: CustomUtxoRef {
+                    txid: TxId {
+                        hash: reg_hash,
+                    },
+                    index: reg_index,
+                },
+                a_key: aura_key,
+                gp_key: grandpa_key,
+            },
+            0,  // Version number for registration data format
         ],
     }
 
     // Return change and registration input value to the candidate address
     output {
         to: candidate_address,
-        amount: source + registration_input - fees - min_utxo(candidate_output),
+        // amount: source + registration_input - fees - min_utxo(candidate_output),
+        amount: registration_input - fees - min_utxo(candidate_output),
     }
 
     // Collateral for script execution
@@ -912,11 +944,11 @@ tx register_candidate(
         candidate_key,
     }
 
-    cardano::plutus_witness {
-        // COMMITTEE_CANDIDATE_VALIDATOR
-        version: 2,
-        script: committee_candidate_validator_script,
-    }
+    // cardano::plutus_witness {
+    //     // COMMITTEE_CANDIDATE_VALIDATOR
+    //     version: 2,
+    //     script: committee_candidate_validator_script,
+    // }
 }
 
 // Deregister Existing Validator Candidate
@@ -1820,60 +1852,5 @@ tx handover_reserve(
         // GOVERNANCE_POLICY
         version: 2,
         script: governance_policy_script,
-    }
-}
-
-
-// Create Genesis UTxO for Partner Chain Initialization
-// ===================================================
-// Utility transaction that creates a genesis UTxO for subsequent Partner Chain initialization.
-// This serves as a preparation step before executing the main governance initialization.
-//
-// Transaction Flow:
-// 1. Consumes source funds from the payment address
-// 2. Creates a designated genesis UTxO with specific ADA amount
-// 3. Returns remaining change to the payment address
-// 4. Prepares the foundation for subsequent init_governance transaction
-//
-// Purpose and Usage:
-// - Provides a specific UTxO that can be consumed by init_governance
-// - Ensures deterministic Partner Chain identity through UTxO consumption
-// - Separates funding preparation from governance initialization logic
-// - Enables controlled genesis UTxO creation with exact specifications
-//
-// Integration with Governance:
-// - The created UTxO serves as input for init_governance transaction
-// - Consumption of this UTxO establishes unique Partner Chain identity
-// - Prevents duplicate Partner Chain creation through UTxO uniqueness
-// - Provides clean separation between funding and governance setup
-//
-// Economic Considerations:
-// - Creates a substantial ADA amount (50,000,000 ADA) for genesis operations
-// - Ensures sufficient funding for subsequent governance operations
-// - Provides liquidity for initial Partner Chain transaction fees
-// - Establishes economic foundation for Partner Chain operations
-//
-// Post-Conditions:
-// - Genesis UTxO is available for init_governance consumption
-// - Partner Chain initialization can proceed with deterministic identity
-// - Sufficient ADA is allocated for governance system bootstrap
-tx create_genesis_utxo() {
-    locals {
-        total_ada: Ada(50000000),
-    }
-
-    input source {
-        from: payment_address,
-        min_amount: fees + total_ada,
-    }
-
-    output {
-        to: payment_address,
-        amount: total_ada,
-    }
-
-    output {
-        to: payment_address,
-        amount: source - fees - total_ada,
     }
 }
