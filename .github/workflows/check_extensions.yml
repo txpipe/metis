@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./extensions/midnight-relay
+        working-directory: ./extensions/midnight
     strategy:
       fail-fast: false
       matrix:
@@ -48,4 +48,4 @@ jobs:
 
       - name: Template manifests and validate schema (${{ matrix.name }})
         run: |
-          helm template midnight-relay . ${{ matrix.valuesArgs }} | kubeconform -strict -summary -
+          helm template midnight . ${{ matrix.valuesArgs }} | kubeconform -strict -summary -
