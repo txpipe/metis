@@ -71,6 +71,94 @@ dbSync:
   existingSecret:
     name: ""
     key: ""
+  managed:
+    enabled: false
+    connection:
+      username: cexplorer
+      password: change-me
+      database: cexplorer
+      existingSecret:
+        name: ""
+        usernameKey: username
+        passwordKey: password
+        databaseKey: database
+    nodeConnection:
+      envVar: CARDANO_NODE_SOCKET_PATH
+      value: ""
+      existingSecret:
+        name: ""
+        key: connection
+    postgres:
+      image:
+        repository: postgres
+        tag: "15.3"
+        pullPolicy: IfNotPresent
+      port: 5432
+      extraEnv: []
+      resources: {}
+      podAnnotations: {}
+      podLabels: {}
+      podSecurityContext: {}
+      containerSecurityContext: {}
+      priorityClassName: ""
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+      topologySpreadConstraints: []
+      persistence:
+        enabled: true
+        storageClass: ""
+        accessModes:
+          - ReadWriteOnce
+        annotations: {}
+        size: 50Gi
+        existingClaim: ""
+    dbSync:
+      image:
+        repository: ghcr.io/intersectmbo/cardano-db-sync
+        tag: "13.6.0.4"
+        pullPolicy: IfNotPresent
+      replicas: 1
+      network: preview
+      command: []
+      args: []
+      extraEnv: []
+      resources: {}
+      podAnnotations: {}
+      podLabels: {}
+      podSecurityContext: {}
+      containerSecurityContext: {}
+      priorityClassName: ""
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+      topologySpreadConstraints: []
+      persistence:
+        enabled: true
+        storageClass: ""
+        accessModes:
+          - ReadWriteOnce
+        annotations: {}
+        size: 10Gi
+        existingClaim: ""
+    nodeSocat:
+      enabled: false
+      socketPath: /node-ipc/node.socket
+      listenOptions: reuseaddr,fork,unlink-early
+      opensslOptions: verify=0
+      targetHost: ""
+      targetPort: 0
+      image:
+        repository: alpine/socat
+        tag: "1.7.4.4-r0"
+        pullPolicy: IfNotPresent
+      extraArgs: []
+      extraEnv: []
+      resources: {}
+      securityContext: {}
+    initContainers: []
+    extraVolumes: []
+    extraVolumeMounts: []
 
 nodeKey:
   existingSecret:

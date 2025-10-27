@@ -1,0 +1,197 @@
+{{- if .Values.dbSync.managed.enabled }}
+{{- $name := include "midnight.dbSyncName" . -}}
+{{- $selector := dict "context" . "component" "dbsync" -}}
+{{- $serviceAccountName := include "midnight.serviceAccountName" . -}}
+{{- $secretName := include "midnight.dbSyncPostgresSecretName" . -}}
+{{- $usernameKey := default "username" .Values.dbSync.managed.connection.existingSecret.usernameKey -}}
+{{- $passwordKey := default "password" .Values.dbSync.managed.connection.existingSecret.passwordKey -}}
+{{- $databaseKey := default "database" .Values.dbSync.managed.connection.existingSecret.databaseKey -}}
+{{- $postgresService := include "midnight.dbSyncPostgresServiceName" . -}}
+{{- $postgresPort := (default 5432 .Values.dbSync.managed.postgres.port | int) -}}
+{{- $nodeEnvVar := default "CARDANO_NODE_CONNECTION" .Values.dbSync.managed.nodeConnection.envVar -}}
+{{- $nodeSocat := .Values.dbSync.managed.nodeSocat -}}
+{{- $nodeSocketPath := default "/node-ipc/node.socket" $nodeSocat.socketPath -}}
+{{- $nodeSocketDir := dir $nodeSocketPath -}}
+{{- $nodeConnectionProvided := or .Values.dbSync.managed.nodeConnection.existingSecret.name .Values.dbSync.managed.nodeConnection.value $nodeSocat.enabled -}}
+{{- $nodeConnectionCheck := required ".Values.dbSync.managed.nodeConnection must provide either value or existingSecret when managed dbSync is enabled" $nodeConnectionProvided -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "midnight.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dbsync
+spec:
+  replicas: {{ .Values.dbSync.managed.dbSync.replicas | int }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "midnight.selectorLabelsFor" $selector | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "midnight.selectorLabelsFor" $selector | nindent 8 }}
+        {{- with .Values.dbSync.managed.dbSync.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.dbSync.managed.dbSync.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dbSync.managed.dbSync.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.dbSync.managed.dbSync.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dbSync.managed.initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: cardano-db-sync
+          image: "{{ .Values.dbSync.managed.dbSync.image.repository }}:{{ .Values.dbSync.managed.dbSync.image.tag }}"
+          imagePullPolicy: {{ .Values.dbSync.managed.dbSync.image.pullPolicy }}
+          {{- with .Values.dbSync.managed.dbSync.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.dbSync.managed.dbSync.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: NETWORK
+              value: {{ required ".Values.dbSync.managed.dbSync.network is required when managed dbSync is enabled" .Values.dbSync.managed.dbSync.network }}
+            - name: POSTGRES_HOST
+              value: "{{ $postgresService }}"
+            - name: POSTGRES_PORT
+              value: "{{ printf "%d" $postgresPort }}"
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $databaseKey }}
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $usernameKey }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $passwordKey }}
+            {{- if .Values.dbSync.managed.nodeConnection.existingSecret.name }}
+            - name: {{ $nodeEnvVar }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.dbSync.managed.nodeConnection.existingSecret.name }}
+                  key: {{ required ".Values.dbSync.managed.nodeConnection.existingSecret.key is required when providing an existing secret" .Values.dbSync.managed.nodeConnection.existingSecret.key }}
+            {{- else if .Values.dbSync.managed.nodeConnection.value }}
+            - name: {{ $nodeEnvVar }}
+              value: {{ .Values.dbSync.managed.nodeConnection.value | quote }}
+            {{- else if $nodeSocat.enabled }}
+            - name: {{ $nodeEnvVar }}
+              value: {{ $nodeSocketPath | quote }}
+            {{- end }}
+            {{- with .Values.dbSync.managed.dbSync.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: db-sync-data
+              mountPath: /var/lib
+            {{- if $nodeSocat.enabled }}
+            - name: node-socket
+              mountPath: {{ $nodeSocketDir }}
+            {{ end }}
+            {{- with .Values.dbSync.managed.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.dbSync.managed.dbSync.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.dbSync.managed.dbSync.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{ if $nodeSocat.enabled }}
+        {{- $nodeSocatHost := required ".Values.dbSync.managed.nodeSocat.targetHost is required when nodeSocat is enabled" $nodeSocat.targetHost -}}
+        {{- $nodeSocatPort := required ".Values.dbSync.managed.nodeSocat.targetPort is required when nodeSocat is enabled" $nodeSocat.targetPort -}}
+        {{- $nodeSocatListenOptions := default "" $nodeSocat.listenOptions -}}
+        {{- $nodeSocatOpenSSLOptions := default "" $nodeSocat.opensslOptions -}}
+        {{- $nodeSocatListenOptionsSuffix := ternary (printf ",%s" $nodeSocatListenOptions) "" (empty $nodeSocatListenOptions | not) -}}
+        {{- $nodeSocatOpenSSLOptionsSuffix := ternary (printf ",%s" $nodeSocatOpenSSLOptions) "" (empty $nodeSocatOpenSSLOptions | not) -}}
+        {{- $nodeSocatListenAddress := printf "UNIX-LISTEN:%s%s" $nodeSocketPath $nodeSocatListenOptionsSuffix -}}
+        {{- $nodeSocatTargetAddress := printf "OPENSSL:%s:%d%s" $nodeSocatHost (int $nodeSocatPort) $nodeSocatOpenSSLOptionsSuffix -}}
+        - name: node-socket-proxy
+          image: "{{ $nodeSocat.image.repository }}:{{ $nodeSocat.image.tag }}"
+          imagePullPolicy: {{ default "IfNotPresent" $nodeSocat.image.pullPolicy }}
+          command:
+            - socat
+          args:
+            {{- range $nodeSocat.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+            - {{ $nodeSocatListenAddress | quote }}
+            - {{ $nodeSocatTargetAddress | quote }}
+          {{- with $nodeSocat.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: node-socket
+              mountPath: {{ $nodeSocketDir }}
+          {{- with $nodeSocat.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $nodeSocat.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{ end }}
+      {{- with .Values.dbSync.managed.dbSync.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dbSync.managed.dbSync.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dbSync.managed.dbSync.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dbSync.managed.dbSync.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: db-sync-data
+          {{- if and .Values.dbSync.managed.dbSync.persistence.enabled .Values.dbSync.managed.dbSync.persistence.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.dbSync.managed.dbSync.persistence.existingClaim }}
+          {{- else if .Values.dbSync.managed.dbSync.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "midnight.dbSyncDataPVCName" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{ if $nodeSocat.enabled }}
+        - name: node-socket
+          emptyDir: {}
+        {{ end }}
+        {{- with .Values.dbSync.managed.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}

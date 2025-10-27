@@ -11,6 +11,7 @@ focuses on the subset of features needed to run a Midnight as packaged in the
 - Configurable Midnight chain preset, bootnodes, and CLI append arguments.
 - Optional ConfigMap that ships the default `pc-chain-config.json` from the Docker reference.
 - Integration points for supplying the node private key and Cardano DB sync connection string via existing secrets or inline values.
+- Optional Postgres + Cardano DB sync workloads that can be hosted alongside the node.
 - Separate Services for pod identity (headless) and traffic exposure (ClusterIP/NodePort/LoadBalancer).
 - Readiness and liveness probes that reuse the container's `/health` endpoint.
 
@@ -107,11 +108,59 @@ locally from `extensions/midnight`:
 helm lint .
 helm lint . -f ci/values-inline-secrets.yaml
 helm lint . -f ci/values-existing-secrets.yaml
+helm lint . -f ci/values-managed-dbsync.yaml
 
 helm template midnight . | kubeconform -strict -summary -
 helm template midnight . -f ci/values-inline-secrets.yaml | kubeconform -strict -summary -
 helm template midnight . -f ci/values-existing-secrets.yaml | kubeconform -strict -summary -
+helm template midnight . -f ci/values-managed-dbsync.yaml | kubeconform -strict -summary -
 ```
+
+## Managed DB Sync
+
+Set `dbSync.managed.enabled=true` to have the chart deploy the Postgres and
+Cardano DB sync containers. The Midnight node will automatically consume the
+generated credentials and talk to the in-cluster Postgres instance. At a
+minimum you must provide a fully synced Cardano node connection string via
+`dbSync.managed.nodeConnection.value` (or reference an existing secret) and the
+network the DB sync should join. The string is surfaced to the container
+through `dbSync.managed.nodeConnection.envVar`, which defaults to
+`CARDANO_NODE_SOCKET_PATH` so it can point at a mounted IPC socket.
+
+```yaml
+dbSync:
+  managed:
+    enabled: true
+    dbSync:
+      network: preview
+    nodeConnection:
+      value: /ipc/node.socket  # example path when mounting a shared socket
+```
+
+When you need to bridge to a remote Cardano node over TLS, turn on the optional
+`dbSync.managed.nodeSocat` sidecar. It creates a Unix domain socket inside the
+pod (default `/ipc/node.socket`) and forwards traffic to the configured
+`targetHost`/`targetPort` via `socat` with OpenSSL. When this sidecar is active
+the chart will automatically set the node connection environment variable to
+the exposed socket unless you override it explicitly.
+
+```yaml
+dbSync:
+  managed:
+    enabled: true
+    nodeSocat:
+      enabled: true
+      targetHost: yourdemeterapikey.cardano-preview.cnode-m1.demeter.run
+      targetPort: 9443
+```
+
+The managed deployment creates two persistent volumes by default: one for the
+Postgres data directory (`50Gi`) and one for the DB sync state (`10Gi`). These
+values can be tuned or disabled through `dbSync.managed.postgres.persistence`
+and `dbSync.managed.dbSync.persistence` respectively. Credentials are sourced
+from `dbSync.managed.connection`; switch to
+`dbSync.managed.connection.existingSecret` if you already maintain those in a
+Kubernetes secret.
 
 ## Key Values
 
@@ -123,6 +172,10 @@ helm template midnight . -f ci/values-existing-secrets.yaml | kubeconform -stric
 | `node.appendArgs` | Additional CLI arguments passed through `APPEND_ARGS` | `[...]` |
 | `nodeKey.existingSecret` | Reference to a secret that holds `NODE_KEY` | empty |
 | `dbSync.existingSecret` | Reference to a secret that holds the Cardano DB sync connection string | empty |
+| `dbSync.managed.enabled` | Deploy Postgres and DB sync pods alongside the node | `false` |
+| `dbSync.managed.dbSync.network` | Cardano network the managed DB sync connects to | `preprod` |
+| `dbSync.managed.nodeConnection` | Source of the fully synced node connection string for DB sync | empty |
+| `dbSync.managed.nodeSocat.enabled` | Launch a `socat` sidecar that exposes a TLS-backed node socket to db-sync | `false` |
 | `chainConfig.create` | Whether to create a ConfigMap with `pc-chain-config.json` | `true` |
 | `persistence.enabled` | Provision PersistentVolumeClaims for chain data | `true` |
 | `service.type` | Kubernetes Service type for exposing RPC/P2P/Metrics ports | `ClusterIP` |

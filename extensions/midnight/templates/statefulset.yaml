@@ -4,6 +4,13 @@
 {{- $chainConfigName := include "midnight.chainConfigName" . -}}
 {{- $dbSyncSecretName := include "midnight.dbSyncSecretName" . -}}
 {{- $dbSyncSecretKey := include "midnight.dbSyncSecretKey" . -}}
+{{- $dbSyncManaged := .Values.dbSync.managed -}}
+{{- $dbSyncPostgresSecretName := include "midnight.dbSyncPostgresSecretName" . -}}
+{{- $dbSyncPostgresUsernameKey := default "username" $dbSyncManaged.connection.existingSecret.usernameKey -}}
+{{- $dbSyncPostgresPasswordKey := default "password" $dbSyncManaged.connection.existingSecret.passwordKey -}}
+{{- $dbSyncPostgresDatabaseKey := default "database" $dbSyncManaged.connection.existingSecret.databaseKey -}}
+{{- $dbSyncPostgresHost := include "midnight.dbSyncPostgresServiceName" . -}}
+{{- $dbSyncPostgresPort := (default 5432 $dbSyncManaged.postgres.port | int) -}}
 {{- $nodeKeySecretName := include "midnight.nodeKeySecretName" . -}}
 {{- $nodeKeySecretKey := include "midnight.nodeKeySecretKey" . -}}
 apiVersion: apps/v1
@@ -66,7 +73,29 @@ spec:
               value: {{ include "midnight.bootnodes" . | quote }}
             - name: APPEND_ARGS
               value: {{ include "midnight.appendArgs" . | quote }}
-            {{- if $dbSyncSecretName }}
+            {{- if $dbSyncManaged.enabled }}
+            - name: MIDNIGHT_DB_SYNC_HOST
+              value: "{{ $dbSyncPostgresHost }}"
+            - name: MIDNIGHT_DB_SYNC_PORT
+              value: "{{ printf "%d" $dbSyncPostgresPort }}"
+            - name: MIDNIGHT_DB_SYNC_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $dbSyncPostgresSecretName }}
+                  key: {{ $dbSyncPostgresDatabaseKey }}
+            - name: MIDNIGHT_DB_SYNC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $dbSyncPostgresSecretName }}
+                  key: {{ $dbSyncPostgresUsernameKey }}
+            - name: MIDNIGHT_DB_SYNC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $dbSyncPostgresSecretName }}
+                  key: {{ $dbSyncPostgresPasswordKey }}
+            - name: DB_SYNC_POSTGRES_CONNECTION_STRING
+              value: "postgresql://$(MIDNIGHT_DB_SYNC_USER):$(MIDNIGHT_DB_SYNC_PASSWORD)@$(MIDNIGHT_DB_SYNC_HOST):$(MIDNIGHT_DB_SYNC_PORT)/$(MIDNIGHT_DB_SYNC_DATABASE)"
+            {{- else if $dbSyncSecretName }}
             - name: DB_SYNC_POSTGRES_CONNECTION_STRING
               valueFrom:
                 secretKeyRef:

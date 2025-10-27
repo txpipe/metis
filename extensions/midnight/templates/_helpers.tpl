@@ -46,9 +46,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 Selector labels for the StatefulSet and Service.
 */}}
 {{- define "midnight.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "midnight.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/component: midnight
+{{- include "midnight.selectorLabelsFor" (dict "context" . "component" "midnight") }}
+{{- end }}
+
+{{/*
+Selector labels helper for a specific component.
+*/}}
+{{- define "midnight.selectorLabelsFor" -}}
+{{- $ctx := .context -}}
+app.kubernetes.io/name: {{ include "midnight.name" $ctx }}
+app.kubernetes.io/instance: {{ $ctx.Release.Name }}
+app.kubernetes.io/component: {{ .component }}
 {{- end }}
 
 {{/*
@@ -103,10 +111,13 @@ Resolve the Secret name for the DB sync connection string.
 {{- define "midnight.dbSyncSecretName" -}}
 {{- if .Values.dbSync.existingSecret.name }}
 {{- .Values.dbSync.existingSecret.name }}
-{{- else if .Values.dbSync.connectionString }}
-{{- printf "%s-dbsync" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- else -}}
+{{- $connectionString := include "midnight.dbSyncConnectionStringValue" . }}
+{{- if $connectionString }}
+{{- printf "%s-dbsync" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- else }}
 {{- "" }}
+{{- end }}
 {{- end }}
 {{- end }}
 
@@ -135,6 +146,20 @@ Resolve the Secret name for the node key.
 {{- end }}
 
 {{/*
+Resolve the name for the managed DB sync Deployment.
+*/}}
+{{- define "midnight.dbSyncName" -}}
+{{- printf "%s-dbsync" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Resolve the PVC name that stores managed DB sync data.
+*/}}
+{{- define "midnight.dbSyncDataPVCName" -}}
+{{- printf "%s-data" (include "midnight.dbSyncName" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
 Resolve the Secret key for the node key.
 */}}
 {{- define "midnight.nodeKeySecretKey" -}}
@@ -142,5 +167,40 @@ Resolve the Secret key for the node key.
 {{- .Values.nodeKey.existingSecret.key }}
 {{- else -}}
 node.key
+{{- end }}
+{{- end }}
+
+{{/*
+Compute the DB sync connection string that should be surfaced to the Midnight node.
+*/}}
+{{- define "midnight.dbSyncConnectionStringValue" -}}
+{{- if .Values.dbSync.connectionString }}
+{{- .Values.dbSync.connectionString }}
+{{- else if and .Values.dbSync.managed.enabled (not .Values.dbSync.managed.connection.existingSecret.name) .Values.dbSync.managed.connection.username .Values.dbSync.managed.connection.password .Values.dbSync.managed.connection.database }}
+{{- $service := include "midnight.dbSyncPostgresServiceName" . -}}
+{{- $port := (default 5432 .Values.dbSync.managed.postgres.port | int) -}}
+{{- printf "postgresql://%s:%s@%s:%d/%s" .Values.dbSync.managed.connection.username .Values.dbSync.managed.connection.password $service $port .Values.dbSync.managed.connection.database }}
+{{- else -}}
+{{- "" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Compute the Service name for the managed DB sync Postgres instance.
+*/}}
+{{- define "midnight.dbSyncPostgresServiceName" -}}
+{{- printf "%s-dbsync-postgres" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Resolve the Secret name that holds the managed DB sync Postgres credentials.
+*/}}
+{{- define "midnight.dbSyncPostgresSecretName" -}}
+{{- if and .Values.dbSync.managed.enabled .Values.dbSync.managed.connection.existingSecret.name }}
+{{- .Values.dbSync.managed.connection.existingSecret.name }}
+{{- else if .Values.dbSync.managed.enabled }}
+{{- printf "%s-dbsync-postgres" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- else -}}
+{{- "" }}
 {{- end }}
 {{- end }}
