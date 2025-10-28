@@ -2,13 +2,12 @@
 import '@fontsource-variable/inter';
 
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router';
-import { TanStackDevtools } from '@tanstack/react-devtools';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
+import { TanStackDevtools } from '@tanstack/react-devtools';
 
 // Components
 import { Header } from '~/components/Header';
 
-// Styles
 import appCss from '~/styles.css?url';
 
 export const Route = createRootRoute({

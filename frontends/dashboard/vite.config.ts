@@ -1,15 +1,13 @@
 import { defineConfig } from 'vite';
-import viteTsConfigPaths from 'vite-tsconfig-paths';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import viteReact from '@vitejs/plugin-react';
-import { nitroV2Plugin } from '@tanstack/nitro-v2-vite-plugin';
-import devtoolsJson from 'vite-plugin-devtools-json';
-import { devtools } from '@tanstack/devtools-vite';
-
+import viteTsConfigPaths from 'vite-tsconfig-paths';
 import tailwindcss from '@tailwindcss/vite';
+import { nitroV2Plugin } from '@tanstack/nitro-v2-vite-plugin';
+import { devtools } from '@tanstack/devtools-vite';
+import devtoolsJson from 'vite-plugin-devtools-json';
 
-// https://vitejs.dev/config/
-export default defineConfig({
+const config = defineConfig({
   server: {
     port: 3000,
   },
@@ -18,6 +16,7 @@ export default defineConfig({
     devtools({
       removeDevtoolsOnBuild: true,
     }),
+    // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],
     }),
@@ -30,3 +29,5 @@ export default defineConfig({
     viteReact(),
   ],
 });
+
+export default config;
