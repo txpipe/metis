@@ -26,12 +26,19 @@ jobs:
         include:
           - name: default
             valuesArgs: ""
+            dir: midnight
           - name: inline-secrets
             valuesArgs: "-f ci/values-inline-secrets.yaml"
+            dir: midnight
           - name: existing-secrets
             valuesArgs: "-f ci/values-existing-secrets.yaml"
+            dir: midnight
           - name: managed-dbsync
             valuesArgs: "-f ci/values-managed-dbsync.yaml"
+            dir: midnight
+          - name: default
+            valuesArgs: ""
+            dir: control-plane
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,9 +52,9 @@ jobs:
           tar -xzf kubeconform.tar.gz
           sudo mv kubeconform /usr/local/bin/kubeconform
 
-      - name: Helm lint (${{ matrix.name }})
-        run: helm lint . ${{ matrix.valuesArgs }}
+      - name: Helm lint (${{ matrix.name }} - ${{ matrix.dir }})
+        run: helm lint ./${{ matrix.dir }} ${{ matrix.valuesArgs }}
 
-      - name: Template manifests and validate schema (${{ matrix.name }})
+      - name: Template manifests and validate schema (${{ matrix.name }} - ${{ matrix.dir }})
         run: |
-          helm template midnight . ${{ matrix.valuesArgs }} | kubeconform -strict -summary -
+          helm template ${{ matrix.dir }} ./${{ matrix.dir }} ${{ matrix.valuesArgs }} | kubeconform -strict -summary -
