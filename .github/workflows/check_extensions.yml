@@ -30,7 +30,7 @@ jobs:
             valuesArgs: "-f ci/values-inline-secrets.yaml"
           - name: existing-secrets
             valuesArgs: "-f ci/values-existing-secrets.yaml"
-          - name: existing-secrets
+          - name: managed-dbsync
             valuesArgs: "-f ci/values-managed-dbsync.yaml"
     steps:
       - name: Checkout
