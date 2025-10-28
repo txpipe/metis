@@ -1,0 +1,16 @@
+dbSync:
+  managed:
+    enabled: true
+    connection:
+      username: relay
+      password: supersecret
+      database: midnight
+    nodeConnection:
+      value: /ipc/node.socket
+    postgres:
+      persistence:
+        enabled: false
+    dbSync:
+      network: preprod
+      persistence:
+        enabled: false

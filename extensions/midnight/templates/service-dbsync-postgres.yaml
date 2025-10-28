@@ -1,0 +1,20 @@
+{{- if .Values.dbSync.managed.enabled }}
+{{- $serviceName := include "midnight.dbSyncPostgresServiceName" . -}}
+{{- $selector := dict "context" . "component" "dbsync-postgres" -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $serviceName }}
+  labels:
+    {{- include "midnight.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dbsync-postgres
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgres
+      port: {{ .Values.dbSync.managed.postgres.port | default 5432 }}
+      targetPort: postgres
+      protocol: TCP
+  selector:
+    {{- include "midnight.selectorLabelsFor" $selector | nindent 4 }}
+{{- end }}

@@ -1,0 +1,11 @@
+{{- if and .Values.chainConfig.create .Values.chainConfig.data }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "midnight.chainConfigName" . }}
+  labels:
+    {{- include "midnight.labels" . | nindent 4 }}
+data:
+  {{ required ".Values.chainConfig.filename is required" .Values.chainConfig.filename }}: |
+{{- .Values.chainConfig.data | nindent 4 }}
+{{- end }}

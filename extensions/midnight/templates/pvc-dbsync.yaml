@@ -1,0 +1,22 @@
+{{- if and .Values.dbSync.managed.enabled .Values.dbSync.managed.dbSync.persistence.enabled (not .Values.dbSync.managed.dbSync.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "midnight.dbSyncDataPVCName" . }}
+  labels:
+    {{- include "midnight.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dbsync
+  {{- with .Values.dbSync.managed.dbSync.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- toYaml .Values.dbSync.managed.dbSync.persistence.accessModes | nindent 4 }}
+  {{- if .Values.dbSync.managed.dbSync.persistence.storageClass }}
+  storageClassName: {{ .Values.dbSync.managed.dbSync.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.dbSync.managed.dbSync.persistence.size }}
+{{- end }}

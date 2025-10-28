@@ -7,3 +7,4 @@
 cert
 env-crd.yaml
 tiers.toml
+/extensions/midnight-kind-values.yaml

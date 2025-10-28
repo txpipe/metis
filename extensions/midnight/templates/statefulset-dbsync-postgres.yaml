@@ -1,0 +1,128 @@
+{{- if .Values.dbSync.managed.enabled }}
+{{- $name := include "midnight.dbSyncPostgresServiceName" . -}}
+{{- $selector := dict "context" . "component" "dbsync-postgres" -}}
+{{- $serviceAccountName := include "midnight.serviceAccountName" . -}}
+{{- $secretName := include "midnight.dbSyncPostgresSecretName" . -}}
+{{- $usernameKey := default "username" .Values.dbSync.managed.connection.existingSecret.usernameKey -}}
+{{- $passwordKey := default "password" .Values.dbSync.managed.connection.existingSecret.passwordKey -}}
+{{- $databaseKey := default "database" .Values.dbSync.managed.connection.existingSecret.databaseKey -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "midnight.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dbsync-postgres
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "midnight.selectorLabelsFor" $selector | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "midnight.selectorLabelsFor" $selector | nindent 8 }}
+        {{- with .Values.dbSync.managed.postgres.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.dbSync.managed.postgres.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dbSync.managed.postgres.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.dbSync.managed.postgres.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: postgres
+          image: "{{ .Values.dbSync.managed.postgres.image.repository }}:{{ .Values.dbSync.managed.postgres.image.tag }}"
+          imagePullPolicy: {{ .Values.dbSync.managed.postgres.image.pullPolicy }}
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $databaseKey }}
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $usernameKey }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $passwordKey }}
+            {{- with .Values.dbSync.managed.postgres.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: postgres
+              containerPort: {{ .Values.dbSync.managed.postgres.port | default 5432 }}
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          {{- with .Values.dbSync.managed.postgres.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.dbSync.managed.postgres.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.dbSync.managed.postgres.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dbSync.managed.postgres.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dbSync.managed.postgres.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dbSync.managed.postgres.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if and .Values.dbSync.managed.postgres.persistence.enabled .Values.dbSync.managed.postgres.persistence.existingClaim }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Values.dbSync.managed.postgres.persistence.existingClaim }}
+      {{- else if not .Values.dbSync.managed.postgres.persistence.enabled }}
+      volumes:
+        - name: data
+          emptyDir: {}
+      {{- end }}
+  {{- if and .Values.dbSync.managed.postgres.persistence.enabled (not .Values.dbSync.managed.postgres.persistence.existingClaim) }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        {{- with .Values.dbSync.managed.postgres.persistence.annotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.dbSync.managed.postgres.persistence.accessModes | nindent 10 }}
+        {{- if .Values.dbSync.managed.postgres.persistence.storageClass }}
+        storageClassName: {{ .Values.dbSync.managed.postgres.persistence.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.dbSync.managed.postgres.persistence.size }}
+  {{- end }}
+{{- end }}
