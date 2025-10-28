@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./extensions/midnight
+        working-directory: ./extensions
     strategy:
       fail-fast: false
       matrix:
