@@ -62,4 +62,4 @@ jobs:
 
       - name: Template manifests and validate schema (${{ matrix.name }} - ${{ matrix.dir }})
         run: |
-          helm template ${{ matrix.dir }} ./${{ matrix.dir }} ${{ matrix.valuesArgs }} | kubeconform -strict ${{ matrix.crds }} -summary -
+          helm template ${{ matrix.dir }} ./${{ matrix.dir }} ${{ matrix.valuesArgs }} | kubeconform -strict --schema-location default ${{ matrix.crds }} -summary -
