@@ -57,4 +57,4 @@ jobs:
 
       - name: Template manifests and validate schema (${{ matrix.name }} - ${{ matrix.dir }})
         run: |
-          helm template ${{ matrix.dir }} ./${{ matrix.dir }} ${{ matrix.valuesArgs }} | kubeconform -strict -skip PodMonitor -skip ServiceMonitor -skip Prometheus -summary -
+          helm template ${{ matrix.dir }} ./${{ matrix.dir }} ${{ matrix.valuesArgs }} | kubeconform -strict -skip PodMonitor,ServiceMonitor,Prometheus -summary -
