@@ -26,19 +26,19 @@ jobs:
         include:
           - name: default
             valuesArgs: ""
-            crds: ""
+            crds: -schema-location "file:///control-plane/crds/"
             dir: midnight
           - name: inline-secrets
             valuesArgs: "-f midnight/ci/values-inline-secrets.yaml"
-            crds: ""
+            crds: -schema-location "file:///control-plane/crds/"
             dir: midnight
           - name: existing-secrets
             valuesArgs: "-f midnight/ci/values-existing-secrets.yaml"
-            crds: ""
+            crds: -schema-location "file:///control-plane/crds/"
             dir: midnight
           - name: managed-dbsync
             valuesArgs: "-f midnight/ci/values-managed-dbsync.yaml"
-            crds: ""
+            crds: -schema-location "file:///control-plane/crds/"
             dir: midnight
           - name: default
             valuesArgs: ""
