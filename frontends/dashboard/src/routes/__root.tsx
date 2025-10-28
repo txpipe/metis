@@ -1,19 +1,60 @@
-import { Outlet, createRootRoute } from '@tanstack/react-router';
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
+// @ts-expect-error: FontSource doesn't have types but we don't need them
+import '@fontsource-variable/inter';
+
+import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router';
+import { TanStackDevtools } from '@tanstack/react-devtools';
+import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 
 // Components
 import { Header } from '~/components/Header';
 
+// Styles
+import appCss from '~/styles.css?url';
+
 export const Route = createRootRoute({
-  component: DashboardRoot,
+  head: () => ({
+    meta: [
+      {
+        charSet: 'utf-8',
+      },
+      {
+        name: 'viewport',
+        content: 'width=device-width, initial-scale=1',
+      },
+      {
+        title: 'Metis Dashboard',
+      },
+    ],
+    links: [
+      { rel: 'stylesheet', href: appCss },
+    ],
+  }),
+
+  shellComponent: RootDocument,
 });
 
-function DashboardRoot() {
+function RootDocument({ children }: { children: React.ReactNode; }) {
   return (
-    <>
-      <Header />
-      <Outlet />
-      <TanStackRouterDevtools />
-    </>
+    <html lang="en">
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        <Header />
+        {children}
+        <TanStackDevtools
+          config={{
+            position: 'bottom-right',
+          }}
+          plugins={[
+            {
+              name: 'Tanstack Router',
+              render: <TanStackRouterDevtoolsPanel />,
+            },
+          ]}
+        />
+        <Scripts />
+      </body>
+    </html>
   );
 }
