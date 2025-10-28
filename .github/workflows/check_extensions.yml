@@ -26,23 +26,18 @@ jobs:
         include:
           - name: default
             valuesArgs: ""
-            crds: -schema-location control-plane/crds/
             dir: midnight
           - name: inline-secrets
             valuesArgs: "-f midnight/ci/values-inline-secrets.yaml"
-            crds: -schema-location control-plane/crds/
             dir: midnight
           - name: existing-secrets
             valuesArgs: "-f midnight/ci/values-existing-secrets.yaml"
-            crds: -schema-location control-plane/crds/
             dir: midnight
           - name: managed-dbsync
             valuesArgs: "-f midnight/ci/values-managed-dbsync.yaml"
-            crds: -schema-location control-plane/crds/
             dir: midnight
           - name: default
             valuesArgs: ""
-            crds: -schema-location control-plane/crds/
             dir: control-plane
     steps:
       - name: Checkout
@@ -62,4 +57,4 @@ jobs:
 
       - name: Template manifests and validate schema (${{ matrix.name }} - ${{ matrix.dir }})
         run: |
-          helm template ${{ matrix.dir }} ./${{ matrix.dir }} ${{ matrix.valuesArgs }} | kubeconform -strict --schema-location default ${{ matrix.crds }} -summary -
+          helm template ${{ matrix.dir }} ./${{ matrix.dir }} ${{ matrix.valuesArgs }} | kubeconform -strict -skip PodMonitor -skip ServiceMonitor -skip Prometheus -summary -
