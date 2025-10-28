@@ -18,8 +18,7 @@ focuses on the subset of features needed to run a Midnight as packaged in the
 ## Getting Started
 
 ```shell
-helm repo add metis-extensions https://example.com/helm  # TODO: replace with actual repo
-helm install midnight ./midnight \
+helm install midnight oci://supernode.store/midnight \
   --set nodeKey.existingSecret.name=my-node-key \
   --set nodeKey.existingSecret.key=node.key
 ```
