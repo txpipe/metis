@@ -29,15 +29,15 @@ jobs:
             crds: ""
             dir: midnight
           - name: inline-secrets
-            valuesArgs: "-f ci/values-inline-secrets.yaml"
+            valuesArgs: "-f midnight/ci/values-inline-secrets.yaml"
             crds: ""
             dir: midnight
           - name: existing-secrets
-            valuesArgs: "-f ci/values-existing-secrets.yaml"
+            valuesArgs: "-f midnight/ci/values-existing-secrets.yaml"
             crds: ""
             dir: midnight
           - name: managed-dbsync
-            valuesArgs: "-f ci/values-managed-dbsync.yaml"
+            valuesArgs: "-f midnight/ci/values-managed-dbsync.yaml"
             crds: ""
             dir: midnight
           - name: default
