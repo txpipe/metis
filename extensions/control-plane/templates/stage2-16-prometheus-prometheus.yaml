@@ -1,0 +1,43 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: prometheus
+  namespace: '{{ .Values.namespace }}'
+spec:
+  alerting:
+    alertmanagers:
+    - apiVersion: v2
+      name: alertmanager
+      namespace: '{{ .Values.namespace }}'
+      port: web
+  enableAdminAPI: false
+  podMonitorNamespaceSelector: {}
+  podMonitorSelector:
+    matchLabels:
+      app.kubernetes.io/component: o11y
+{{- with .Values.prometheus.resources }}
+  resources:
+{{ toYaml . | indent 4 }}
+{{- end }}
+  retention: 30d
+  ruleNamespaceSelector: {}
+  ruleSelector: {}
+  securityContext:
+    fsGroup: 65534
+  serviceAccountName: prometheus
+  serviceMonitorNamespaceSelector: {}
+  serviceMonitorSelector:
+    matchLabels:
+      app.kubernetes.io/component: o11y
+  storage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: '{{ .Values.storageClass }}'
+{{- with .Values.prometheus.storage.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+{{- end }}
+{{- with .Values.prometheus.tolerations }}
+  tolerations:
+{{ toYaml . | indent 2 }}
+{{- end }}
