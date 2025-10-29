@@ -11,4 +11,4 @@ spec:
     port: metrics
   selector:
     matchLabels:
-      {{- include "midnight.labels" . | nindent 6 }}
+      {{- include "midnight.selectorLabels" . | nindent 6 }}
