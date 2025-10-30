@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 
 // Components
+import { Card } from '~/components/Card';
 import { CardWorkload } from '~/components/CardWorkload';
 import { XIcon } from '~/components/icons/XIcon';
 import { Button } from '~/components/ui/Button';
@@ -9,7 +10,7 @@ import { WorkloadsTable } from '~/components/WorkloadsTable';
 
 export const Route = createFileRoute('/')({
   loader: async () => {
-    const workloads = [
+    const workloads: Workload[] = [
       {
         id: '12345',
         logoSrc: '/images/midnight.svg',
@@ -18,7 +19,7 @@ export const Route = createFileRoute('/')({
         healthInfo: new Array(30).fill(1),
         uptime: 100,
         rewards: '300 Nights',
-        status: 'connected' as Workload['status'],
+        status: 'connected',
       },
     ];
 
@@ -30,7 +31,7 @@ export const Route = createFileRoute('/')({
 function DashboardPage() {
   const [showAvailableWorkloads, setShowAvailableWorkloads] = useState(false);
   const { workloads } = Route.useLoaderData();
-  const [pendingWorkloads, setPendingWorkloads] = useState<typeof workloads[number][]>([]);
+  const [pendingWorkloads, setPendingWorkloads] = useState<Workload[]>([]);
 
   const finalWorkloads = [...workloads, ...pendingWorkloads];
 
@@ -51,15 +52,16 @@ function DashboardPage() {
       </div>
 
       {showAvailableWorkloads && (
-        <div className="mt-10 bg-[#F9F9F9] border-[0.5px] border-[#CBD5E1] rounded-xl p-6">
-          <div className="flex flex-row justify-between items-center">
-            <h2 className="text-[22px] font-semibold text-[#686868]">Add workloads</h2>
+        <Card
+          title="Add workloads"
+          titleAction={(
             <button type="button" onClick={() => setShowAvailableWorkloads(false)} className="cursor-pointer">
               <XIcon className="w-6.5 h-6.5 text-black" />
             </button>
-          </div>
+          )}
+          className="mt-10 gap-8"
+        >
           <WorkloadsTable
-            className="mt-8"
             onWorkloadSelected={workload => {
               setPendingWorkloads(prev => [
                 ...prev,
@@ -68,33 +70,23 @@ function DashboardPage() {
                   healthInfo: [],
                   uptime: 0,
                   rewards: '',
-                  status: 'pending' as const,
                 },
               ]);
             }}
           />
-        </div>
+        </Card>
       )}
 
-      <div className="mt-10 bg-[#F9F9F9] border-[0.5px] border-[#CBD5E1] rounded-xl p-6">
-        <h2 className="text-[22px] font-semibold text-[#686868]">My workloads</h2>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-7 mt-8">
+      <Card title="My workloads" className="mt-10 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-7">
           {finalWorkloads.map(workload => (
             <CardWorkload
-              id={workload.id}
+              workload={workload}
               key={workload.id}
-              logoSrc={workload.logoSrc}
-              name={workload.name}
-              network={workload.network}
-              status={workload.status}
-              healthInfo={workload.healthInfo}
-              uptime={workload.uptime}
-              rewards={workload.rewards}
             />
           ))}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
