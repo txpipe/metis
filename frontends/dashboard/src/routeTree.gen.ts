@@ -10,33 +10,109 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as WorkloadIdIndexRouteImport } from './routes/$workloadId/index'
+import { Route as WorkloadIdSetupRouteImport } from './routes/$workloadId/setup'
+import { Route as WorkloadIdSetupIndexRouteImport } from './routes/$workloadId/setup/index'
+import { Route as WorkloadIdSetup4RouteImport } from './routes/$workloadId/setup/4'
+import { Route as WorkloadIdSetup3RouteImport } from './routes/$workloadId/setup/3'
+import { Route as WorkloadIdSetup2RouteImport } from './routes/$workloadId/setup/2'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkloadIdIndexRoute = WorkloadIdIndexRouteImport.update({
+  id: '/$workloadId/',
+  path: '/$workloadId/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkloadIdSetupRoute = WorkloadIdSetupRouteImport.update({
+  id: '/$workloadId/setup',
+  path: '/$workloadId/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkloadIdSetupIndexRoute = WorkloadIdSetupIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => WorkloadIdSetupRoute,
+} as any)
+const WorkloadIdSetup4Route = WorkloadIdSetup4RouteImport.update({
+  id: '/4',
+  path: '/4',
+  getParentRoute: () => WorkloadIdSetupRoute,
+} as any)
+const WorkloadIdSetup3Route = WorkloadIdSetup3RouteImport.update({
+  id: '/3',
+  path: '/3',
+  getParentRoute: () => WorkloadIdSetupRoute,
+} as any)
+const WorkloadIdSetup2Route = WorkloadIdSetup2RouteImport.update({
+  id: '/2',
+  path: '/2',
+  getParentRoute: () => WorkloadIdSetupRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$workloadId/setup': typeof WorkloadIdSetupRouteWithChildren
+  '/$workloadId': typeof WorkloadIdIndexRoute
+  '/$workloadId/setup/2': typeof WorkloadIdSetup2Route
+  '/$workloadId/setup/3': typeof WorkloadIdSetup3Route
+  '/$workloadId/setup/4': typeof WorkloadIdSetup4Route
+  '/$workloadId/setup/': typeof WorkloadIdSetupIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$workloadId': typeof WorkloadIdIndexRoute
+  '/$workloadId/setup/2': typeof WorkloadIdSetup2Route
+  '/$workloadId/setup/3': typeof WorkloadIdSetup3Route
+  '/$workloadId/setup/4': typeof WorkloadIdSetup4Route
+  '/$workloadId/setup': typeof WorkloadIdSetupIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$workloadId/setup': typeof WorkloadIdSetupRouteWithChildren
+  '/$workloadId/': typeof WorkloadIdIndexRoute
+  '/$workloadId/setup/2': typeof WorkloadIdSetup2Route
+  '/$workloadId/setup/3': typeof WorkloadIdSetup3Route
+  '/$workloadId/setup/4': typeof WorkloadIdSetup4Route
+  '/$workloadId/setup/': typeof WorkloadIdSetupIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/$workloadId/setup'
+    | '/$workloadId'
+    | '/$workloadId/setup/2'
+    | '/$workloadId/setup/3'
+    | '/$workloadId/setup/4'
+    | '/$workloadId/setup/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/$workloadId'
+    | '/$workloadId/setup/2'
+    | '/$workloadId/setup/3'
+    | '/$workloadId/setup/4'
+    | '/$workloadId/setup'
+  id:
+    | '__root__'
+    | '/'
+    | '/$workloadId/setup'
+    | '/$workloadId/'
+    | '/$workloadId/setup/2'
+    | '/$workloadId/setup/3'
+    | '/$workloadId/setup/4'
+    | '/$workloadId/setup/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  WorkloadIdSetupRoute: typeof WorkloadIdSetupRouteWithChildren
+  WorkloadIdIndexRoute: typeof WorkloadIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,12 +124,83 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$workloadId/': {
+      id: '/$workloadId/'
+      path: '/$workloadId'
+      fullPath: '/$workloadId'
+      preLoaderRoute: typeof WorkloadIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$workloadId/setup': {
+      id: '/$workloadId/setup'
+      path: '/$workloadId/setup'
+      fullPath: '/$workloadId/setup'
+      preLoaderRoute: typeof WorkloadIdSetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$workloadId/setup/': {
+      id: '/$workloadId/setup/'
+      path: '/'
+      fullPath: '/$workloadId/setup/'
+      preLoaderRoute: typeof WorkloadIdSetupIndexRouteImport
+      parentRoute: typeof WorkloadIdSetupRoute
+    }
+    '/$workloadId/setup/4': {
+      id: '/$workloadId/setup/4'
+      path: '/4'
+      fullPath: '/$workloadId/setup/4'
+      preLoaderRoute: typeof WorkloadIdSetup4RouteImport
+      parentRoute: typeof WorkloadIdSetupRoute
+    }
+    '/$workloadId/setup/3': {
+      id: '/$workloadId/setup/3'
+      path: '/3'
+      fullPath: '/$workloadId/setup/3'
+      preLoaderRoute: typeof WorkloadIdSetup3RouteImport
+      parentRoute: typeof WorkloadIdSetupRoute
+    }
+    '/$workloadId/setup/2': {
+      id: '/$workloadId/setup/2'
+      path: '/2'
+      fullPath: '/$workloadId/setup/2'
+      preLoaderRoute: typeof WorkloadIdSetup2RouteImport
+      parentRoute: typeof WorkloadIdSetupRoute
+    }
   }
 }
 
+interface WorkloadIdSetupRouteChildren {
+  WorkloadIdSetup2Route: typeof WorkloadIdSetup2Route
+  WorkloadIdSetup3Route: typeof WorkloadIdSetup3Route
+  WorkloadIdSetup4Route: typeof WorkloadIdSetup4Route
+  WorkloadIdSetupIndexRoute: typeof WorkloadIdSetupIndexRoute
+}
+
+const WorkloadIdSetupRouteChildren: WorkloadIdSetupRouteChildren = {
+  WorkloadIdSetup2Route: WorkloadIdSetup2Route,
+  WorkloadIdSetup3Route: WorkloadIdSetup3Route,
+  WorkloadIdSetup4Route: WorkloadIdSetup4Route,
+  WorkloadIdSetupIndexRoute: WorkloadIdSetupIndexRoute,
+}
+
+const WorkloadIdSetupRouteWithChildren = WorkloadIdSetupRoute._addFileChildren(
+  WorkloadIdSetupRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  WorkloadIdSetupRoute: WorkloadIdSetupRouteWithChildren,
+  WorkloadIdIndexRoute: WorkloadIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

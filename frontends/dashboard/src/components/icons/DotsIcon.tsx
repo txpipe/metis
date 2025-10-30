@@ -1,7 +1,7 @@
 import type { SVGProps } from 'react';
 
-// Tabler Icon -> trending-up
-export function TrendingUpIcon({ strokeWidth = 1, ...props }: SVGProps<SVGSVGElement>) {
+// Tabler Icon => Dots
+export function DotsIcon({ strokeWidth = 2, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -16,9 +16,7 @@ export function TrendingUpIcon({ strokeWidth = 1, ...props }: SVGProps<SVGSVGEle
       {...props}
     >
       <path stroke="none" d="M0 0h24v24H0z" />
-      <path d="m3 17 6-6 4 4 8-8" />
-      <path d="M14 7h7v7" />
+      <path d="M4 12a1 1 0 1 0 2 0 1 1 0 1 0-2 0M11 12a1 1 0 1 0 2 0 1 1 0 1 0-2 0M18 12a1 1 0 1 0 2 0 1 1 0 1 0-2 0" />
     </svg>
-
   );
 }
