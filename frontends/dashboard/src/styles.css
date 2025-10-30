@@ -24,7 +24,7 @@ body {
   @apply bg-white;
 }
 
-body, #metis-dashboard {
+body {
   @apply m-0 grid grid-rows-[auto_1fr] min-h-dvh;
 
   -webkit-font-smoothing: antialiased;

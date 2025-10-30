@@ -1,21 +1,14 @@
+import { Link } from '@tanstack/react-router';
+
 // Components
 import { InfoCircleIcon } from '~/components/icons/InfoCircleIcon';
 import { Badge, type Props as BadgeProps } from '~/components/ui/Badge';
-import { AlertIcon } from './icons/AlertIcon';
-import { ArrowRightIcon } from './icons/ArrowRightIcon';
+import { AlertIcon } from '~/components/icons/AlertIcon';
+import { ArrowRightIcon } from '~/components/icons/ArrowRightIcon';
 
-interface ExistingWorkload extends Workload {
-  status: 'connected' | 'paused' | 'error';
-  healthInfo: number[];
-  uptime: number;
-  rewards: string;
+interface Props {
+  workload: Workload;
 }
-
-interface PendingWorkload extends Workload {
-  status: 'pending';
-}
-
-type Props = ExistingWorkload | PendingWorkload;
 
 const badgePropsByStatus: Record<Workload['status'], BadgeProps> = {
   connected: { style: 'success', label: 'Connected' },
@@ -45,7 +38,7 @@ function BodyPending() {
   );
 }
 
-function BodyExisting({ healthInfo, uptime, rewards }: ExistingWorkload) {
+function BodyExisting({ healthInfo, uptime, rewards }: Workload) {
   return (
     <>
       {/* Health */}
@@ -55,7 +48,7 @@ function BodyExisting({ healthInfo, uptime, rewards }: ExistingWorkload) {
         </div>
         <div className="mt-3">
           <div className="flex flex-row gap-1.5 justify-between h-7 w-full">
-            {healthInfo.map((healthStatus, index) => (
+            {healthInfo?.map((healthStatus, index) => (
               <div key={`status-${index}`} className={`w-full ${healthStatus === 1 ? 'bg-[#69C876]' : 'bg-[#FF7474]'}`} />
             ))}
           </div>
@@ -63,7 +56,7 @@ function BodyExisting({ healthInfo, uptime, rewards }: ExistingWorkload) {
           <div className="flex flex-row items-center gap-1 text-[#2B2B2B] text-sm mt-1">
             <span>30 days ago</span>
             <span className="flex-1 bg-[#969FAB] h-px" />
-            <span>{uptime}% uptime</span>
+            <span>{uptime ?? 0}% uptime</span>
             <span className="flex-1 bg-[#969FAB] h-px" />
             <span>Today</span>
           </div>
@@ -83,22 +76,27 @@ function BodyExisting({ healthInfo, uptime, rewards }: ExistingWorkload) {
   );
 }
 
-export function CardWorkload({ logoSrc, name, network, status, ...rest }: Props) {
+export function CardWorkload({ workload }: Props) {
   return (
-    <div className="bg-white rounded-3xl p-6 shadow-[1px_0px_16px_0px_rgba(0,0,0,0.1)] flex flex-col min-h-68.75">
+    <Link
+      disabled={workload.status === 'pending'}
+      to="/$workloadId"
+      params={{ workloadId: workload.id }}
+      className="bg-white rounded-3xl p-6 shadow-[1px_0px_16px_0px_rgba(0,0,0,0.1)] flex flex-col min-h-68.75"
+    >
       {/* Workload Info */}
       <div className="flex flex-row gap-3 items-center">
-        <img src={logoSrc} alt={`${name} Logo`} className="h-11 w-11" />
+        <img src={workload.logoSrc} alt={`${workload.name} Logo`} className="h-11 w-11" />
         <div className="flex-1">
-          <h3 className="font-semibold text-lg text-[#2B2B2B] leading-none">{name}</h3>
-          <div className="text-[#969FAB] mt-1">{network}</div>
+          <h3 className="font-semibold text-lg text-[#2B2B2B] leading-none">{workload.name}</h3>
+          <div className="text-[#969FAB] mt-1">{workload.network}</div>
         </div>
-        <Badge size="small" {...badgePropsByStatus[status]} />
+        <Badge size="small" {...badgePropsByStatus[workload.status]} />
       </div>
 
-      {status === 'pending'
+      {workload.status === 'pending'
         ? <BodyPending />
-        : <BodyExisting {...rest as ExistingWorkload} />}
-    </div>
+        : <BodyExisting {...workload} />}
+    </Link>
   );
 };

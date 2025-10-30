@@ -1,37 +1,14 @@
+import { useEffect, useRef, useState } from 'react';
 import { type ColumnDef, flexRender, getCoreRowModel, getFilteredRowModel, useReactTable } from '@tanstack/react-table';
 import clsx from 'clsx';
 
 // Components
-import { useEffect, useRef, useState } from 'react';
 import { SearchIcon } from '~/components/icons/SearchIcon';
 import { Button } from '~/components/ui/Button';
-import { CircleCheckIcon } from './icons/CircleCheckIcon';
+import { CircleCheckIcon } from '~/components/icons/CircleCheckIcon';
 
-const workloads = [
-  {
-    id: '12345',
-    logoSrc: '/images/midnight.svg',
-    name: 'Midnight Node',
-    network: 'Mainnet',
-    description: 'Become a Midnight Block Producer',
-  },
-  {
-    id: '12346',
-    logoSrc: '/images/midgard.png',
-    name: 'Midgard Node',
-    network: 'Mainnet',
-    description: 'Lorem ipsum dolor sit amet',
-  },
-  {
-    id: '12347',
-    logoSrc: '/images/hydra.svg',
-    name: 'Hydra Node',
-    network: 'Mainnet',
-    description: 'Lorem ipsum dolor sit amet',
-  },
-];
-
-export type Workload = typeof workloads[number];
+// Mock Data
+import { workloads } from '~/data/workloads';
 
 interface Props {
   onWorkloadSelected: (workload: Workload) => void;
