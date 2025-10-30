@@ -1,12 +1,13 @@
 [protocol]
-name = "metis"
+name = "partner-chain-protocol"
 scope = "txpipe"
-version = "0.0.0"
+version = "0.1.0"
 description = ""
 main = "main.tx3"
+readme = "README.md"
 
 [registry]
-url = "https://tx3.land"
+url = "http://localhost:3000"
 
 [profiles.devnet]
 chain = "CardanoDevnet"
