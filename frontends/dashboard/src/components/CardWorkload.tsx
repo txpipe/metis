@@ -17,7 +17,7 @@ const badgePropsByStatus: Record<Workload['status'], BadgeProps> = {
   pending: { style: 'status', label: 'Onboarding' },
 };
 
-function BodyPending() {
+function BodyPending({ workloadId }: { workloadId: string; }) {
   return (
     <div className="flex-1 grid grid-rows-[1fr_auto] gap-6 mt-6">
       {/* Info box */}
@@ -28,12 +28,16 @@ function BodyPending() {
         </span>
       </div>
 
-      <div className="flex gap-1.5 items-center w-fit mx-auto text-[#0000FF]">
+      <Link
+        to="/$workloadId/setup"
+        params={{ workloadId }}
+        className="flex gap-1.5 items-center w-fit mx-auto text-[#0000FF]"
+      >
         <span className="underline underline-offset-4">
           Start onboarding wizard
         </span>
         <ArrowRightIcon className="w-4.5 h-2.5" />
-      </div>
+      </Link>
     </div>
   );
 }
@@ -76,27 +80,42 @@ function BodyExisting({ healthInfo, uptime, rewards }: Workload) {
   );
 }
 
+function WorkloadDetails({ workload }: { workload: Workload; }) {
+  return (
+    <div className="flex flex-row gap-3 items-center">
+      <img src={workload.logoSrc} alt={`${workload.name} Logo`} className="h-11 w-11" />
+      <div className="flex-1">
+        <h3 className="font-semibold text-lg text-[#2B2B2B] leading-none">{workload.name}</h3>
+        <div className="text-[#969FAB] mt-1">{workload.network}</div>
+      </div>
+      <Badge size="small" {...badgePropsByStatus[workload.status]} />
+    </div>
+  );
+}
+
 export function CardWorkload({ workload }: Props) {
+  const className = 'bg-white rounded-3xl p-6 shadow-[1px_0px_16px_0px_rgba(0,0,0,0.1)] flex flex-col min-h-68.75';
+
+  if (workload.status === 'pending') {
+    return (
+      <div
+        className={className}
+      >
+        <WorkloadDetails workload={workload} />
+        <BodyPending workloadId={workload.id} />
+      </div>
+    );
+  }
+
   return (
     <Link
-      disabled={workload.status === 'pending'}
       to="/$workloadId"
       params={{ workloadId: workload.id }}
-      className="bg-white rounded-3xl p-6 shadow-[1px_0px_16px_0px_rgba(0,0,0,0.1)] flex flex-col min-h-68.75"
+      className={className}
     >
-      {/* Workload Info */}
-      <div className="flex flex-row gap-3 items-center">
-        <img src={workload.logoSrc} alt={`${workload.name} Logo`} className="h-11 w-11" />
-        <div className="flex-1">
-          <h3 className="font-semibold text-lg text-[#2B2B2B] leading-none">{workload.name}</h3>
-          <div className="text-[#969FAB] mt-1">{workload.network}</div>
-        </div>
-        <Badge size="small" {...badgePropsByStatus[workload.status]} />
-      </div>
+      <WorkloadDetails workload={workload} />
 
-      {workload.status === 'pending'
-        ? <BodyPending />
-        : <BodyExisting {...workload} />}
+      <BodyExisting {...workload} />
     </Link>
   );
 };

@@ -53,6 +53,7 @@ function RowActionsCell({
         color={added ? 'green' : 'blue'}
         size="small-auto-x"
         className={clsx('gap-0.5 w-18', { 'pointer-events-none': added })}
+        disabled={added}
         onClick={() => {
           setAdded(true);
           memAddedState[workload.id] = Date.now();
