@@ -11,3 +11,12 @@ export const getRouter = () => {
     defaultPreloadStaleTime: 0,
   });
 };
+
+// Register the router instance for type safety
+declare module '@tanstack/react-router' {
+  interface HistoryState {
+    selectedUtxo?: UtxoRef | null;
+    signature?: string | null;
+    publicKey?: string | null;
+  }
+}

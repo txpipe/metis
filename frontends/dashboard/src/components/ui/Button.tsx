@@ -71,7 +71,7 @@ export function Button({ type, children, onClick, ...props }: PropsWithChildren<
   const className = button(props);
 
   return (
-    <button type={type} onClick={onClick} className={className}>
+    <button type={type} onClick={onClick} className={className} disabled={props.disabled}>
       {children}
     </button>
   );

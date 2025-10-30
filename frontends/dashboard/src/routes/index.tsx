@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // Components
 import { Card } from '~/components/Card';
@@ -8,17 +8,17 @@ import { XIcon } from '~/components/icons/XIcon';
 import { Button } from '~/components/ui/Button';
 import { WorkloadsTable } from '~/components/WorkloadsTable';
 
+// Data
+import { workloads as workloadsData } from '~/data/workloads';
+
 export const Route = createFileRoute('/')({
   loader: async () => {
     const workloads: Workload[] = [
       {
-        id: '12345',
-        logoSrc: '/images/midnight.svg',
-        name: 'Midnight Node',
-        network: 'Mainnet',
+        ...workloadsData[0],
         healthInfo: new Array(30).fill(1),
         uptime: 100,
-        rewards: '300 Nights',
+        rewards: '0 Nights',
         status: 'connected',
       },
     ];
@@ -28,12 +28,18 @@ export const Route = createFileRoute('/')({
   component: DashboardPage,
 });
 
+let pendingWorkloadsCache: Workload[] = [];
+
 function DashboardPage() {
   const [showAvailableWorkloads, setShowAvailableWorkloads] = useState(false);
   const { workloads } = Route.useLoaderData();
-  const [pendingWorkloads, setPendingWorkloads] = useState<Workload[]>([]);
+  const [pendingWorkloads, setPendingWorkloads] = useState<Workload[]>(pendingWorkloadsCache);
 
-  const finalWorkloads = [...workloads, ...pendingWorkloads];
+  const finalWorkloads = [...pendingWorkloads, ...workloads];
+
+  useEffect(() => {
+    pendingWorkloadsCache = pendingWorkloads;
+  }, [pendingWorkloads]);
 
   return (
     <div className="mx-16 py-8">
@@ -63,14 +69,18 @@ function DashboardPage() {
         >
           <WorkloadsTable
             onWorkloadSelected={workload => {
+              const newWorkload = {
+                ...workload,
+                id: `${parseInt(workload.id) + 1}`,
+                healthInfo: [],
+                uptime: 0,
+                rewards: '',
+              };
+              workloadsData.push(newWorkload);
+              setShowAvailableWorkloads(false);
               setPendingWorkloads(prev => [
+                newWorkload,
                 ...prev,
-                {
-                  ...workload,
-                  healthInfo: [],
-                  uptime: 0,
-                  rewards: '',
-                },
               ]);
             }}
           />
