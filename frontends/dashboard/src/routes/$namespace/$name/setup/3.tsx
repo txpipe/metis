@@ -7,7 +7,7 @@ import { Callout } from '~/components/ui/Callout';
 // Wizard
 import { StepStatus, useWizard } from '~/contexts/wizard';
 
-export const Route = createFileRoute('/$workloadId/setup/3')({
+export const Route = createFileRoute('/$namespace/$name/setup/3')({
   component: RouteComponent,
 });
 
@@ -22,7 +22,7 @@ function RouteComponent() {
     // eslint-disable-next-line no-console
     console.log('Simulating wallet signature...');
     setTimeout(() => {
-      navigate({ to: '/$workloadId/setup/4', params });
+      navigate({ to: '/$namespace/$name/setup/4', params });
     }, 1000);
 
     return () => {

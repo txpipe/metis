@@ -1,45 +1,34 @@
+import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { toast } from 'react-hot-toast';
 
 // Components
 import { Card } from '~/components/Card';
-import { CardWorkload } from '~/components/CardWorkload';
+import { CardHelmWorkload } from '~/components/CardHelmWorkload';
 import { XIcon } from '~/components/icons/XIcon';
 import { Button } from '~/components/ui/Button';
+import { Toast } from '~/components/ui/Toast';
 import { WorkloadsTable } from '~/components/WorkloadsTable';
 
-// Data
-import { workloads as workloadsData } from '~/data/workloads';
+// Utils
+import { getServerWorkloads } from '~/utils/home/calls';
+
+const workloadsQueryOptions = () => queryOptions({
+  queryKey: ['helmWorkloads'],
+  queryFn: () => getServerWorkloads(),
+});
 
 export const Route = createFileRoute('/')({
-  loader: async () => {
-    const workloads: Workload[] = [
-      {
-        ...workloadsData[0],
-        healthInfo: new Array(30).fill(1),
-        uptime: 100,
-        rewards: '0 Nights',
-        status: 'connected',
-      },
-    ];
-
-    return { workloads };
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(workloadsQueryOptions());
   },
   component: DashboardPage,
 });
 
-let pendingWorkloadsCache: Workload[] = [];
-
 function DashboardPage() {
   const [showAvailableWorkloads, setShowAvailableWorkloads] = useState(false);
-  const { workloads } = Route.useLoaderData();
-  const [pendingWorkloads, setPendingWorkloads] = useState<Workload[]>(pendingWorkloadsCache);
-
-  const finalWorkloads = [...pendingWorkloads, ...workloads];
-
-  useEffect(() => {
-    pendingWorkloadsCache = pendingWorkloads;
-  }, [pendingWorkloads]);
+  const helmWorkloadsQuery = useSuspenseQuery(workloadsQueryOptions());
 
   return (
     <div className="mx-16 py-8">
@@ -68,20 +57,20 @@ function DashboardPage() {
           className="mt-10 gap-8"
         >
           <WorkloadsTable
-            onWorkloadSelected={workload => {
-              const newWorkload = {
-                ...workload,
-                id: `${parseInt(workload.id) + 1}`,
-                healthInfo: [],
-                uptime: 0,
-                rewards: '',
-              };
-              workloadsData.push(newWorkload);
+            onWorkloadSelected={() => {
               setShowAvailableWorkloads(false);
-              setPendingWorkloads(prev => [
-                newWorkload,
-                ...prev,
-              ]);
+              helmWorkloadsQuery.refetch();
+
+              toast.custom(
+                t => (
+                  <Toast
+                    toastId={t.id}
+                    title="Workload Added"
+                    message="Your workload was added successfully."
+                    style="success"
+                  />
+                ),
+              );
             }}
           />
         </Card>
@@ -89,10 +78,11 @@ function DashboardPage() {
 
       <Card title="My workloads" className="mt-10 gap-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-7">
-          {finalWorkloads.map(workload => (
-            <CardWorkload
+          {helmWorkloadsQuery.data?.map(workload => (
+            <CardHelmWorkload
+              key={workload.namespace}
               workload={workload}
-              key={workload.id}
+              onDelete={() => helmWorkloadsQuery.refetch()}
             />
           ))}
         </div>

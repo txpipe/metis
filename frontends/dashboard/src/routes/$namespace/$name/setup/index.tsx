@@ -13,7 +13,7 @@ import { ConnectWallet } from '~/components/wizard/ConnectWallet';
 import { Callout } from '~/components/ui/Callout';
 import { Button } from '~/components/ui/Button';
 
-export const Route = createFileRoute('/$workloadId/setup/')({
+export const Route = createFileRoute('/$namespace/$name/setup/')({
   component: RouteComponent,
 });
 
@@ -115,7 +115,7 @@ function RouteComponent() {
           disabled={!selectedUtxo}
           onClick={() => {
             navigate({
-              to: '/$workloadId/setup/2',
+              to: '/$namespace/$name/setup/2',
               params,
               state: { selectedUtxo },
             });

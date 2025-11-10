@@ -8,11 +8,12 @@ import { Callout } from '~/components/ui/Callout';
 // Context
 import { StepStatus, useWizard } from '~/contexts/wizard';
 
-export const Route = createFileRoute('/$workloadId/setup/4')({
+export const Route = createFileRoute('/$namespace/$name/setup/4')({
   component: RouteComponent,
 });
 
 function RouteComponent() {
+  const params = Route.useParams();
   const { setStepStatus, setBadgeStatus } = useWizard();
   const [success, setSuccess] = useState(false);
 
@@ -73,7 +74,7 @@ function RouteComponent() {
 
       <p className="mt-10 text-[#2B2B2B]">
         At this point you are now registered as a candidate in the validator committee!<br />
-        Access your <Link to="/" className="text-[#0000FF] underline underline-offset-3 font-bold">Supernode Health Dashboard</Link> to check your Midnight block producer node's activity.
+        Access your <Link to="/$namespace/$name" params={params} className="text-[#0000FF] underline underline-offset-3 font-bold">Supernode Health Dashboard</Link> to check your Midnight block producer node's activity.
       </p>
     </>
   );

@@ -1,16 +1,21 @@
 // @ts-expect-error: FontSource doesn't have types but we don't need them
 import '@fontsource-variable/inter';
 
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router';
+import { QueryClient } from '@tanstack/react-query';
+import { HeadContent, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
+import { ReactQueryDevtoolsPanel } from '@tanstack/react-query-devtools';
 import { TanStackDevtools } from '@tanstack/react-devtools';
+import { Toaster } from 'react-hot-toast';
 
 // Components
 import { Header } from '~/components/Header';
 
 import appCss from '~/styles.css?url';
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient;
+}>()({
   head: () => ({
     meta: [
       {
@@ -41,6 +46,7 @@ function RootDocument({ children }: { children: React.ReactNode; }) {
       <body>
         <Header />
         {children}
+        <Toaster position="bottom-center" />
         <TanStackDevtools
           config={{
             position: 'bottom-right',
@@ -49,6 +55,10 @@ function RootDocument({ children }: { children: React.ReactNode; }) {
             {
               name: 'Tanstack Router',
               render: <TanStackRouterDevtoolsPanel />,
+            },
+            {
+              name: 'React Query',
+              render: <ReactQueryDevtoolsPanel />,
             },
           ]}
         />

@@ -10,109 +10,109 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as WorkloadIdIndexRouteImport } from './routes/$workloadId/index'
-import { Route as WorkloadIdSetupRouteImport } from './routes/$workloadId/setup'
-import { Route as WorkloadIdSetupIndexRouteImport } from './routes/$workloadId/setup/index'
-import { Route as WorkloadIdSetup4RouteImport } from './routes/$workloadId/setup/4'
-import { Route as WorkloadIdSetup3RouteImport } from './routes/$workloadId/setup/3'
-import { Route as WorkloadIdSetup2RouteImport } from './routes/$workloadId/setup/2'
+import { Route as NamespaceNameIndexRouteImport } from './routes/$namespace/$name/index'
+import { Route as NamespaceNameSetupRouteImport } from './routes/$namespace/$name/setup'
+import { Route as NamespaceNameSetupIndexRouteImport } from './routes/$namespace/$name/setup/index'
+import { Route as NamespaceNameSetup4RouteImport } from './routes/$namespace/$name/setup/4'
+import { Route as NamespaceNameSetup3RouteImport } from './routes/$namespace/$name/setup/3'
+import { Route as NamespaceNameSetup2RouteImport } from './routes/$namespace/$name/setup/2'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkloadIdIndexRoute = WorkloadIdIndexRouteImport.update({
-  id: '/$workloadId/',
-  path: '/$workloadId/',
+const NamespaceNameIndexRoute = NamespaceNameIndexRouteImport.update({
+  id: '/$namespace/$name/',
+  path: '/$namespace/$name/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkloadIdSetupRoute = WorkloadIdSetupRouteImport.update({
-  id: '/$workloadId/setup',
-  path: '/$workloadId/setup',
+const NamespaceNameSetupRoute = NamespaceNameSetupRouteImport.update({
+  id: '/$namespace/$name/setup',
+  path: '/$namespace/$name/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkloadIdSetupIndexRoute = WorkloadIdSetupIndexRouteImport.update({
+const NamespaceNameSetupIndexRoute = NamespaceNameSetupIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => WorkloadIdSetupRoute,
+  getParentRoute: () => NamespaceNameSetupRoute,
 } as any)
-const WorkloadIdSetup4Route = WorkloadIdSetup4RouteImport.update({
+const NamespaceNameSetup4Route = NamespaceNameSetup4RouteImport.update({
   id: '/4',
   path: '/4',
-  getParentRoute: () => WorkloadIdSetupRoute,
+  getParentRoute: () => NamespaceNameSetupRoute,
 } as any)
-const WorkloadIdSetup3Route = WorkloadIdSetup3RouteImport.update({
+const NamespaceNameSetup3Route = NamespaceNameSetup3RouteImport.update({
   id: '/3',
   path: '/3',
-  getParentRoute: () => WorkloadIdSetupRoute,
+  getParentRoute: () => NamespaceNameSetupRoute,
 } as any)
-const WorkloadIdSetup2Route = WorkloadIdSetup2RouteImport.update({
+const NamespaceNameSetup2Route = NamespaceNameSetup2RouteImport.update({
   id: '/2',
   path: '/2',
-  getParentRoute: () => WorkloadIdSetupRoute,
+  getParentRoute: () => NamespaceNameSetupRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/$workloadId/setup': typeof WorkloadIdSetupRouteWithChildren
-  '/$workloadId': typeof WorkloadIdIndexRoute
-  '/$workloadId/setup/2': typeof WorkloadIdSetup2Route
-  '/$workloadId/setup/3': typeof WorkloadIdSetup3Route
-  '/$workloadId/setup/4': typeof WorkloadIdSetup4Route
-  '/$workloadId/setup/': typeof WorkloadIdSetupIndexRoute
+  '/$namespace/$name/setup': typeof NamespaceNameSetupRouteWithChildren
+  '/$namespace/$name': typeof NamespaceNameIndexRoute
+  '/$namespace/$name/setup/2': typeof NamespaceNameSetup2Route
+  '/$namespace/$name/setup/3': typeof NamespaceNameSetup3Route
+  '/$namespace/$name/setup/4': typeof NamespaceNameSetup4Route
+  '/$namespace/$name/setup/': typeof NamespaceNameSetupIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/$workloadId': typeof WorkloadIdIndexRoute
-  '/$workloadId/setup/2': typeof WorkloadIdSetup2Route
-  '/$workloadId/setup/3': typeof WorkloadIdSetup3Route
-  '/$workloadId/setup/4': typeof WorkloadIdSetup4Route
-  '/$workloadId/setup': typeof WorkloadIdSetupIndexRoute
+  '/$namespace/$name': typeof NamespaceNameIndexRoute
+  '/$namespace/$name/setup/2': typeof NamespaceNameSetup2Route
+  '/$namespace/$name/setup/3': typeof NamespaceNameSetup3Route
+  '/$namespace/$name/setup/4': typeof NamespaceNameSetup4Route
+  '/$namespace/$name/setup': typeof NamespaceNameSetupIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/$workloadId/setup': typeof WorkloadIdSetupRouteWithChildren
-  '/$workloadId/': typeof WorkloadIdIndexRoute
-  '/$workloadId/setup/2': typeof WorkloadIdSetup2Route
-  '/$workloadId/setup/3': typeof WorkloadIdSetup3Route
-  '/$workloadId/setup/4': typeof WorkloadIdSetup4Route
-  '/$workloadId/setup/': typeof WorkloadIdSetupIndexRoute
+  '/$namespace/$name/setup': typeof NamespaceNameSetupRouteWithChildren
+  '/$namespace/$name/': typeof NamespaceNameIndexRoute
+  '/$namespace/$name/setup/2': typeof NamespaceNameSetup2Route
+  '/$namespace/$name/setup/3': typeof NamespaceNameSetup3Route
+  '/$namespace/$name/setup/4': typeof NamespaceNameSetup4Route
+  '/$namespace/$name/setup/': typeof NamespaceNameSetupIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/$workloadId/setup'
-    | '/$workloadId'
-    | '/$workloadId/setup/2'
-    | '/$workloadId/setup/3'
-    | '/$workloadId/setup/4'
-    | '/$workloadId/setup/'
+    | '/$namespace/$name/setup'
+    | '/$namespace/$name'
+    | '/$namespace/$name/setup/2'
+    | '/$namespace/$name/setup/3'
+    | '/$namespace/$name/setup/4'
+    | '/$namespace/$name/setup/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/$workloadId'
-    | '/$workloadId/setup/2'
-    | '/$workloadId/setup/3'
-    | '/$workloadId/setup/4'
-    | '/$workloadId/setup'
+    | '/$namespace/$name'
+    | '/$namespace/$name/setup/2'
+    | '/$namespace/$name/setup/3'
+    | '/$namespace/$name/setup/4'
+    | '/$namespace/$name/setup'
   id:
     | '__root__'
     | '/'
-    | '/$workloadId/setup'
-    | '/$workloadId/'
-    | '/$workloadId/setup/2'
-    | '/$workloadId/setup/3'
-    | '/$workloadId/setup/4'
-    | '/$workloadId/setup/'
+    | '/$namespace/$name/setup'
+    | '/$namespace/$name/'
+    | '/$namespace/$name/setup/2'
+    | '/$namespace/$name/setup/3'
+    | '/$namespace/$name/setup/4'
+    | '/$namespace/$name/setup/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  WorkloadIdSetupRoute: typeof WorkloadIdSetupRouteWithChildren
-  WorkloadIdIndexRoute: typeof WorkloadIdIndexRoute
+  NamespaceNameSetupRoute: typeof NamespaceNameSetupRouteWithChildren
+  NamespaceNameIndexRoute: typeof NamespaceNameIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -124,73 +124,72 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$workloadId/': {
-      id: '/$workloadId/'
-      path: '/$workloadId'
-      fullPath: '/$workloadId'
-      preLoaderRoute: typeof WorkloadIdIndexRouteImport
+    '/$namespace/$name/': {
+      id: '/$namespace/$name/'
+      path: '/$namespace/$name'
+      fullPath: '/$namespace/$name'
+      preLoaderRoute: typeof NamespaceNameIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$workloadId/setup': {
-      id: '/$workloadId/setup'
-      path: '/$workloadId/setup'
-      fullPath: '/$workloadId/setup'
-      preLoaderRoute: typeof WorkloadIdSetupRouteImport
+    '/$namespace/$name/setup': {
+      id: '/$namespace/$name/setup'
+      path: '/$namespace/$name/setup'
+      fullPath: '/$namespace/$name/setup'
+      preLoaderRoute: typeof NamespaceNameSetupRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$workloadId/setup/': {
-      id: '/$workloadId/setup/'
+    '/$namespace/$name/setup/': {
+      id: '/$namespace/$name/setup/'
       path: '/'
-      fullPath: '/$workloadId/setup/'
-      preLoaderRoute: typeof WorkloadIdSetupIndexRouteImport
-      parentRoute: typeof WorkloadIdSetupRoute
+      fullPath: '/$namespace/$name/setup/'
+      preLoaderRoute: typeof NamespaceNameSetupIndexRouteImport
+      parentRoute: typeof NamespaceNameSetupRoute
     }
-    '/$workloadId/setup/4': {
-      id: '/$workloadId/setup/4'
+    '/$namespace/$name/setup/4': {
+      id: '/$namespace/$name/setup/4'
       path: '/4'
-      fullPath: '/$workloadId/setup/4'
-      preLoaderRoute: typeof WorkloadIdSetup4RouteImport
-      parentRoute: typeof WorkloadIdSetupRoute
+      fullPath: '/$namespace/$name/setup/4'
+      preLoaderRoute: typeof NamespaceNameSetup4RouteImport
+      parentRoute: typeof NamespaceNameSetupRoute
     }
-    '/$workloadId/setup/3': {
-      id: '/$workloadId/setup/3'
+    '/$namespace/$name/setup/3': {
+      id: '/$namespace/$name/setup/3'
       path: '/3'
-      fullPath: '/$workloadId/setup/3'
-      preLoaderRoute: typeof WorkloadIdSetup3RouteImport
-      parentRoute: typeof WorkloadIdSetupRoute
+      fullPath: '/$namespace/$name/setup/3'
+      preLoaderRoute: typeof NamespaceNameSetup3RouteImport
+      parentRoute: typeof NamespaceNameSetupRoute
     }
-    '/$workloadId/setup/2': {
-      id: '/$workloadId/setup/2'
+    '/$namespace/$name/setup/2': {
+      id: '/$namespace/$name/setup/2'
       path: '/2'
-      fullPath: '/$workloadId/setup/2'
-      preLoaderRoute: typeof WorkloadIdSetup2RouteImport
-      parentRoute: typeof WorkloadIdSetupRoute
+      fullPath: '/$namespace/$name/setup/2'
+      preLoaderRoute: typeof NamespaceNameSetup2RouteImport
+      parentRoute: typeof NamespaceNameSetupRoute
     }
   }
 }
 
-interface WorkloadIdSetupRouteChildren {
-  WorkloadIdSetup2Route: typeof WorkloadIdSetup2Route
-  WorkloadIdSetup3Route: typeof WorkloadIdSetup3Route
-  WorkloadIdSetup4Route: typeof WorkloadIdSetup4Route
-  WorkloadIdSetupIndexRoute: typeof WorkloadIdSetupIndexRoute
+interface NamespaceNameSetupRouteChildren {
+  NamespaceNameSetup2Route: typeof NamespaceNameSetup2Route
+  NamespaceNameSetup3Route: typeof NamespaceNameSetup3Route
+  NamespaceNameSetup4Route: typeof NamespaceNameSetup4Route
+  NamespaceNameSetupIndexRoute: typeof NamespaceNameSetupIndexRoute
 }
 
-const WorkloadIdSetupRouteChildren: WorkloadIdSetupRouteChildren = {
-  WorkloadIdSetup2Route: WorkloadIdSetup2Route,
-  WorkloadIdSetup3Route: WorkloadIdSetup3Route,
-  WorkloadIdSetup4Route: WorkloadIdSetup4Route,
-  WorkloadIdSetupIndexRoute: WorkloadIdSetupIndexRoute,
+const NamespaceNameSetupRouteChildren: NamespaceNameSetupRouteChildren = {
+  NamespaceNameSetup2Route: NamespaceNameSetup2Route,
+  NamespaceNameSetup3Route: NamespaceNameSetup3Route,
+  NamespaceNameSetup4Route: NamespaceNameSetup4Route,
+  NamespaceNameSetupIndexRoute: NamespaceNameSetupIndexRoute,
 }
 
-const WorkloadIdSetupRouteWithChildren = WorkloadIdSetupRoute._addFileChildren(
-  WorkloadIdSetupRouteChildren,
-)
+const NamespaceNameSetupRouteWithChildren =
+  NamespaceNameSetupRoute._addFileChildren(NamespaceNameSetupRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  WorkloadIdSetupRoute: WorkloadIdSetupRouteWithChildren,
-  WorkloadIdIndexRoute: WorkloadIdIndexRoute,
+  NamespaceNameSetupRoute: NamespaceNameSetupRouteWithChildren,
+  NamespaceNameIndexRoute: NamespaceNameIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -7,7 +7,7 @@ import { CopyIcon } from '~/components/icons/CopyIcon';
 import { InfoCircleIcon } from '~/components/icons/InfoCircleIcon';
 import { Button } from '~/components/ui/Button';
 
-export const Route = createFileRoute('/$workloadId/setup/2')({
+export const Route = createFileRoute('/$namespace/$name/setup/2')({
   component: RouteComponent,
 });
 
@@ -86,7 +86,7 @@ function RouteComponent() {
           type="button"
           disabled={!selectedUtxo || !formValues.signature || !formValues.publicKey}
           onClick={() => {
-            navigate({ to: '/$workloadId/setup/3', params, state: { selectedUtxo, ...formValues } });
+            navigate({ to: '/$namespace/$name/setup/3', params, state: { selectedUtxo, ...formValues } });
           }}
         >
           Continue

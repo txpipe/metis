@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect, useLocation } from '@tanstack/react-router';
+import { createFileRoute, Outlet, useLocation } from '@tanstack/react-router';
 
 // Components
 import { SubHeader } from '~/components/SubHeader';
@@ -8,14 +8,15 @@ import { Sidebar } from '~/components/wizard/Sidebar';
 import { WalletProvider } from '~/contexts/wallet';
 import { WizardProvider } from '~/contexts/wizard';
 
-export const Route = createFileRoute('/$workloadId/setup')({
-  beforeLoad: async ({ params: { workloadId } }) => {
-    if (workloadId !== '2') {
-      throw redirect({
-        to: '/$workloadId',
-        params: { workloadId },
-      });
-    }
+export const Route = createFileRoute('/$namespace/$name/setup')({
+  // beforeLoad: async ({ params }) => {
+  beforeLoad: async () => {
+    // if (workloadId !== '2') {
+    //   throw redirect({
+    //     to: '/$workloadId',
+    //     params: { workloadId },
+    //   });
+    // }
     return {};
   },
   component: SetupLayout,
