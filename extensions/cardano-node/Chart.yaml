@@ -2,8 +2,8 @@ apiVersion: v2
 name: cardano-node
 description: Helm chart to deploy a Cardano node extension on Metis
 type: application
-version: 0.1.0
-appVersion: "8.10.0"
+version: 0.1.0-rc1
+appVersion: "10.5.1"
 keywords:
   - cardano
   - metis

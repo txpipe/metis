@@ -3,7 +3,7 @@ fullnameOverride: ""
 
 image:
   repository: ghcr.io/txpipe/dolos
-  tag: "latest"
+  tag: "v0.32.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
