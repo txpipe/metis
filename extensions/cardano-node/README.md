@@ -26,13 +26,6 @@ helm install cardano-node ./cardano-node \
   --set node.networkMagic=1
 ```
 
-To restore the node from a snapshot URL:
-
-```shell
-helm install cardano-node ./cardano-node \
-  --set node.restoreSnapshot=https://example.com/snapshot.tar.gz
-```
-
 Resources and tolerations are off by default so the manifests stay minimal.
 Override them as needed:
 
