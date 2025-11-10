@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "cardano-node.fullname" . }}
+  labels:
+    app.kubernetes.io/component: o11y
+    {{- include "cardano-node.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{- include "cardano-node.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
