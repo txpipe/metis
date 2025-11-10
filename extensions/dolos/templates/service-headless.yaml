@@ -1,0 +1,25 @@
+{{- $fullName := printf "%s-headless" (include "dolos.fullname" .) -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "dolos.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    {{- include "dolos.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: grpc
+      port: {{ .Values.service.grpcPort }}
+      targetPort: grpc
+      protocol: TCP
+    - name: ouroboros
+      port: {{ .Values.service.ouroborosPort }}
+      targetPort: ouroboros
+      protocol: TCP
+    - name: minibf
+      port: {{ .Values.service.minibfPort }}
+      targetPort: minibf
+      protocol: TCP
