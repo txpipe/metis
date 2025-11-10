@@ -1,0 +1,13 @@
+{{- if and .Values.proxy.enabled .Values.proxy.config.create }}
+{{- $filename := required ".Values.proxy.config.filename is required when proxy.config.create is true" .Values.proxy.config.filename -}}
+{{- $configData := required ".Values.proxy.config.data must be provided when proxy.config.create is true" .Values.proxy.config.data -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cardano-node.proxyConfigName" . }}
+  labels:
+    {{- include "cardano-node.labels" . | nindent 4 }}
+data:
+  {{ $filename }}: |-
+{{ $configData | nindent 4 }}
+{{- end }}

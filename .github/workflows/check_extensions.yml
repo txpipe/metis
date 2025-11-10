@@ -38,6 +38,9 @@ jobs:
             dir: midnight
           - name: default
             valuesArgs: ""
+            dir: cardano-node
+          - name: default
+            valuesArgs: ""
             dir: control-plane
     steps:
       - name: Checkout
