@@ -1,10 +1,7 @@
 # Cardano Node Helm Chart
 
 This chart packages a Cardano node and the supporting TCP proxy sidecar used by
-Metis extensions. It distills the Terraform bootstrap module into a reusable
-Helm deployment that follows the same conventions as the Midnight extension
-chart in this repository while omitting the Demeter, Vector, and Prime specific
-logic.
+Metis extensions.
 
 ## Features
 

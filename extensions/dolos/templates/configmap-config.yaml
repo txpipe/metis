@@ -1,0 +1,25 @@
+{{- if and .Values.config.create (not .Values.config.existingConfigMap) }}
+{{- $configName := include "dolos.configurationConfigMapName" . }}
+{{- $root := . }}
+{{- $contentDict := dict "value" "" }}
+{{- if .Values.config.customConfig }}
+{{- $_ := set $contentDict "value" (tpl .Values.config.customConfig $root) }}
+{{- else if and .Values.config.preset (hasKey .Values.config.presets .Values.config.preset) }}
+{{- $_ := set $contentDict "value" (tpl (index .Values.config.presets .Values.config.preset) $root) }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configName }}
+  labels:
+    {{- include "dolos.labels" . | nindent 4 }}
+data:
+  {{ .Values.config.filename }}: |-
+    {{- if $contentDict.value }}
+    {{- $contentDict.value | nindent 4 }}
+    {{- end }}
+  {{- range $name, $template := .Values.config.extraFiles }}
+  {{ $name }}: |-
+    {{- tpl $template $root | nindent 4 }}
+  {{- end }}
+{{- end }}
