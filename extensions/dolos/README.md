@@ -14,7 +14,9 @@ This chart deploys [Dolos](https://github.com/txpipe/dolos).
 ## Configuration
 
 By default the chart renders the preset for `cardano-preview` and writes it to
-`/etc/config/dolos.toml`. Adjust as needed:
+`/etc/config/dolos.toml`. You **must** provide `config.upstreamAddress` with the
+address of a trusted Cardano relay for Dolos to sync against; the chart fails to
+render until a value is supplied. Adjust as needed:
 
 ```yaml
 dolos:
@@ -22,7 +24,7 @@ dolos:
 
 config:
   preset: cardano-mainnet
-  upstreamAddress: "relay.example.org:3000"
+  upstreamAddress: "trusted-relay.example.org:3000"
 ```
 
 To inject a completely custom configuration set `config.customConfig`:

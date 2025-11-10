@@ -92,12 +92,13 @@ config:
   filename: dolos.toml
   preset: cardano-preview
   customConfig: ""
-  upstreamAddress: "127.0.0.1:3000"
+  # Must point to a trusted Cardano relay used for syncing.
+  upstreamAddress: ""
   extraFiles: {}
   presets:
     cardano-mainnet: |-
       [upstream]
-      peer_address = "{{ .Values.config.upstreamAddress }}"
+      peer_address = "{{ required "config.upstreamAddress must be set to a trusted Cardano relay address" .Values.config.upstreamAddress }}"
       network_magic = 764824073
       is_testnet = false
 
@@ -138,7 +139,7 @@ config:
       include_minibf = false
     cardano-preprod: |-
       [upstream]
-      peer_address = "{{ .Values.config.upstreamAddress }}"
+      peer_address = "{{ required "config.upstreamAddress must be set to a trusted Cardano relay address" .Values.config.upstreamAddress }}"
       network_magic = 1
       is_testnet = true
 
@@ -178,7 +179,7 @@ config:
       include_minibf = false
     cardano-preview: |-
       [upstream]
-      peer_address = "{{ .Values.config.upstreamAddress }}"
+      peer_address = "{{ required "config.upstreamAddress must be set to a trusted Cardano relay address" .Values.config.upstreamAddress }}"
       network_magic = 2
       is_testnet = true
 
