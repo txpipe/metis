@@ -30,6 +30,8 @@ function DashboardPage() {
   const [showAvailableWorkloads, setShowAvailableWorkloads] = useState(false);
   const helmWorkloadsQuery = useSuspenseQuery(workloadsQueryOptions());
 
+  const isEmpty = !helmWorkloadsQuery.data || helmWorkloadsQuery.data.length === 0;
+
   return (
     <div className="mx-16 py-8">
       <h1 className="text-3xl/[40px] font-semibold text-[#2B2B2B]">Overview</h1>
@@ -77,15 +79,25 @@ function DashboardPage() {
       )}
 
       <Card title="My workloads" className="mt-10 gap-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-7">
-          {helmWorkloadsQuery.data?.map(workload => (
-            <CardHelmWorkload
-              key={workload.namespace}
-              workload={workload}
-              onDelete={() => helmWorkloadsQuery.refetch()}
-            />
-          ))}
-        </div>
+        {isEmpty
+          ? (
+            <div className="grid grid-cols-1 min-h-[140px] items-center">
+              <p className="text-[#42434D] text-xl text-center">
+                Add your <button type="button" onClick={() => setShowAvailableWorkloads(true)} className="underline inline font-bold cursor-pointer">first workload</button>.
+              </p>
+            </div>
+          )
+          : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-7">
+              {helmWorkloadsQuery.data?.map(workload => (
+                <CardHelmWorkload
+                  key={workload.namespace}
+                  workload={workload}
+                  onDelete={() => helmWorkloadsQuery.refetch()}
+                />
+              ))}
+            </div>
+          )}
       </Card>
     </div>
   );
