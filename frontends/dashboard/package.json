@@ -27,6 +27,7 @@
     "@tanstack/react-start": "^1.133.34",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/router-plugin": "^1.132.41",
+    "bech32": "^2.0.0",
     "buffer": "^6.0.3",
     "cbor2": "^2.0.1",
     "clsx": "^2.1.1",

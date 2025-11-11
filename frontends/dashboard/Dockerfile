@@ -20,6 +20,11 @@ RUN pnpm install --prod --frozen-lockfile --ignore-scripts
 FROM node:22-alpine AS runner
 ENV NODE_ENV=production
 WORKDIR /app
+
+RUN apk add --no-cache curl openssl && \
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | sh && \
+    apk del curl openssl
+
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY package.json pnpm-lock.yaml ./
 COPY --from=build /app/.output ./
