@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supernode-dashboard
+  labels:
+    app.kubernetes.io/name: supernode-dashboard
+  namespace: '{{ .Values.namespace }}'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: supernode-dashboard
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: supernode-dashboard
+      labels:
+        app.kubernetes.io/name: supernode-dashboard
+    spec:
+      automountServiceAccountToken: true
+      containers:
+      - name: supernode-dashboard
+        image: ghcr.io/txpipe/metis-dashboard:0a6efba27a573159f5a88a0980bd098893c17a62
+        ports:
+        - name: http
+          containerPort: 3000
+{{- with .Values.supernodeDashboard.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+{{- end }}
+        volumeMounts:
+        - name: cache
+          mountPath: /cache
+        - name: tmp
+          mountPath: /tmp
+        env:
+        - name: PROMETHEUS_ENDPOINT
+          value: "http://prometheus-operated:9090"
+        - name: REGISTRY_ENDPOINT
+          value: "https://supernode.store"
+        - name: OCI_ENDPOINT
+          value: "oci://supernode.store"
+        - name: HOME
+          value: "/tmp"
+        - name: XDG_CACHE_HOME
+          value: "/cache"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsUser: 65534
+      serviceAccountName: supernode-dashboard
+      volumes:
+      - name: cache
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
+{{- with .Values.supernodeDashboard.tolerations }}
+      tolerations:
+{{ toYaml . | indent 6 }}
+{{- end }}

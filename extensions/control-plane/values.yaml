@@ -62,6 +62,15 @@ nodeExporter:
       requests:
         cpu: 10m
         memory: 20Mi
+supernodeDashboard:
+  tolerations: []
+  resources:
+    limits:
+      cpu: 200m
+      memory: 400Mi
+    requests:
+      cpu: 100m
+      memory: 400Mi
 prometheus:
   tolerations: []
   resources:
