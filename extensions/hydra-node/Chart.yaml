@@ -1,0 +1,10 @@
+apiVersion: v2
+name: hydra-node
+description: Helm chart to deploy a Hydra node extension on Metis
+type: application
+version: 0.1.0-rc1
+appVersion: "0.17.0"
+keywords:
+  - hydra
+  - cardano
+  - metis

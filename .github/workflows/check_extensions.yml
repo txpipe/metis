@@ -45,6 +45,15 @@ jobs:
           - name: default
             valuesArgs: ""
             dir: dolos
+          - name: offline-inline
+            valuesArgs: "-f hydra-node/ci/values-offline-inline.yaml"
+            dir: hydra-node
+          - name: offline-existing
+            valuesArgs: "-f hydra-node/ci/values-offline-existing.yaml"
+            dir: hydra-node
+          - name: online-inline
+            valuesArgs: "-f hydra-node/ci/values-online-inline.yaml"
+            dir: hydra-node
     steps:
       - name: Checkout
         uses: actions/checkout@v4

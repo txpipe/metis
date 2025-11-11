@@ -1,0 +1,12 @@
+{{- if and .Values.keys.cardano.enabled (not .Values.keys.cardano.verification.existingConfigMap.name) .Values.keys.cardano.verification.value }}
+{{- $configName := include "hydra-node.cardanoVerificationConfigMapName" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configName }}
+  labels:
+    {{- include "hydra-node.labels" . | nindent 4 }}
+data:
+  {{ default "cardano.vk" .Values.keys.cardano.verification.filename }}: |-
+{{- .Values.keys.cardano.verification.value | nindent 4 }}
+{{- end }}

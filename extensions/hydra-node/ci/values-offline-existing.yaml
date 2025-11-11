@@ -1,0 +1,19 @@
+ledger:
+  protocolParameters:
+    create: false
+    name: hydra-existing-protocol
+  initialUtxo:
+    create: false
+    name: hydra-existing-utxo
+
+keys:
+  hydraSigning:
+    existingSecret:
+      name: hydra-existing-signing
+      key: hydra.sk
+  hydraVerification:
+    existingConfigMap:
+      name: hydra-existing-verification
+    items:
+      - filename: hydra-self.vk
+      - filename: hydra-peer.vk

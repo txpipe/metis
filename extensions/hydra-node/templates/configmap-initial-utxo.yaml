@@ -1,0 +1,13 @@
+{{- $shouldCreate := and .Values.ledger.initialUtxo.create (not .Values.ledger.initialUtxo.name) -}}
+{{- if $shouldCreate }}
+{{- $configName := include "hydra-node.initialUtxoConfigMapName" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configName }}
+  labels:
+    {{- include "hydra-node.labels" . | nindent 4 }}
+data:
+  {{ .Values.ledger.initialUtxo.filename }}: |-
+{{- .Values.ledger.initialUtxo.data | nindent 4 }}
+{{- end }}
