@@ -2,9 +2,14 @@ apiVersion: v2
 name: midnight
 description: Helm chart to deploy Midnight on Supernode
 type: application
-version: 0.2.0-rc3
+version: 0.2.1
 appVersion: "0.12.0"
 keywords:
   - midnight
   - metis
   - supernode
+annotations:
+  displayName: Midnight Node
+  icon: /images/midnight.svg
+  category: partner-chain
+  networkPath: node.cfgPreset

@@ -7,4 +7,9 @@ appVersion: "10.5.1"
 keywords:
   - cardano
   - metis
-  - supernode
+  - supernodel
+annotations:
+  displayName: Cardano Node
+  icon: /images/cardano-node.svg
+  category: layer-1
+  networkPath: node.network

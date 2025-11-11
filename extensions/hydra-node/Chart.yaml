@@ -8,3 +8,7 @@ keywords:
   - hydra
   - cardano
   - metis
+annotations:
+  displayName: Hydra Node
+  icon: /images/hydra.svg
+  category: layer-2

@@ -4,3 +4,8 @@ description: A Helm chart for deploying Dolos, a Cardano chain data service.
 type: application
 version: 0.1.0-rc1
 appVersion: "0.32.0"
+annotations:
+  displayName: Dolos
+  icon: /images/dolos.svg
+  category: infrastructure
+  networkPath: dolos.network
