@@ -1,11 +1,11 @@
-{{- $fullName := include "vector-node.fullname" . -}}
+{{- $fullName := include "apex-fusion.fullname" . -}}
 {{- $svcType := default "ClusterIP" .Values.service.type -}}
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ $fullName }}
   labels:
-    {{- include "vector-node.labels" . | nindent 4 }}
+    {{- include "apex-fusion.labels" . | nindent 4 }}
     {{- with .Values.service.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -25,7 +25,7 @@ spec:
   externalTrafficPolicy: {{ . }}
   {{- end }}
   selector:
-{{- include "vector-node.selectorLabels" . | nindent 4 }}
+{{- include "apex-fusion.selectorLabels" . | nindent 4 }}
   ports:
     - name: n2n
       port: {{ .Values.service.n2nPort }}

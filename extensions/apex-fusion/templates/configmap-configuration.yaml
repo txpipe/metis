@@ -1,5 +1,5 @@
 {{- if .Values.configuration.create }}
-{{- $configMapName := include "vector-node.configurationConfigMapName" . -}}
+{{- $configMapName := include "apex-fusion.configurationConfigMapName" . -}}
 {{- if not $configMapName }}
 {{- fail "configuration name resolved to empty string" }}
 {{- end }}
@@ -9,7 +9,7 @@ kind: ConfigMap
 metadata:
   name: {{ $configMapName }}
   labels:
-    {{- include "vector-node.labels" . | nindent 4 }}
+    {{- include "apex-fusion.labels" . | nindent 4 }}
 data:
 {{- range $filename, $content := $files }}
   {{ $filename }}: |-

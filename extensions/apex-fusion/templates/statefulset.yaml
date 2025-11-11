@@ -1,8 +1,8 @@
-{{- $fullName := include "vector-node.fullname" . -}}
-{{- $selectorLabels := include "vector-node.selectorLabels" . -}}
-{{- $serviceAccountName := include "vector-node.serviceAccountName" . -}}
-{{- $proxyConfigName := include "vector-node.proxyConfigName" . -}}
-{{- $configurationConfigMapName := include "vector-node.configurationConfigMapName" . -}}
+{{- $fullName := include "apex-fusion.fullname" . -}}
+{{- $selectorLabels := include "apex-fusion.selectorLabels" . -}}
+{{- $serviceAccountName := include "apex-fusion.serviceAccountName" . -}}
+{{- $proxyConfigName := include "apex-fusion.proxyConfigName" . -}}
+{{- $configurationConfigMapName := include "apex-fusion.configurationConfigMapName" . -}}
 {{- $proxyChecksum := "" -}}
 {{- if and .Values.proxy.enabled .Values.proxy.config.create }}
 {{- $proxyChecksum = include (print $.Template.BasePath "/configmap-proxy.yaml") . | sha256sum -}}
@@ -16,7 +16,7 @@ kind: StatefulSet
 metadata:
   name: {{ $fullName }}
   labels:
-    {{- include "vector-node.labels" . | nindent 4 }}
+    {{- include "apex-fusion.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.node.replicas | int }}
   selector:
@@ -61,7 +61,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        - name: vector-node
+        - name: apex-fusion
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- with .Values.node.command }}

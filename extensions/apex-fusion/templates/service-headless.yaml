@@ -1,15 +1,15 @@
-{{- $fullName := printf "%s-headless" (include "vector-node.fullname" .) -}}
+{{- $fullName := printf "%s-headless" (include "apex-fusion.fullname" .) -}}
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ $fullName }}
   labels:
-    {{- include "vector-node.labels" . | nindent 4 }}
+    {{- include "apex-fusion.labels" . | nindent 4 }}
 spec:
   clusterIP: None
   publishNotReadyAddresses: true
   selector:
-{{- include "vector-node.selectorLabels" . | nindent 4 }}
+{{- include "apex-fusion.selectorLabels" . | nindent 4 }}
   ports:
     - name: n2n
       port: {{ .Values.service.n2nPort }}
