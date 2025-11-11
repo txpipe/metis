@@ -1,0 +1,9 @@
+keys:
+  hydraSigning:
+    value: |-
+      offline-hydra-signing-key
+  hydraVerification:
+    items:
+      - filename: hydra.vk
+        value: |-
+          offline-hydra-verification-key

@@ -1,0 +1,32 @@
+node:
+  offlineMode: false
+  hydraScriptsTxId: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  cardanoSocketProxy:
+    enabled: true
+    targetHost: relay.cardano.example.com
+    targetPort: 3001
+    targetScheme: OPENSSL
+    targetOptions: verify=0
+    socketPath: /ipc/node.socket
+
+keys:
+  hydraSigning:
+    value: |-
+      online-hydra-signing-key
+  hydraVerification:
+    items:
+      - filename: hydra-self.vk
+        value: |-
+          online-hydra-self-verification-key
+      - filename: hydra-peer.vk
+        value: |-
+          online-hydra-peer-verification-key
+  cardano:
+    enabled: true
+    socketPath: /ipc/node.socket
+    signing:
+      value: |-
+        online-cardano-signing-key
+    verification:
+      value: |-
+        online-cardano-verification-key

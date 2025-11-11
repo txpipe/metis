@@ -1,0 +1,53 @@
+{{- $fullName := include "hydra-node.fullname" . -}}
+{{- $svcType := default "ClusterIP" .Values.service.type -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "hydra-node.labels" . | nindent 4 }}
+    {{- with .Values.service.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $svcType }}
+  {{- with .Values.service.clusterIP }}
+  clusterIP: {{ . }}
+  {{- end }}
+  {{- with .Values.service.loadBalancerIP }}
+  loadBalancerIP: {{ . }}
+  {{- end }}
+  {{- with .Values.service.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ . }}
+  {{- end }}
+  selector:
+{{- include "hydra-node.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: api
+      port: {{ .Values.service.apiPort }}
+      targetPort: api
+      protocol: TCP
+      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) .Values.service.apiNodePort }}
+      nodePort: {{ .Values.service.apiNodePort }}
+      {{- end }}
+    - name: p2p
+      port: {{ .Values.service.p2pPort }}
+      targetPort: p2p
+      protocol: TCP
+      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) .Values.service.p2pNodePort }}
+      nodePort: {{ .Values.service.p2pNodePort }}
+      {{- end }}
+    - name: monitoring
+      port: {{ .Values.service.monitoringPort }}
+      targetPort: monitoring
+      protocol: TCP
+      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) .Values.service.monitoringNodePort }}
+      nodePort: {{ .Values.service.monitoringNodePort }}
+      {{- end }}
+    {{- with .Values.service.extraPorts }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}

@@ -1,0 +1,13 @@
+{{- $shouldCreate := and .Values.ledger.protocolParameters.create (not .Values.ledger.protocolParameters.name) -}}
+{{- if $shouldCreate }}
+{{- $configName := include "hydra-node.protocolParametersConfigMapName" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configName }}
+  labels:
+    {{- include "hydra-node.labels" . | nindent 4 }}
+data:
+  {{ .Values.ledger.protocolParameters.filename }}: |-
+{{- .Values.ledger.protocolParameters.data | nindent 4 }}
+{{- end }}

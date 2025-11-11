@@ -1,0 +1,21 @@
+{{- $validItems := dict -}}
+{{- range $item := .Values.keys.hydraVerification.items }}
+{{- if and $item.filename $item.value }}
+{{- $_ := set $validItems $item.filename $item.value }}
+{{- end }}
+{{- end }}
+{{- $shouldCreate := and (gt (len $validItems) 0) (not .Values.keys.hydraVerification.existingConfigMap.name) -}}
+{{- if $shouldCreate }}
+{{- $configName := include "hydra-node.hydraVerificationConfigMapName" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configName }}
+  labels:
+    {{- include "hydra-node.labels" . | nindent 4 }}
+data:
+{{- range $filename, $value := $validItems }}
+  {{ $filename }}: |-
+{{- $value | nindent 4 }}
+{{- end }}
+{{- end }}

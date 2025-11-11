@@ -1,0 +1,168 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/input-output-hk/hydra-node
+  tag: "0.17.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+extraLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+priorityClassName: ""
+
+service:
+  type: ClusterIP
+  annotations: {}
+  labels: {}
+  clusterIP: ""
+  loadBalancerIP: ""
+  externalTrafficPolicy: ""
+  apiPort: 4001
+  apiNodePort: null
+  p2pPort: 5001
+  p2pNodePort: null
+  monitoringPort: 6001
+  monitoringNodePort: null
+  extraPorts: []
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  annotations: {}
+  size: 5Gi
+  existingClaim: ""
+  mountPath: /var/lib/hydra
+
+node:
+  replicas: 1
+  command: []
+  args: []
+  extraArgs: []
+  env: []
+  envFrom: []
+  extraVolumeMounts: []
+  extraVolumes: []
+  extraContainers: []
+  initContainers: []
+  terminationGracePeriodSeconds: 60
+  offlineMode: true
+  quiet: true
+  nodeId: "hydra-node-1"
+  hydraScriptsTxId: ""
+  apiHost: 0.0.0.0
+  host: 0.0.0.0
+  persistenceSubPath: ""
+  cardanoSocketProxy:
+    enabled: false
+    socketPath: ""
+    listenOptions: reuseaddr,fork,unlink-early
+    targetScheme: OPENSSL
+    targetOptions: verify=0
+    targetHost: ""
+    targetPort: 0
+    image:
+      repository: alpine/socat
+      tag: "1.7.4.4-r0"
+      pullPolicy: IfNotPresent
+    extraArgs: []
+    extraEnv: []
+    resources: {}
+    securityContext: {}
+
+ledger:
+  mountPath: /etc/hydra
+  protocolParameters:
+    create: true
+    name: ""
+    filename: protocol-parameters.json
+    data: |-
+      {
+        "utxoCostPerByte": 0,
+        "minFeeA": 44,
+        "minFeeB": 155381,
+        "maxTxSize": 16384,
+        "maxBlockBodySize": 65536,
+        "maxBlockHeaderSize": 1100
+      }
+  initialUtxo:
+    create: true
+    name: ""
+    filename: utxo.json
+    data: |-
+      {
+        "0000000000000000000000000000000000000000000000000000000000000000#0": {
+          "address": "addr_test1vrwznw7gq5u5vm0sjgpm8h0e9qp3e3lkawd3h8zy73lm54cd7kjfq",
+          "value": {
+            "lovelace": 1000000000
+          }
+        }
+      }
+
+keys:
+  mountPath: /etc/keys
+  hydraSigning:
+    filename: hydra.sk
+    existingSecret:
+      name: ""
+      key: ""
+    value: ""
+  hydraVerification:
+    existingConfigMap:
+      name: ""
+    items: []
+  cardano:
+    enabled: false
+    socketPath: /ipc/node.socket
+    signing:
+      filename: cardano.sk
+      existingSecret:
+        name: ""
+        key: ""
+      value: ""
+    verification:
+      filename: cardano.vk
+      existingConfigMap:
+        name: ""
+        key: ""
+      value: ""
+
+livenessProbe:
+  enabled: true
+  tcpSocket:
+    port: api
+  initialDelaySeconds: 30
+  periodSeconds: 15
+
+readinessProbe:
+  enabled: true
+  tcpSocket:
+    port: api
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []

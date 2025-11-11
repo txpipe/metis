@@ -1,0 +1,25 @@
+{{- $fullName := printf "%s-headless" (include "hydra-node.fullname" .) -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "hydra-node.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    {{- include "hydra-node.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: api
+      port: {{ .Values.service.apiPort }}
+      targetPort: api
+      protocol: TCP
+    - name: p2p
+      port: {{ .Values.service.p2pPort }}
+      targetPort: p2p
+      protocol: TCP
+    - name: monitoring
+      port: {{ .Values.service.monitoringPort }}
+      targetPort: monitoring
+      protocol: TCP
