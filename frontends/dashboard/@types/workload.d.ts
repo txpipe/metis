@@ -1,3 +1,10 @@
+declare interface SupernodeAnnotations {
+  displayName: string;
+  icon: string;
+  network: string;
+  category?: string;
+}
+
 declare interface HelmWorkload {
   name: string;
   namespace: string;
@@ -6,10 +13,7 @@ declare interface HelmWorkload {
   chartVersion: string;
   status: HelmReleaseInfo['status'];
   supernodeStatus: 'onboarding' | 'ready';
-  nodeInfo?: {
-    uid?: string;
-    name?: string;
-  };
+  annotations?: SupernodeAnnotations;
   uptime?: UptimeEntry[];
 }
 
@@ -21,6 +25,7 @@ declare interface SimplifiedPod {
   statusPhase?: string;
   hostname?: string;
   uptime: UptimeEntry[];
+  annotations?: SupernodeAnnotations;
 }
 
 declare interface RegistryWorkload {

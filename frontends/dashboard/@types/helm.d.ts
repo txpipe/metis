@@ -6,6 +6,7 @@ interface HelmChart {
     description?: string;
     appVersion?: string;
     apiVersion?: string;
+    annotations?: Record<string, string>;
   };
   templates?: any[];
   values?: Record<string, any>;

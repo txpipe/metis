@@ -1,16 +1,32 @@
 import { PassThrough } from 'stream';
-import { randomBytes } from 'crypto';
 import { createServerFn } from '@tanstack/react-start';
 import { setResponseStatus } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
 // Utils
 import { getClients } from '~/utils/k8s';
-import { getHelmReleases } from '~/utils/helm';
+import { getHelmReleases, getNetworkFromHelmRelease } from '~/utils/helm';
 import { getStatefulSetUptime, emptyUptimeResult } from '~/utils/metrics';
 import { getBlobDetails, searchWorkloads } from '~/utils/registry';
 import { runCommand } from '~/utils/process';
 import { nanoid } from '~/utils/generic';
+
+// Installs
+import * as midnight from '~/utils/helm-install/midnight';
+import * as dolos from '~/utils/helm-install/dolos';
+
+function getAnnotationsFromRelease(release: DecodedHelmRelease): SupernodeAnnotations | undefined {
+  if (!release.chart.metadata.annotations) {
+    return undefined;
+  }
+
+  return {
+    displayName: release.chart.metadata.annotations['displayName'] || release.name,
+    icon: release.chart.metadata.annotations['icon'],
+    category: release.chart.metadata.annotations['category'],
+    network: getNetworkFromHelmRelease(release),
+  };
+}
 
 export const getServerWorkloads = createServerFn({
   method: 'GET',
@@ -34,6 +50,7 @@ export const getServerWorkloads = createServerFn({
       supernodeStatus: release.config?.extraLabels?.['supernode/status'] || 'ready',
       description: release.chart.metadata.description,
       status: release.info.status,
+      annotations: getAnnotationsFromRelease(release),
     };
 
     if (workload.supernodeStatus === 'ready') {
@@ -44,11 +61,6 @@ export const getServerWorkloads = createServerFn({
 
       const nodeSts = listStatefulSet.items.find(sts => sts.spec?.serviceName?.endsWith('-headless'));
       if (!nodeSts) continue;
-
-      workload.nodeInfo = {
-        uid: nodeSts.metadata?.uid,
-        name: nodeSts.metadata?.name,
-      };
 
       workload.uptime = (!!nodeSts.metadata?.name)
         ? await getStatefulSetUptime(release.namespace, nodeSts.metadata.name)
@@ -67,6 +79,7 @@ export const getServerWorkloadPods = createServerFn({
   (data: { namespace: string; name: string; }) => data,
 ).handler(async ({ data: { namespace, name } }) => {
   const { core, apps } = getClients();
+
   const sts = await apps.readNamespacedStatefulSet({
     name,
     namespace,
@@ -86,6 +99,18 @@ export const getServerWorkloadPods = createServerFn({
     setResponseStatus(400);
     return { error: 'StatefulSet has no match labels' };
   }
+
+  const stsChartVersion = sts.metadata?.labels?.['helm.sh/chart'];
+  let helmRelease: DecodedHelmRelease | null = null;
+
+  if (stsChartVersion) {
+    const helmReleases = await getHelmReleases(core, namespace);
+    helmRelease = helmReleases.find(hr => {
+      const version = `${hr.chart.metadata.name}-${hr.chart.metadata.version}`;
+      return version === stsChartVersion;
+    }) ?? null;
+  }
+
   const labelSelector = Object.entries(matchLabels)
     .map(([key, value]) => `${key}=${value}`)
     .join(',');
@@ -106,6 +131,7 @@ export const getServerWorkloadPods = createServerFn({
       statusPhase: pod.status?.phase,
       hostname: pod.spec?.hostname,
       uptime,
+      annotations: helmRelease ? getAnnotationsFromRelease(helmRelease) : undefined,
     } satisfies SimplifiedPod)),
   };
 });
@@ -205,47 +231,15 @@ export const addWorkload = createServerFn({ method: 'POST' })
       body: {
         metadata: {
           name: namespace,
-          annotations: {
-            'supernode.status': 'onboarding',
-          },
         },
       },
     });
 
-    const secret = randomBytes(32).toString('hex');
-    const secretName = 'midnight-node-key';
-
-    await core.createNamespacedSecret({
-      namespace,
-      body: {
-        metadata: {
-          name: secretName,
-        },
-        type: 'Opaque',
-        stringData: {
-          'node.key': secret,
-        },
-      },
-    });
-
-    // dbSync:
-    //   managed:
-    //     enabled: true
-    //     nodeSocat:
-    //       enabled: true
-    //       targetHost: cardanonode1v3eujzxeqksxx8ukhh2.cardano-preview.cnode-m1.demeter.run
-    //       targetPort: 9443
-
-    await runCommand(`
-      helm install ${name} ${image} \
-      --namespace ${namespace} \
-      --version "${version}" \
-      --set nodeKey.existingSecret.name=${secretName} \
-      --set nodeKey.existingSecret.key=node.key \
-      --set persistence.size=5Gi \
-      --set service.type=ClusterIP \
-      --set extraLabels.supernode/status=onboarding
-    `.trim());
+    if (repo.includes('midnight')) {
+      await midnight.install(namespace, name, image, version);
+    } else if (repo.includes('dolos')) {
+      await dolos.install(namespace, name, image, version);
+    }
 
     return { success: true, namespace, name };
   });

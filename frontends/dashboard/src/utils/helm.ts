@@ -1,8 +1,6 @@
 import { CoreV1Api } from '@kubernetes/client-node';
 import pako from 'pako';
 
-export const VALID_NODES = ['midnight'];
-
 function decodeHelmSecret(secretData: Record<string, string>): DecodedHelmRelease | null {
   const releaseData = secretData.release;
   if (!releaseData) return null;
@@ -47,10 +45,31 @@ export async function getHelmReleases(api: CoreV1Api, namespace = 'all') {
     if (!decoded) continue;
 
     // Keep only nodes releases
-    if (VALID_NODES.includes(decoded.chart.metadata.name)) {
+    if (decoded.chart.metadata.name != 'control-plane') {
       releases.push(decoded);
     }
   }
 
   return releases;
+}
+
+export function getNetworkFromHelmRelease(release: DecodedHelmRelease): string {
+  const annotations = release.chart.metadata.annotations;
+  const values = release.chart.values;
+  if (annotations && values && annotations.networkPath) {
+    const parts = annotations.networkPath.split('.');
+    let current: any = values;
+    for (const part of parts) {
+      if (current[part] !== undefined) {
+        current = current[part];
+      } else {
+        break;
+      }
+    }
+    if (typeof current === 'string') {
+      return current;
+    }
+  }
+
+  return 'unknown';
 }

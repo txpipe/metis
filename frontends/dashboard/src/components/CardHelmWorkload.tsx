@@ -9,7 +9,7 @@ import { AlertIcon } from '~/components/icons/AlertIcon';
 import { ArrowRightIcon } from '~/components/icons/ArrowRightIcon';
 
 // Utils
-import { getNodeDetails, NodeDetails, getStatusFromK8sStatus, UIMappedStatus } from '~/utils/generic';
+import { getStatusFromK8sStatus, UIMappedStatus } from '~/utils/generic';
 import { calculateUptimePercentage } from '~/utils/metrics';
 import { deleteWorkload } from '~/utils/home/calls';
 
@@ -26,7 +26,7 @@ const badgePropsByStatus: Record<UIMappedStatus, BadgeProps> = {
   pending: { style: 'status', label: 'Onboarding' },
 };
 
-function WorkloadHeader({ workload, onDelete, nodeDetails }: Props & { nodeDetails?: NodeDetails; }) {
+function WorkloadHeader({ workload, onDelete }: Props) {
   const [deleting, setDeleting] = useState(false);
   const statusProps = workload.supernodeStatus === 'onboarding'
     ? badgePropsByStatus['pending']
@@ -51,10 +51,16 @@ function WorkloadHeader({ workload, onDelete, nodeDetails }: Props & { nodeDetai
 
   return (
     <div className="flex flex-row gap-3 items-center">
-      <img src={nodeDetails?.logoSrc} alt={nodeDetails?.logoAlt ?? `${workload.name} Logo`} className="h-11 w-11" />
+      {workload.annotations?.icon
+        ? (
+          <img src={workload.annotations.icon} alt={`${workload.annotations.displayName} Logo`} className="h-11 w-11" />
+        )
+        : (
+          <div className="h-11 w-11 bg-[#E0E0E0] rounded-md" />
+        )}
       <div className="flex-1">
-        <h3 className="font-semibold text-lg text-[#2B2B2B] leading-none">{nodeDetails?.displayName ?? workload.name}</h3>
-        <div className="text-[#969FAB] mt-1">{nodeDetails?.network}</div>
+        <h3 className="font-semibold text-lg text-[#2B2B2B] leading-none">{workload.annotations?.displayName ?? workload.name}</h3>
+        <div className="text-[#969FAB] mt-1">{workload.annotations?.network}</div>
       </div>
       <Badge size="small" {...statusProps} />
       <button
@@ -69,7 +75,7 @@ function WorkloadHeader({ workload, onDelete, nodeDetails }: Props & { nodeDetai
   );
 }
 
-function WorkloadReady({ workload, nodeDetails }: Props & { nodeDetails?: NodeDetails; }) {
+function WorkloadReady({ workload }: Props) {
   return (
     <>
       {/* Health */}
@@ -101,13 +107,13 @@ function WorkloadReady({ workload, nodeDetails }: Props & { nodeDetails?: NodeDe
         </div>
       </div>
 
-      {/* Rewards */}
+      {/* Blocks produced */}
       <div className="mt-8">
         <div className="flex font-medium items-center gap-1 text-[#969FAB]">
-          Rewards | Last 30 days <InfoCircleIcon className="w-3 h-3" />
+          Blocks produced | Last 30 days <InfoCircleIcon className="w-3 h-3" />
         </div>
         <div className="mt-2 text-lg font-semibold text-[#2B2B2B]">
-          {nodeDetails?.rewards || 'N/A'}
+          0
         </div>
       </div>
     </>
@@ -140,13 +146,12 @@ function WorkloadPending({ namespace, name }: { namespace: string; name: string;
 }
 
 export function CardHelmWorkload({ workload, onDelete }: Props) {
-  const nodeDetails = getNodeDetails(workload.name);
   const className = 'relative bg-white rounded-3xl p-6 shadow-[1px_0px_16px_0px_rgba(0,0,0,0.1)] flex flex-col min-h-68.75';
 
   if (workload.supernodeStatus === 'onboarding') {
     return (
       <div className={className}>
-        <WorkloadHeader workload={workload} nodeDetails={nodeDetails} onDelete={onDelete} />
+        <WorkloadHeader workload={workload} onDelete={onDelete} />
 
         <WorkloadPending namespace={workload.namespace} name={workload.name} />
       </div>
@@ -156,13 +161,12 @@ export function CardHelmWorkload({ workload, onDelete }: Props) {
   return (
     <Link
       to="/$namespace/$name"
-      params={{ namespace: workload.namespace, name: workload.nodeInfo?.name || '' }}
+      params={{ namespace: workload.namespace, name: workload.name }}
       className={className}
-      disabled={!workload.nodeInfo}
     >
-      <WorkloadHeader workload={workload} nodeDetails={nodeDetails} onDelete={onDelete} />
+      <WorkloadHeader workload={workload} onDelete={onDelete} />
 
-      <WorkloadReady workload={workload} nodeDetails={nodeDetails} />
+      <WorkloadReady workload={workload} />
     </Link>
   );
 };

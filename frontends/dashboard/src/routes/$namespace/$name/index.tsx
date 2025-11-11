@@ -11,7 +11,7 @@ import { Card } from '~/components/Card';
 // Data
 import { getServerWorkloadPods, streamWorkloadPodLogs } from '~/utils/home/calls';
 import { calculateUptimePercentage } from '~/utils/metrics';
-import { getNodeDetails, getStatusFromK8sStatus } from '~/utils/generic';
+import { getStatusFromK8sStatus } from '~/utils/generic';
 
 const textDecoder = new TextDecoder();
 
@@ -97,21 +97,20 @@ function WorkloadIdInfo() {
   }, [startStreamLogs]);
 
   const status = getStatusFromK8sStatus(activePod.statusPhase);
-  const nodeDetails = getNodeDetails(activePod.containerName ?? activePod.name ?? '');
 
   return (
     <div className="mx-16 py-8 grid grid-rows-[auto_auto_1fr] gap-5 max-h-[calc(100dvh-96px)]">
       <div className="flex items-center gap-2 text-[#64748B]">
         <Link to="/">Overview</Link>
         <CaretRightIcon className="w-4 h-4" />
-        <span className="font-semibold text-[#2B2B2B]">{nodeDetails?.displayName ?? activePod.containerName}</span>
+        <span className="font-semibold text-[#2B2B2B]">{activePod.annotations?.displayName ?? activePod.containerName}</span>
       </div>
 
       <div className="flex flex-row items-start gap-4">
-        <img src={nodeDetails?.logoSrc} alt={nodeDetails?.logoAlt ?? `${activePod.containerName} logo`} className="w-15.5 h-15.5" />
+        <img src={activePod.annotations?.icon} alt={`${activePod.annotations?.displayName ?? activePod.containerName} logo`} className="w-15.5 h-15.5" />
         <div>
-          <h1 className="text-[32px] font-semibold text-[#2B2B2B]">{nodeDetails?.displayName ?? activePod.containerName}</h1>
-          <span className="mt-1 text-[#969FAB] leading-none">{nodeDetails?.network}</span>
+          <h1 className="text-[32px] font-semibold text-[#2B2B2B]">{activePod.annotations?.displayName ?? activePod.containerName}</h1>
+          <span className="mt-1 text-[#969FAB] leading-none">{activePod.annotations?.network}</span>
           <div className="flex flex-row gap-2 mt-4 flex-wrap">
             <InfoChip
               label="Status"
@@ -124,7 +123,7 @@ function WorkloadIdInfo() {
               })}
             />
             <InfoChip label="Health" value={`${calculateUptimePercentage(activePod.uptime)}% uptime`} />
-            <InfoChip label="Rewards" value={nodeDetails?.rewards || 'N/A'} />
+            <InfoChip label="Blocks produced" value="0" />
           </div>
         </div>
       </div>

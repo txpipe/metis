@@ -33,7 +33,7 @@ function SetupLayout() {
         <WizardProvider step={step}>
           <SubHeader
             logo="/images/midnight.svg"
-            title="Midnight block producer node"
+            title="Midnight node"
             subtitle="Become a Midnight Block Producer"
             tags={['Partner-chain']}
           />

@@ -37,21 +37,4 @@ export function getStatusFromK8sStatus(
   }
 }
 
-export function getNodeDetails(nodeType: string) {
-  switch (nodeType) {
-    case 'midnight':
-      return {
-        displayName: 'Midnight Node',
-        logoSrc: '/images/midnight.svg',
-        logoAlt: 'Midnight Node Logo',
-        rewards: '300 NIGHT',
-        network: 'Preview',
-      };
-    default:
-      return null;
-  }
-}
-
-export type NodeDetails = ReturnType<typeof getNodeDetails>;
-
 export const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 6);
