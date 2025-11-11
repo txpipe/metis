@@ -10,33 +10,109 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as NamespaceNameIndexRouteImport } from './routes/$namespace/$name/index'
+import { Route as NamespaceNameSetupRouteImport } from './routes/$namespace/$name/setup'
+import { Route as NamespaceNameSetupIndexRouteImport } from './routes/$namespace/$name/setup/index'
+import { Route as NamespaceNameSetup4RouteImport } from './routes/$namespace/$name/setup/4'
+import { Route as NamespaceNameSetup3RouteImport } from './routes/$namespace/$name/setup/3'
+import { Route as NamespaceNameSetup2RouteImport } from './routes/$namespace/$name/setup/2'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NamespaceNameIndexRoute = NamespaceNameIndexRouteImport.update({
+  id: '/$namespace/$name/',
+  path: '/$namespace/$name/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NamespaceNameSetupRoute = NamespaceNameSetupRouteImport.update({
+  id: '/$namespace/$name/setup',
+  path: '/$namespace/$name/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NamespaceNameSetupIndexRoute = NamespaceNameSetupIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => NamespaceNameSetupRoute,
+} as any)
+const NamespaceNameSetup4Route = NamespaceNameSetup4RouteImport.update({
+  id: '/4',
+  path: '/4',
+  getParentRoute: () => NamespaceNameSetupRoute,
+} as any)
+const NamespaceNameSetup3Route = NamespaceNameSetup3RouteImport.update({
+  id: '/3',
+  path: '/3',
+  getParentRoute: () => NamespaceNameSetupRoute,
+} as any)
+const NamespaceNameSetup2Route = NamespaceNameSetup2RouteImport.update({
+  id: '/2',
+  path: '/2',
+  getParentRoute: () => NamespaceNameSetupRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$namespace/$name/setup': typeof NamespaceNameSetupRouteWithChildren
+  '/$namespace/$name': typeof NamespaceNameIndexRoute
+  '/$namespace/$name/setup/2': typeof NamespaceNameSetup2Route
+  '/$namespace/$name/setup/3': typeof NamespaceNameSetup3Route
+  '/$namespace/$name/setup/4': typeof NamespaceNameSetup4Route
+  '/$namespace/$name/setup/': typeof NamespaceNameSetupIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$namespace/$name': typeof NamespaceNameIndexRoute
+  '/$namespace/$name/setup/2': typeof NamespaceNameSetup2Route
+  '/$namespace/$name/setup/3': typeof NamespaceNameSetup3Route
+  '/$namespace/$name/setup/4': typeof NamespaceNameSetup4Route
+  '/$namespace/$name/setup': typeof NamespaceNameSetupIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$namespace/$name/setup': typeof NamespaceNameSetupRouteWithChildren
+  '/$namespace/$name/': typeof NamespaceNameIndexRoute
+  '/$namespace/$name/setup/2': typeof NamespaceNameSetup2Route
+  '/$namespace/$name/setup/3': typeof NamespaceNameSetup3Route
+  '/$namespace/$name/setup/4': typeof NamespaceNameSetup4Route
+  '/$namespace/$name/setup/': typeof NamespaceNameSetupIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/$namespace/$name/setup'
+    | '/$namespace/$name'
+    | '/$namespace/$name/setup/2'
+    | '/$namespace/$name/setup/3'
+    | '/$namespace/$name/setup/4'
+    | '/$namespace/$name/setup/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/$namespace/$name'
+    | '/$namespace/$name/setup/2'
+    | '/$namespace/$name/setup/3'
+    | '/$namespace/$name/setup/4'
+    | '/$namespace/$name/setup'
+  id:
+    | '__root__'
+    | '/'
+    | '/$namespace/$name/setup'
+    | '/$namespace/$name/'
+    | '/$namespace/$name/setup/2'
+    | '/$namespace/$name/setup/3'
+    | '/$namespace/$name/setup/4'
+    | '/$namespace/$name/setup/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  NamespaceNameSetupRoute: typeof NamespaceNameSetupRouteWithChildren
+  NamespaceNameIndexRoute: typeof NamespaceNameIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,12 +124,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$namespace/$name/': {
+      id: '/$namespace/$name/'
+      path: '/$namespace/$name'
+      fullPath: '/$namespace/$name'
+      preLoaderRoute: typeof NamespaceNameIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$namespace/$name/setup': {
+      id: '/$namespace/$name/setup'
+      path: '/$namespace/$name/setup'
+      fullPath: '/$namespace/$name/setup'
+      preLoaderRoute: typeof NamespaceNameSetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$namespace/$name/setup/': {
+      id: '/$namespace/$name/setup/'
+      path: '/'
+      fullPath: '/$namespace/$name/setup/'
+      preLoaderRoute: typeof NamespaceNameSetupIndexRouteImport
+      parentRoute: typeof NamespaceNameSetupRoute
+    }
+    '/$namespace/$name/setup/4': {
+      id: '/$namespace/$name/setup/4'
+      path: '/4'
+      fullPath: '/$namespace/$name/setup/4'
+      preLoaderRoute: typeof NamespaceNameSetup4RouteImport
+      parentRoute: typeof NamespaceNameSetupRoute
+    }
+    '/$namespace/$name/setup/3': {
+      id: '/$namespace/$name/setup/3'
+      path: '/3'
+      fullPath: '/$namespace/$name/setup/3'
+      preLoaderRoute: typeof NamespaceNameSetup3RouteImport
+      parentRoute: typeof NamespaceNameSetupRoute
+    }
+    '/$namespace/$name/setup/2': {
+      id: '/$namespace/$name/setup/2'
+      path: '/2'
+      fullPath: '/$namespace/$name/setup/2'
+      preLoaderRoute: typeof NamespaceNameSetup2RouteImport
+      parentRoute: typeof NamespaceNameSetupRoute
+    }
   }
 }
 
+interface NamespaceNameSetupRouteChildren {
+  NamespaceNameSetup2Route: typeof NamespaceNameSetup2Route
+  NamespaceNameSetup3Route: typeof NamespaceNameSetup3Route
+  NamespaceNameSetup4Route: typeof NamespaceNameSetup4Route
+  NamespaceNameSetupIndexRoute: typeof NamespaceNameSetupIndexRoute
+}
+
+const NamespaceNameSetupRouteChildren: NamespaceNameSetupRouteChildren = {
+  NamespaceNameSetup2Route: NamespaceNameSetup2Route,
+  NamespaceNameSetup3Route: NamespaceNameSetup3Route,
+  NamespaceNameSetup4Route: NamespaceNameSetup4Route,
+  NamespaceNameSetupIndexRoute: NamespaceNameSetupIndexRoute,
+}
+
+const NamespaceNameSetupRouteWithChildren =
+  NamespaceNameSetupRoute._addFileChildren(NamespaceNameSetupRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  NamespaceNameSetupRoute: NamespaceNameSetupRouteWithChildren,
+  NamespaceNameIndexRoute: NamespaceNameIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

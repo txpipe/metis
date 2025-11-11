@@ -1,17 +1,24 @@
-name: Build frontend
+name: Build Dashboard
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Check Dashboard"]
+    types:
+      - completed
     branches:
-      - "main"
-    paths:
-      - "frontend/Dockerfile"
-      - ".github/workflows/build_frontend.yml"
-      - "frontend/**"
+      - main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: true
+        default: 'main'
+        type: string
 
 jobs:
   docker:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     permissions:
       contents: read
@@ -20,6 +27,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -38,8 +47,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: frontend
-          file: frontend/Dockerfile
+          context: frontends/dashboard
+          file: frontends/dashboard/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/txpipe/metis-frontend,ghcr.io/txpipe/metis-frontend:${{ github.sha }}
+          tags: ghcr.io/txpipe/metis-dashboard,ghcr.io/txpipe/metis-dashboard:${{ github.sha }}

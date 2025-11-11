@@ -1,19 +1,69 @@
-import { Outlet, createRootRoute } from '@tanstack/react-router';
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
+// @ts-expect-error: FontSource doesn't have types but we don't need them
+import '@fontsource-variable/inter';
+
+import { QueryClient } from '@tanstack/react-query';
+import { HeadContent, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
+import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
+import { ReactQueryDevtoolsPanel } from '@tanstack/react-query-devtools';
+import { TanStackDevtools } from '@tanstack/react-devtools';
+import { Toaster } from 'react-hot-toast';
 
 // Components
 import { Header } from '~/components/Header';
 
-export const Route = createRootRoute({
-  component: DashboardRoot,
+import appCss from '~/styles.css?url';
+
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient;
+}>()({
+  head: () => ({
+    meta: [
+      {
+        charSet: 'utf-8',
+      },
+      {
+        name: 'viewport',
+        content: 'width=device-width, initial-scale=1',
+      },
+      {
+        title: 'Metis Dashboard',
+      },
+    ],
+    links: [
+      { rel: 'stylesheet', href: appCss },
+    ],
+  }),
+
+  shellComponent: RootDocument,
 });
 
-function DashboardRoot() {
+function RootDocument({ children }: { children: React.ReactNode; }) {
   return (
-    <>
-      <Header />
-      <Outlet />
-      <TanStackRouterDevtools />
-    </>
+    <html lang="en">
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        <Header />
+        {children}
+        <Toaster position="bottom-center" />
+        <TanStackDevtools
+          config={{
+            position: 'bottom-right',
+          }}
+          plugins={[
+            {
+              name: 'Tanstack Router',
+              render: <TanStackRouterDevtoolsPanel />,
+            },
+            {
+              name: 'React Query',
+              render: <ReactQueryDevtoolsPanel />,
+            },
+          ]}
+        />
+        <Scripts />
+      </body>
+    </html>
   );
 }
