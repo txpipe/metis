@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "vector-node.fullname" . }}
+  labels:
+    app.kubernetes.io/component: o11y
+    {{- include "vector-node.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{- include "vector-node.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics

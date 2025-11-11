@@ -1,0 +1,130 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/blinklabs-io/cardano-node
+  tag: "10.1.4"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+extraLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+resources: {}
+
+priorityClassName: ""
+
+service:
+  type: ClusterIP
+  annotations: {}
+  labels: {}
+  clusterIP: ""
+  loadBalancerIP: ""
+  externalTrafficPolicy: ""
+  n2nPort: 3000
+  n2nNodePort: null
+  n2cPort: 3307
+  n2cNodePort: null
+  metricsPort: 12798
+  metricsNodePort: null
+  extraPorts: []
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  annotations: {}
+  size: 20Gi
+  existingClaim: ""
+
+node:
+  replicas: 1
+  command: []
+  env: []
+  envFrom: []
+  extraVolumeMounts: []
+  extraVolumes: []
+  extraContainers: []
+  initContainers: []
+  network: vector-testnet
+  networkMagic: 1
+  socketPath: /ipc/node.socket
+  terminationGracePeriodSeconds: 60
+
+configuration:
+  create: false
+  name: ""
+  mountPath: /configuration
+  files: {}
+
+proxy:
+  enabled: true
+  image:
+    repository: nginx
+    tag: "1.25.5"
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      memory: 100Mi
+    requests:
+      cpu: 10m
+      memory: 100Mi
+  env: []
+  envFrom: []
+  extraVolumeMounts: []
+  containerSecurityContext: {}
+  config:
+    create: true
+    name: ""
+    filename: nginx.conf
+    data: |-
+      user root;
+
+      events {
+          worker_connections 1024;
+      }
+
+      stream {
+        server {
+          listen 3307;
+          proxy_pass unix:/ipc/node.socket;
+          proxy_connect_timeout 30s;
+          proxy_timeout 180m;
+        }
+      }
+
+livenessProbe:
+  enabled: false
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - test -S /ipc/node.socket
+  initialDelaySeconds: 30
+  periodSeconds: 30
+
+readinessProbe:
+  enabled: false
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - test -S /ipc/node.socket
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []

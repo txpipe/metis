@@ -1,0 +1,18 @@
+{{- if .Values.configuration.create }}
+{{- $configMapName := include "vector-node.configurationConfigMapName" . -}}
+{{- if not $configMapName }}
+{{- fail "configuration name resolved to empty string" }}
+{{- end }}
+{{- $files := required ".Values.configuration.files must be provided when configuration.create is true" .Values.configuration.files -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configMapName }}
+  labels:
+    {{- include "vector-node.labels" . | nindent 4 }}
+data:
+{{- range $filename, $content := $files }}
+  {{ $filename }}: |-
+{{ $content | nindent 4 }}
+{{- end }}
+{{- end }}
