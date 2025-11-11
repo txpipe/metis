@@ -6,7 +6,6 @@ import { useServerFn } from '@tanstack/react-start';
 // Components
 import { SearchIcon } from '~/components/icons/SearchIcon';
 import { Button } from '~/components/ui/Button';
-import { SpinnerIcon } from '~/components/icons/SpinnerIcon';
 import { CircleCheckIcon } from '~/components/icons/CircleCheckIcon';
 
 // Utils
@@ -91,7 +90,7 @@ function RowActionsCell({
   } else if (loading) {
     childrenComponent = (
       <>
-        <SpinnerIcon className="animate-spin" />
+        Adding...
       </>
     );
   }

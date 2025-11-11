@@ -38,7 +38,7 @@ function decodeHelmSecret(secretData: Record<string, string>): DecodedHelmReleas
 export async function getHelmReleases(api: CoreV1Api, namespace = 'all') {
   const secrets = await (namespace === 'all'
     ? api.listSecretForAllNamespaces({ fieldSelector: 'type=helm.sh/release.v1' })
-    : api.listNamespacedSecret({ namespace }));
+    : api.listNamespacedSecret({ namespace, fieldSelector: 'type=helm.sh/release.v1' }));
 
   const releases = [];
 

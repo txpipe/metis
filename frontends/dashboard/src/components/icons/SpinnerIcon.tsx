@@ -4,7 +4,7 @@ import type { SVGProps } from 'react';
 export function SpinnerIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 18 18" {...props}>
-      <g clipPath="url(#a)">
+      <g clipPath="url(#spinner_a)">
         <foreignObject width="2074.32" height="2074.32" x="-1037.16" y="-1037.16" transform="translate(9 9)scale(.009)">
           <div
             // @ts-ignore => Exported from figma
@@ -20,7 +20,7 @@ export function SpinnerIcon(props: SVGProps<SVGSVGElement>) {
       </g>
       <path d="M9 18A9 9 0 1 0 9 0a9 9 0 0 0 0 18m0-1.5a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15" clipRule="evenodd" />
       <defs>
-        <clipPath id="a">
+        <clipPath id="spinner_a">
           <path fillRule="evenodd" d="M9 18A9 9 0 1 0 9 0a9 9 0 0 0 0 18m0-1.5a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15" clipRule="evenodd" />
         </clipPath>
       </defs>

@@ -171,9 +171,18 @@ export const getAvailableWorkloads = createServerFn({
 });
 
 const AddWorkloadSchema = z.object({
-  repo: z.string().min(1).startsWith('extensions/'),
-  name: z.string().min(1),
-  version: z.string().min(1),
+  repo: z.string().min(1).startsWith('extensions/').regex(
+    /^extensions\/[a-z0-9-]+$/,
+    'Repo must contain only lowercase letters, numbers, and hyphens',
+  ),
+  name: z.string().min(1).max(63).regex(
+    /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/,
+    'Name must follow DNS-1123 subdomain format',
+  ),
+  version: z.string().min(1).regex(
+    /^[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9]+(\.[a-z0-9]+)*)?$/,
+    'Version must follow semantic versioning (e.g., 1.0.0 or 1.0.0-alpha.1)',
+  ),
 });
 
 export const addWorkload = createServerFn({ method: 'POST' })
@@ -242,8 +251,14 @@ export const addWorkload = createServerFn({ method: 'POST' })
   });
 
 const DeleteWorkloadSchema = z.object({
-  namespace: z.string().min(1),
-  name: z.string().min(1),
+  namespace: z.string().min(1).regex(
+    /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/,
+    'Namespace must follow DNS-1123 subdomain format',
+  ),
+  name: z.string().min(1).max(63).regex(
+    /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/,
+    'Name must follow DNS-1123 subdomain format',
+  ),
 });
 
 export const deleteWorkload = createServerFn({ method: 'POST' })

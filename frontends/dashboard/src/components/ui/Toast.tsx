@@ -37,6 +37,7 @@ export function Toast({ title, message, toastId, ...variantProps }: Props) {
       </div>
       <button
         type="button"
+        aria-label="Dismiss notification"
         onClick={() => {
           hotToast.dismiss(toastId);
         }}

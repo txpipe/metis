@@ -84,7 +84,7 @@ export async function getStatefulSetUptime(namespace: string, name: string, fill
 
     const missingDays = fillSize - result.length;
     if (missingDays <= 0) {
-      return result;
+      return result.slice(-fillSize);
     }
 
     if (!firstDayWithData) {
