@@ -1,0 +1,53 @@
+{{- $fullName := include "apex-fusion.fullname" . -}}
+{{- $svcType := default "ClusterIP" .Values.service.type -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "apex-fusion.labels" . | nindent 4 }}
+    {{- with .Values.service.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $svcType }}
+  {{- with .Values.service.clusterIP }}
+  clusterIP: {{ . }}
+  {{- end }}
+  {{- with .Values.service.loadBalancerIP }}
+  loadBalancerIP: {{ . }}
+  {{- end }}
+  {{- with .Values.service.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ . }}
+  {{- end }}
+  selector:
+{{- include "apex-fusion.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: n2n
+      port: {{ .Values.service.n2nPort }}
+      targetPort: n2n
+      protocol: TCP
+      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) .Values.service.n2nNodePort }}
+      nodePort: {{ .Values.service.n2nNodePort }}
+      {{- end }}
+    - name: n2c
+      port: {{ .Values.service.n2cPort }}
+      targetPort: n2c
+      protocol: TCP
+      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) .Values.service.n2cNodePort }}
+      nodePort: {{ .Values.service.n2cNodePort }}
+      {{- end }}
+    - name: metrics
+      port: {{ .Values.service.metricsPort }}
+      targetPort: metrics
+      protocol: TCP
+      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) .Values.service.metricsNodePort }}
+      nodePort: {{ .Values.service.metricsNodePort }}
+      {{- end }}
+    {{- with .Values.service.extraPorts }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}

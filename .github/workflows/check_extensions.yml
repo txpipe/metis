@@ -44,6 +44,9 @@ jobs:
             dir: control-plane
           - name: default
             valuesArgs: ""
+            dir: apex-fusion
+          - name: default
+            valuesArgs: ""
             dir: dolos
           - name: offline-inline
             valuesArgs: "-f hydra-node/ci/values-offline-inline.yaml"

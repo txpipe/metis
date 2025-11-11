@@ -1,0 +1,25 @@
+{{- $fullName := printf "%s-headless" (include "apex-fusion.fullname" .) -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "apex-fusion.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+{{- include "apex-fusion.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: n2n
+      port: {{ .Values.service.n2nPort }}
+      targetPort: n2n
+      protocol: TCP
+    - name: n2c
+      port: {{ .Values.service.n2cPort }}
+      targetPort: n2c
+      protocol: TCP
+    - name: metrics
+      port: {{ .Values.service.metricsPort }}
+      targetPort: metrics
+      protocol: TCP
