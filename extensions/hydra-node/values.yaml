@@ -74,6 +74,22 @@ node:
   apiHost: 0.0.0.0
   host: 0.0.0.0
   persistenceSubPath: ""
+  cardanoSocketProxy:
+    enabled: false
+    socketPath: ""
+    listenOptions: reuseaddr,fork,unlink-early
+    targetScheme: OPENSSL
+    targetOptions: verify=0
+    targetHost: ""
+    targetPort: 0
+    image:
+      repository: alpine/socat
+      tag: "1.7.4.4-r0"
+      pullPolicy: IfNotPresent
+    extraArgs: []
+    extraEnv: []
+    resources: {}
+    securityContext: {}
 
 ledger:
   mountPath: /etc/hydra

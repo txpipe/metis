@@ -46,6 +46,36 @@
 {{- if and $cardanoEnabled (not .Values.keys.cardano.verification.existingConfigMap.name) .Values.keys.cardano.verification.value }}
   {{- $cardanoVerificationChecksum = include (print $.Template.BasePath "/configmap-cardano-verification.yaml") . | sha256sum }}
 {{- end }}
+{{- $cardanoSocketProxy := default (dict) .Values.node.cardanoSocketProxy -}}
+{{- $cardanoSocketProxyEnabled := and $cardanoEnabled (default false $cardanoSocketProxy.enabled) -}}
+{{- $cardanoSocketPath := "" -}}
+{{- $cardanoSocketDir := "" -}}
+{{- if $cardanoSocketProxyEnabled }}
+  {{- $cardanoSocketPath = default (default "/ipc/node.socket" .Values.keys.cardano.socketPath) $cardanoSocketProxy.socketPath }}
+  {{- $cardanoSocketPath = required "node.cardanoSocketProxy.socketPath or keys.cardano.socketPath must be set when node.cardanoSocketProxy.enabled=true" $cardanoSocketPath }}
+  {{- $cardanoSocketDir = dir $cardanoSocketPath }}
+  {{- if eq $cardanoSocketDir "." }}
+    {{- fail "node.cardanoSocketProxy.socketPath must include a directory component" }}
+  {{- end }}
+{{- end }}
+{{- $cardanoNodeSocketPath := "" -}}
+{{- if $cardanoSocketProxyEnabled }}
+  {{- $cardanoNodeSocketPath = $cardanoSocketPath }}
+{{- else if $cardanoEnabled }}
+  {{- $cardanoNodeSocketPath = required "keys.cardano.socketPath must be provided when running online" .Values.keys.cardano.socketPath }}
+{{- end }}
+{{- $cardanoSocketProxyTargetHost := "" -}}
+{{- $cardanoSocketProxyTargetPort := 0 -}}
+{{- $cardanoSocketProxyListenOptions := "" -}}
+{{- $cardanoSocketProxyTargetScheme := "" -}}
+{{- $cardanoSocketProxyTargetOptions := "" -}}
+{{- if $cardanoSocketProxyEnabled }}
+  {{- $cardanoSocketProxyTargetHost = required "node.cardanoSocketProxy.targetHost must be set when node.cardanoSocketProxy.enabled=true" $cardanoSocketProxy.targetHost }}
+  {{- $cardanoSocketProxyTargetPort = required "node.cardanoSocketProxy.targetPort must be set when node.cardanoSocketProxy.enabled=true" $cardanoSocketProxy.targetPort }}
+  {{- $cardanoSocketProxyListenOptions = default "" $cardanoSocketProxy.listenOptions }}
+  {{- $cardanoSocketProxyTargetScheme = default "OPENSSL" $cardanoSocketProxy.targetScheme }}
+  {{- $cardanoSocketProxyTargetOptions = default "" $cardanoSocketProxy.targetOptions }}
+{{- end }}
 {{- $args := .Values.node.args -}}
 {{- if not $args }}
   {{- $args = list }}
@@ -75,7 +105,7 @@
     {{- $args = append $args "--cardano-verification-key" }}
     {{- $args = append $args (printf "%s/%s" $keysMount (default "cardano.vk" .Values.keys.cardano.verification.filename)) }}
     {{- $args = append $args "--node-socket" }}
-    {{- $args = append $args .Values.keys.cardano.socketPath }}
+    {{- $args = append $args $cardanoNodeSocketPath }}
   {{- end }}
   {{- $args = append $args "--hydra-signing-key" }}
   {{- $args = append $args $hydraSigningPath }}
@@ -197,9 +227,13 @@ spec:
               mountPath: {{ .Values.persistence.mountPath | default "/var/lib/hydra" }}
               {{- with .Values.node.persistenceSubPath }}
               subPath: {{ . }}
-              {{- end }}
+            {{- end }}
             - name: keys
               mountPath: {{ .Values.keys.mountPath | default "/etc/keys" }}
+            {{- if $cardanoSocketProxyEnabled }}
+            - name: cardano-node-socket
+              mountPath: {{ $cardanoSocketDir }}
+            {{- end }}
             {{- if or $protocolConfigName $initialUtxoConfigName }}
             - name: ledger-config
               mountPath: {{ .Values.ledger.mountPath | default "/etc/hydra" }}
@@ -221,12 +255,48 @@ spec:
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+        {{ if $cardanoSocketProxyEnabled }}
+        {{- $cardanoSocketProxyListenOptionsSuffix := ternary (printf ",%s" $cardanoSocketProxyListenOptions) "" (empty $cardanoSocketProxyListenOptions | not) -}}
+        {{- $cardanoSocketProxyTargetOptionsSuffix := ternary (printf ",%s" $cardanoSocketProxyTargetOptions) "" (empty $cardanoSocketProxyTargetOptions | not) -}}
+        {{- $cardanoSocketProxyListenAddress := printf "UNIX-LISTEN:%s%s" $cardanoSocketPath $cardanoSocketProxyListenOptionsSuffix -}}
+        {{- $cardanoSocketProxyTargetAddress := printf "%s:%s:%d%s" $cardanoSocketProxyTargetScheme $cardanoSocketProxyTargetHost (int $cardanoSocketProxyTargetPort) $cardanoSocketProxyTargetOptionsSuffix -}}
+        - name: cardano-socket-proxy
+          image: "{{ $cardanoSocketProxy.image.repository }}:{{ $cardanoSocketProxy.image.tag }}"
+          imagePullPolicy: {{ default "IfNotPresent" $cardanoSocketProxy.image.pullPolicy }}
+          command:
+            - socat
+          args:
+            {{- range $cardanoSocketProxy.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+            - {{ $cardanoSocketProxyListenAddress | quote }}
+            - {{ $cardanoSocketProxyTargetAddress | quote }}
+          volumeMounts:
+            - name: cardano-node-socket
+              mountPath: {{ $cardanoSocketDir }}
+          {{- with $cardanoSocketProxy.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $cardanoSocketProxy.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $cardanoSocketProxy.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{ end }}
         {{- with .Values.node.extraContainers }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       volumes:
         {{- with .Values.node.extraVolumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $cardanoSocketProxyEnabled }}
+        - name: cardano-node-socket
+          emptyDir: {}
         {{- end }}
         - name: keys
           projected:

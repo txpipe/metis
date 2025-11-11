@@ -1,12 +1,13 @@
 node:
   offlineMode: false
   hydraScriptsTxId: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-  extraVolumes:
-    - name: cardano-socket
-      emptyDir: {}
-  extraVolumeMounts:
-    - name: cardano-socket
-      mountPath: /ipc
+  cardanoSocketProxy:
+    enabled: true
+    targetHost: relay.cardano.example.com
+    targetPort: 3001
+    targetScheme: OPENSSL
+    targetOptions: verify=0
+    socketPath: /ipc/node.socket
 
 keys:
   hydraSigning:
@@ -22,6 +23,7 @@ keys:
           online-hydra-peer-verification-key
   cardano:
     enabled: true
+    socketPath: /ipc/node.socket
     signing:
       value: |-
         online-cardano-signing-key

@@ -28,9 +28,11 @@ The chart expects you to generate and manage keys **outside** of Helm:
   included to match the Hydra quick-start docs, but override them with your own
   content before going live.
 - For online heads set `keys.cardano.enabled=true` and supply a Cardano signing
-  key, verification key, a node socket path, and a `node.hydraScriptsTxId`
-  value. Mount the socket yourself through `node.extraVolumes` /
-  `node.extraVolumeMounts` (see the example below).
+  key, verification key, remote node address, and a `node.hydraScriptsTxId`
+  value. The chart can launch a `socat` sidecar via
+  `node.cardanoSocketProxy` to project the remote Cardano socket into the pod,
+  or you can disable the proxy and mount a socket path manually using
+  `node.extraVolumes` / `node.extraVolumeMounts`.
 
 Create the required Kubernetes objects ahead of time or let the chart create
 them from inline values:
@@ -136,12 +138,20 @@ have a Hydra key pair available on disk.
 
 ## Switching to Online Mode
 
-Set `node.offlineMode=false` and enable the Cardano key bundle:
+Set `node.offlineMode=false`, enable the Cardano key bundle, and describe how to
+reach your upstream Cardano node:
 
 ```yaml
 node:
   offlineMode: false
   hydraScriptsTxId: abcd1234...   # tx id of the deployed Hydra scripts
+  cardanoSocketProxy:
+    enabled: true
+    targetHost: relay.cardano.example.com
+    targetPort: 3001
+    targetScheme: OPENSSL         # optional, defaults to OPENSSL
+    targetOptions: verify=0       # optional OpenSSL flags passed to socat
+    socketPath: /ipc/node.socket  # optional, defaults to keys.cardano.socketPath
 
 keys:
   cardano:
@@ -158,18 +168,11 @@ keys:
       filename: cardano.vk
 ```
 
-Mount the Cardano node socket by augmenting the pod spec:
-
-```yaml
-node:
-  extraVolumes:
-    - name: cardano-socket
-      persistentVolumeClaim:
-        claimName: shared-cardano-ipc
-  extraVolumeMounts:
-    - name: cardano-socket
-      mountPath: /ipc
-```
+With the proxy enabled the chart injects a `socat` sidecar that listens on the
+Unix socket at `/ipc/node.socket` and forwards data to the specified remote node
+address. If you already mount a socket into the pod (for example via a shared
+PVC), disable the proxy (`node.cardanoSocketProxy.enabled=false`) and use
+`node.extraVolumes` / `node.extraVolumeMounts` instead.
 
 ## Testing
 
@@ -196,6 +199,7 @@ helm template hydra-online . -f ci/values-online-inline.yaml > /tmp/hydra-online
 | `ledger.protocolParameters` | Provides `protocol-parameters.json` for offline heads | inline demo JSON |
 | `ledger.initialUtxo` | Provides `utxo.json` for offline heads | inline demo JSON |
 | `keys.cardano.enabled` | Switch on online mode support (requires additional settings) | `false` |
+| `node.cardanoSocketProxy.enabled` | Launch a `socat` sidecar that exposes a remote Cardano node as a Unix socket | `false` |
 | `service.apiPort` | WebSocket API port exposed on the Service | `4001` |
 | `persistence.size` | Persistent volume claim size for the Hydra state | `5Gi` |
 
