@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: superadmin-cluster-role-binding
+subjects:
+- kind: ServiceAccount
+  name: supernode-dashboard
+  namespace: '{{ .Values.namespace }}'
+roleRef:
+  kind: ClusterRole
+  name: superadmin-cluster-role
+  apiGroup: rbac.authorization.k8s.io
