@@ -64,6 +64,8 @@ export const getServerWorkloads = createServerFn({
       workload.uptime = (!!nodeSts.metadata?.name)
         ? await getStatefulSetUptime(release.namespace, nodeSts.metadata.name)
         : emptyUptimeResult;
+
+      workload.stsName = nodeSts.metadata?.name;
     }
 
     output.push(workload);

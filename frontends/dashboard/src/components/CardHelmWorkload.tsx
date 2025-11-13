@@ -148,12 +148,14 @@ function WorkloadPending({ namespace, name }: { namespace: string; name: string;
 export function CardHelmWorkload({ workload, onDelete }: Props) {
   const className = 'relative bg-white rounded-3xl p-6 shadow-[1px_0px_16px_0px_rgba(0,0,0,0.1)] flex flex-col min-h-68.75';
 
+  const name = workload.stsName ?? workload.name;
+
   if (workload.supernodeStatus === 'onboarding') {
     return (
       <div className={className}>
         <WorkloadHeader workload={workload} onDelete={onDelete} />
 
-        <WorkloadPending namespace={workload.namespace} name={workload.name} />
+        <WorkloadPending namespace={workload.namespace} name={name} />
       </div>
     );
   }
@@ -161,7 +163,7 @@ export function CardHelmWorkload({ workload, onDelete }: Props) {
   return (
     <Link
       to="/$namespace/$name"
-      params={{ namespace: workload.namespace, name: workload.name }}
+      params={{ namespace: workload.namespace, name }}
       className={className}
     >
       <WorkloadHeader workload={workload} onDelete={onDelete} />

@@ -77,7 +77,7 @@ function WorkloadIdInfo() {
       if (value) {
         const text = textDecoder.decode(value);
         if (text) {
-          setLogs(prev => prev + text);
+          setLogs(prev => (prev + text).slice(-10000)); // Keep only last 10k characters
         }
       }
     }

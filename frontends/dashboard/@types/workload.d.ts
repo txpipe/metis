@@ -15,6 +15,7 @@ declare interface HelmWorkload {
   supernodeStatus: 'onboarding' | 'ready';
   annotations?: SupernodeAnnotations;
   uptime?: UptimeEntry[];
+  stsName?: string;
 }
 
 declare interface SimplifiedPod {
