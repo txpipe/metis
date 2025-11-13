@@ -11,7 +11,7 @@ keywords:
   - metis
   - supernode
 annotations:
-  displayName: Midnight Node
-  icon: /images/apex-fusion.svg
+  displayName: Apex Fusion
+  icon: /images/workloads/apex-fusion.png
   category: layer-1
-  networkPath: node.cfgPreset
+  networkPath: node.network

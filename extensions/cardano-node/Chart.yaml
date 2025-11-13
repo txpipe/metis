@@ -10,6 +10,6 @@ keywords:
   - supernodel
 annotations:
   displayName: Cardano Node
-  icon: /images/cardano-node.svg
+  icon: /images/workloads/cardano-node.svg
   category: layer-1
   networkPath: node.network

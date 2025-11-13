@@ -10,5 +10,5 @@ keywords:
   - metis
 annotations:
   displayName: Hydra Node
-  icon: /images/hydra.svg
+  icon: /images/workloads/hydra.svg
   category: layer-2

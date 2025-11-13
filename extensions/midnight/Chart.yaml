@@ -10,6 +10,6 @@ keywords:
   - supernode
 annotations:
   displayName: Midnight Node
-  icon: /images/midnight.svg
+  icon: /images/workloads/midnight.svg
   category: partner-chain
   networkPath: node.cfgPreset
