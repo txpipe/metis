@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" fill="none" viewBox="0 0 1440 1024">
+  <path fill="#fff" d="M0 0h1440v1024H0z"/>
+  <path stroke="#6a6a6a" d="M1314 83v24M1326 95h-24"/>
+  <g opacity=".3">
+    <path stroke="url(#bg_a)" d="M435 545v24"/>
+    <path stroke="url(#bg_b)" d="M447 557h-24"/>
+  </g>
+  <g stroke="#6a6a6a" opacity=".3">
+    <path d="M193 216v24M205 228h-24"/>
+  </g>
+  <g stroke="#6a6a6a" opacity=".3">
+    <path d="M197 413v16M205 421h-16"/>
+  </g>
+  <path stroke="#6a6a6a" d="M1245 889v24M1257 901h-24" opacity=".5"/>
+  <path stroke="#6a6a6a" d="M1334 522v16M1342 530h-16"/>
+  <g stroke="#6a6a6a" opacity=".5">
+    <path d="M1385 168v24M1397 180h-24"/>
+  </g>
+  <g stroke="#6a6a6a" opacity=".5">
+    <path d="M98 699v24M110 711H86"/>
+  </g>
+  <g stroke="#6a6a6a" opacity=".5">
+    <path d="M1257 328v24M1269 340h-24"/>
+  </g>
+  <g stroke="#6a6a6a" opacity=".5">
+    <path d="M486 915v16M494 923h-16"/>
+  </g>
+  <g stroke="#6a6a6a" opacity=".5">
+    <path d="M160 958v16M168 966h-16"/>
+  </g>
+  <defs>
+    <linearGradient id="bg_a" x1="435" x2="435" y1="569" y2="545" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0bcaca" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#0bcaca"/>
+      <stop offset="1" stop-color="#0bcaca" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="bg_b" x1="423" x2="447" y1="557" y2="557" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0bcaca" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#0bcaca"/>
+      <stop offset="1" stop-color="#0bcaca" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+</svg>
