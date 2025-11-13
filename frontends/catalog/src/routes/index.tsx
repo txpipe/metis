@@ -20,7 +20,7 @@ function LandingPage() {
             A single tool to run all your UTxO workloads
           </h1>
 
-          <p className="text-md md:text-lg leading- text-zinc-500 font-medium">
+          <p className="text-md md:text-lg text-zinc-500 font-medium">
             An <span className={hlClass}>open-source</span> tool built for blockchain&nbsp;
             <span className={hlClass}>operators</span>. Deploy and manage multiple nodes and&nbsp;
             <span className={hlClass}>workloads</span> in a few clicks—no custom setups, no hidden dependencies.

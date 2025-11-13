@@ -5,6 +5,6 @@ declare namespace NodeJS {
   }
 }
 
-declare interface ImportMetaE {
+declare interface ImportMetaEnv {
   VITE_OCI_ENDPOINT?: string;
 }
