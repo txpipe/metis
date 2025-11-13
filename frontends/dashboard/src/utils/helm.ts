@@ -60,7 +60,11 @@ export function getNetworkFromHelmRelease(release: DecodedHelmRelease): string {
     return 'unknown';
   }
 
-  const values = merge(release.chart.values || {}, release.config || {});
+  const values = merge(
+    release.chart.values || {},
+    release.config || {},
+    { arrayMerge: (_target, source) => source },
+  );
   if (annotations && annotations.networkPath) {
     const parts = annotations.networkPath.split('.');
     let current: any = values;
