@@ -146,7 +146,7 @@ Resolve the Secret name for the node key.
 {{- end }}
 
 {{/*
-Resolve the name for the managed DB sync Deployment.
+Resolve the name for the managed DB sync StatefulSet.
 */}}
 {{- define "midnight.dbSyncName" -}}
 {{- printf "%s-dbsync" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}

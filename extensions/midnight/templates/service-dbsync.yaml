@@ -1,0 +1,15 @@
+{{- if .Values.dbSync.managed.enabled }}
+{{- $serviceName := include "midnight.dbSyncName" . -}}
+{{- $selector := dict "context" . "component" "dbsync" -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $serviceName }}
+  labels:
+    {{- include "midnight.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dbsync
+spec:
+  clusterIP: None
+  selector:
+    {{- include "midnight.selectorLabelsFor" $selector | nindent 4 }}
+{{- end }}
