@@ -12,8 +12,7 @@ import { runCommand } from '~/utils/process';
 import { nanoid } from '~/utils/generic';
 
 // Installs
-import * as midnight from '~/utils/helm-install/midnight';
-import * as dolos from '~/utils/helm-install/dolos';
+import { runInstall } from '~/utils/helm-install';
 
 function getAnnotationsFromRelease(release: DecodedHelmRelease): SupernodeAnnotations | undefined {
   if (!release.chart.metadata.annotations) {
@@ -235,11 +234,7 @@ export const addWorkload = createServerFn({ method: 'POST' })
       },
     });
 
-    if (repo.includes('midnight')) {
-      await midnight.install(namespace, name, image, version);
-    } else if (repo.includes('dolos')) {
-      await dolos.install(namespace, name, image, version);
-    }
+    await runInstall(repo, namespace, name, image, version);
 
     return { success: true, namespace, name };
   });

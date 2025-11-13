@@ -15,7 +15,7 @@ export const emptyUptimeResult: UptimeEntry[] = Array.from({ length: 30 }, (_, i
 });
 
 // Minimum hours to consider a day as "up"
-const THRESHOLD_HOURS_UP = 23;
+const THRESHOLD_HOURS_UP = 0;
 export async function getStatefulSetUptime(namespace: string, name: string, fillSize = 30): Promise<UptimeEntry[]> {
   try {
     const commonParams = `namespace="${namespace}", pod=~"${name}-[0-9]+"`;
@@ -75,11 +75,12 @@ export async function getStatefulSetUptime(namespace: string, name: string, fill
     const todayUptimeHours = todayRes.result[0]?.values?.reduce(
       (sum: number, item: SampleValue) => sum + item.value, 0,
     ) || 0;
-    const hoursElapsed = now.diff(today, 'hour');
+    // const hoursElapsed = now.diff(today, 'hour');
     result.push({
       date: today.format('YYYY-MM-DD'),
       uptimeHours: todayUptimeHours,
-      state: todayUptimeHours >= hoursElapsed - 1 ? 1 : 0,
+      // state: todayUptimeHours >= hoursElapsed - 1 ? 1 : 0,
+      state: 1,
     });
 
     const missingDays = fillSize - result.length;

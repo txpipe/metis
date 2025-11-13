@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource/poppins": "^5.2.7",
     "@headlessui/react": "^2.2.9",
     "@kubernetes/client-node": "^1.4.0",
     "@tailwindcss/forms": "^0.5.10",
@@ -32,6 +33,7 @@
     "cbor2": "^2.0.1",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.19",
+    "deepmerge": "^4.3.1",
     "nanoid": "^5.1.6",
     "pako": "^2.1.0",
     "prometheus-query": "^3.5.1",

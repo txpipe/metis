@@ -1,5 +1,7 @@
 // @ts-expect-error: FontSource doesn't have types but we don't need them
 import '@fontsource-variable/inter';
+import '@fontsource/poppins/400.css';
+import '@fontsource/poppins/700.css';
 
 import { QueryClient } from '@tanstack/react-query';
 import { HeadContent, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
@@ -26,7 +28,7 @@ export const Route = createRootRouteWithContext<{
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'Metis Dashboard',
+        title: 'SuperNode Catalog',
       },
     ],
     links: [

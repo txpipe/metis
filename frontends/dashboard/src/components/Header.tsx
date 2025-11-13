@@ -4,21 +4,23 @@ interface Props {}
 
 export function Header({}: Props) {
   return (
-    <header className="w-full border-b border-neutral-200 grid grid-cols-[350px_2px_1fr] items-center">
+    <header className="w-full bg-white z-1 border-b border-neutral-200 grid grid-cols-1 sm:grid-cols-[348px_1px_1fr] items-center gap-4 sm:gap-0">
       {/* Logo */}
-      <div className="flex items-center justify-center gap-3">
-        <Link to="/" className="w-fit flex text-4xl font-bold items-center gap-1.5">
-          <img src="/logo.svg" alt="Metis Logo" className="h-[44.27px]" />
-          Metis
+      <div className="flex items-center justify-center gap-3 py-4 sm:py-0">
+        <Link to="/" className="w-fit flex text-2xl items-center gap-1.5 font-poppins text-zinc-900">
+          <img src="/logo.svg" alt="SuperNode Logo" className="h-[38.23px]" />
+          <span>
+            SUPER<span className="font-bold">NODE</span>
+          </span>
         </Link>
-        <div className="text-[#2B2B2B]/30 mt-2.5">
+        <div className="text-zinc-400 text-sm">
           By Txpipe
         </div>
       </div>
       {/* Separator */}
-      <div className="h-23.75 bg-[#F4F4F4]" />
+      <div className="h-23.5 bg-zinc-200 hidden sm:block" />
       {/* Navbar */}
-      <nav className="px-12 flex flex-row gap-8">
+      <nav className="px-6 sm:px-12 flex flex-row gap-8 font-medium text-zinc-800">
         <Link to="/" data-active>Dashboard</Link>
       </nav>
     </header>

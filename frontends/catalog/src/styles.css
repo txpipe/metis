@@ -5,7 +5,7 @@
 
 @theme {
   --font-sans: "Inter Variable", "Inter", sans-serif;
-  --font-poppins: "Poppins", sans-serif;  
+  --font-poppins: "Poppins", sans-serif;
 }
 
 @layer base {

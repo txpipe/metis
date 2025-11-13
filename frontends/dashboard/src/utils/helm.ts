@@ -1,5 +1,6 @@
 import { CoreV1Api } from '@kubernetes/client-node';
 import pako from 'pako';
+import merge from 'deepmerge';
 
 function decodeHelmSecret(secretData: Record<string, string>): DecodedHelmRelease | null {
   const releaseData = secretData.release;
@@ -55,8 +56,16 @@ export async function getHelmReleases(api: CoreV1Api, namespace = 'all') {
 
 export function getNetworkFromHelmRelease(release: DecodedHelmRelease): string {
   const annotations = release.chart.metadata.annotations;
-  const values = release.chart.values;
-  if (annotations && values && annotations.networkPath) {
+  if (!release.chart.values && !release.config) {
+    return 'unknown';
+  }
+
+  const values = merge(
+    release.chart.values || {},
+    release.config || {},
+    { arrayMerge: (_target, source) => source },
+  );
+  if (annotations && annotations.networkPath) {
     const parts = annotations.networkPath.split('.');
     let current: any = values;
     for (const part of parts) {
