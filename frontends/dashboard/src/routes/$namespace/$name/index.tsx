@@ -99,7 +99,7 @@ function WorkloadIdInfo() {
   const status = getStatusFromK8sStatus(activePod.statusPhase);
 
   return (
-    <div className="mx-16 py-8 grid grid-rows-[auto_auto_1fr] gap-5 max-h-[calc(100dvh-96px)]">
+    <div className="mx-16 py-8 grid grid-rows-[auto_auto_1fr] gap-5 max-h-[calc(100dvh-95px)]">
       <div className="flex items-center gap-2 text-[#64748B]">
         <Link to="/">Overview</Link>
         <CaretRightIcon className="w-4 h-4" />
