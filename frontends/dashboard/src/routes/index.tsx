@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 
 // Components
-import { Card } from '~/components/Card';
+import { Card, CardTitle } from '~/components/Card';
 import { CardHelmWorkload } from '~/components/CardHelmWorkload';
 import { XIcon } from '~/components/icons/XIcon';
 import { Button } from '~/components/ui/Button';
@@ -50,15 +50,13 @@ function DashboardPage() {
       </div>
 
       {showAvailableWorkloads && (
-        <Card
-          title="Add workloads"
-          titleAction={(
+        <Card className="mt-10 gap-8">
+          <div className="flex flex-row justify-between items-center">
+            <CardTitle>Add workloads</CardTitle>
             <button type="button" onClick={() => setShowAvailableWorkloads(false)} className="cursor-pointer">
               <XIcon className="w-6.5 h-6.5 text-black" />
             </button>
-          )}
-          className="mt-10 gap-8"
-        >
+          </div>
           <WorkloadsTable
             onWorkloadSelected={() => {
               setShowAvailableWorkloads(false);
@@ -79,7 +77,8 @@ function DashboardPage() {
         </Card>
       )}
 
-      <Card title="My workloads" className="mt-10 gap-8">
+      <Card className="mt-10 gap-8">
+        <CardTitle>My workloads</CardTitle>
         {isEmpty
           ? (
             <div className="grid grid-cols-1 min-h-[140px] items-center">

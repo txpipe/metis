@@ -18,12 +18,14 @@ export const button = tv({
     },
     text: {
       xs: 'text-xs',
+      sm: 'text-sm',
       base: 'text-base',
       lg: 'text-lg',
     },
     color: {
       zinc: '',
       blue: '',
+      red: '',
       green: '',
     },
     radius: {
@@ -64,6 +66,9 @@ export const button = tv({
 
     { variant: 'solid', color: 'green', class: 'bg-[#69C876]/8 text-[#69C876] border-[0.5px] border-[#69C876]/50' },
     { variant: 'outlined', color: 'green', class: 'border-[#69C876] text-[#69C876]' },
+
+    { variant: 'solid', color: 'red', class: 'bg-[#FF7474]/8 text-[#FF7474] border-[0.5px] border-[#FF7474]/50' },
+    { variant: 'outlined', color: 'red', class: 'border-[#FF7474] text-[#FF7474]' },
   ],
 });
 

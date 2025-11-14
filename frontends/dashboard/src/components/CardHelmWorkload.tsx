@@ -109,7 +109,6 @@ function WorkloadPending({ namespace, name, onDelete }: { namespace: string; nam
     } finally {
       setDeleting(false);
     }
-    // Implement delete functionality here
   };
 
   return (

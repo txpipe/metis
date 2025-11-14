@@ -1,25 +1,27 @@
-import clsx from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
-interface Props {
-  title?: string;
-  titleAction?: React.ReactNode;
+interface CommonProps {
   className?: string;
 }
 
-export function Card({ title, children, className, titleAction }: React.PropsWithChildren<Props>) {
+export function Card({ children, className }: React.PropsWithChildren<CommonProps>) {
   return (
     <div
-      className={clsx(
-        'bg-[#F9F9F9] border-[0.5px] border-[#CBD5E1] rounded-xl p-6 grid grid-rows-[auto_1fr]',
+      className={twMerge(
+        'bg-[#F9F9F9] border-[0.5px] border-[#CBD5E1] rounded-xl p-6 flex flex-col',
         className,
       )}
     >
-      <div className="flex flex-row justify-between items-center">
-        <h2 className="text-[22px]/[22px] font-semibold text-[#686868]">{title}</h2>
-        {titleAction}
-      </div>
 
       {children}
     </div>
+  );
+}
+
+export function CardTitle({ children, className }: React.PropsWithChildren<CommonProps>) {
+  return (
+    <h2 className={twMerge('text-[22px]/[22px] font-semibold text-[#686868]', className)}>
+      {children}
+    </h2>
   );
 }
