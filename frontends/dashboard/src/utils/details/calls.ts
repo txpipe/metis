@@ -10,12 +10,16 @@ const NamespaceArgs = z.object({
   ),
 });
 
-export const getGrafanaDashboardId = createServerFn({
+export const getGrafanaDashboardUrl = createServerFn({
   method: 'GET',
 }).inputValidator(NamespaceArgs)
   .handler(async ({ data: { namespace } }) => {
     if (!process.env.GRAFANA_API_ENDPOINT) {
       throw new Error('GRAFANA_API_ENDPOINT is not defined');
+    }
+
+    if (!process.env.GRAFANA_PUBLIC_URL) {
+      throw new Error('GRAFANA_PUBLIC_URL is not defined');
     }
 
     // eslint-disable-next-line no-console
@@ -35,9 +39,11 @@ export const getGrafanaDashboardId = createServerFn({
 
     const dashboards = await response.json();
 
-    return dashboards.find(
+    const uid = dashboards.find(
       (dashboard: any) => dashboard.uid && dashboard.title.toLowerCase() === namespace.toLowerCase(),
     )?.uid || null;
+
+    return uid ? `${process.env.GRAFANA_PUBLIC_URL}/d/${uid}/${namespace}` : null;
   });
 
 export const completeWorkflowSetup = createServerFn({

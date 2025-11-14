@@ -16,7 +16,7 @@ import { Toast } from '~/components/ui/Toast';
 
 // Data
 import { deleteWorkload, getServerWorkloadPods, streamWorkloadPodLogs } from '~/utils/home/calls';
-import { getGrafanaDashboardId } from '~/utils/details/calls';
+import { getGrafanaDashboardUrl } from '~/utils/details/calls';
 import { calculateUptimePercentage } from '~/utils/metrics';
 import { getStatusFromK8sStatus } from '~/utils/generic';
 
@@ -32,19 +32,15 @@ export const Route = createFileRoute('/$namespace/$name/')({
       });
     }
 
-    // eslint-disable-next-line no-console
-    console.log('GRAFANA URL:', import.meta.env.VITE_GRAFANA_URL);
-    const dashboardId = !!import.meta.env.VITE_GRAFANA_URL
-      ? await getGrafanaDashboardId({ data: { namespace: params.namespace } }).catch(err => {
-        // eslint-disable-next-line no-console
-        console.log(err);
-        return null;
-      })
-      : null;
+    const dashboardUrl = await getGrafanaDashboardUrl({ data: { namespace: params.namespace } }).catch(err => {
+      // eslint-disable-next-line no-console
+      console.log(err);
+      return null;
+    });
 
     return {
       items: data.items,
-      dashboardId,
+      dashboardUrl,
     };
   },
   component: WorkloadIdInfo,
@@ -117,8 +113,7 @@ function DeleteAction() {
 }
 
 function WorkloadIdInfo() {
-  const { namespace } = Route.useParams();
-  const { items, dashboardId } = Route.useLoaderData();
+  const { items, dashboardUrl } = Route.useLoaderData();
   const logsContainerRef = useRef<HTMLDivElement>(null);
   const readableStreamRef = useRef<ReadableStreamDefaultReader<any> | null>(null);
   const [logs, setLogs] = useState('');
@@ -185,9 +180,9 @@ function WorkloadIdInfo() {
             <h1 className="text-[32px] font-semibold text-[#2B2B2B]">{activePod.annotations?.displayName ?? activePod.containerName}</h1>
             <span className="mt-1 text-[#969FAB] leading-none">{activePod.annotations?.network}</span>
           </div>
-          {dashboardId && (
+          {dashboardUrl && (
             <a
-              href={`${import.meta.env.VITE_GRAFANA_URL}/d/${dashboardId}/${namespace}`}
+              href={dashboardUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="border border-zinc-900 rounded-full py-2.5 px-6 text-sm/none flex items-center justify-center gap-1 self-end"
