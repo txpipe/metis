@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { useServerFn } from '@tanstack/react-start';
 import { useEffect, useState } from 'react';
 
 // Components
@@ -8,12 +9,16 @@ import { Callout } from '~/components/ui/Callout';
 // Context
 import { StepStatus, useWizard } from '~/contexts/wizard';
 
+// Utils
+import { completeWorkflowSetup } from '~/utils/details/calls';
+
 export const Route = createFileRoute('/$namespace/$name/setup/4')({
   component: RouteComponent,
 });
 
 function RouteComponent() {
   const params = Route.useParams();
+  const callCompleteWorkflowSetup = useServerFn(completeWorkflowSetup);
   const { setStepStatus, setBadgeStatus } = useWizard();
   const [success, setSuccess] = useState(false);
 
@@ -27,6 +32,7 @@ function RouteComponent() {
       setStepStatus(StepStatus.COMPLETED);
       setBadgeStatus('Completed');
       setSuccess(true);
+      callCompleteWorkflowSetup({ data: { namespace: params.namespace } });
     }, 1000);
 
     return () => {

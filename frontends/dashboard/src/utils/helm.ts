@@ -2,6 +2,9 @@ import { CoreV1Api } from '@kubernetes/client-node';
 import pako from 'pako';
 import merge from 'deepmerge';
 
+// Utils
+import { runCommand } from '~/utils/process';
+
 function decodeHelmSecret(secretData: Record<string, string>): DecodedHelmRelease | null {
   const releaseData = secretData.release;
   if (!releaseData) return null;
@@ -39,9 +42,32 @@ export async function getHelmReleases(api: CoreV1Api, namespace = 'all') {
     ? api.listSecretForAllNamespaces({ fieldSelector: 'type=helm.sh/release.v1' })
     : api.listNamespacedSecret({ namespace, fieldSelector: 'type=helm.sh/release.v1' }));
 
-  const releases = [];
+  // Ensure that we have only the latest version of each release
+  const latestSecretsMap = new Map<string, typeof secrets.items[0]>();
 
   for (const secret of secrets.items) {
+    const secretNamespace = secret.metadata?.namespace;
+    const secretName = secret.metadata?.labels?.name;
+    const secretVersion = parseInt(secret.metadata?.labels?.version || '0', 10);
+
+    if (!secretNamespace || !secretName) continue;
+
+    const key = `${secretNamespace}:${secretName}`;
+    const existing = latestSecretsMap.get(key);
+
+    if (!existing) {
+      latestSecretsMap.set(key, secret);
+    } else {
+      const existingVersion = parseInt(existing.metadata?.labels?.version || '0', 10);
+      if (secretVersion > existingVersion) {
+        latestSecretsMap.set(key, secret);
+      }
+    }
+  }
+
+  const releases = [];
+
+  for (const secret of latestSecretsMap.values()) {
     const decoded = decodeHelmSecret(secret.data || {});
     if (!decoded) continue;
 
@@ -81,4 +107,26 @@ export function getNetworkFromHelmRelease(release: DecodedHelmRelease): string {
   }
 
   return 'unknown';
+}
+
+export async function upgradeToReady(namespace: string) {
+  if (!process.env.OCI_ENDPOINT) {
+    return;
+  }
+
+  const listCmd = `helm list --namespace ${namespace} --output json`;
+  const releases = await runCommand(listCmd);
+  const releasesJson = JSON.parse(releases);
+
+  if (releasesJson.length === 0) {
+    throw new Error(`No Helm releases found in namespace ${namespace}`);
+  }
+
+  const releaseName = releasesJson[0].name;
+
+  const image = `${process.env.OCI_ENDPOINT}/extensions/${releaseName}`;
+
+  if (releaseName && image) {
+    await runCommand(`helm upgrade ${releaseName} ${image} --namespace ${namespace} --reuse-values --set extraLabels.supernode/status=ready`);
+  }
 }
