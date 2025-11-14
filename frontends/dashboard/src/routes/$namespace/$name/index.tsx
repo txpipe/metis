@@ -46,6 +46,12 @@ function InfoChip({ label, value, valueClassName }: { label: string; value: stri
   );
 }
 
+const converter = new AnsiToHtml({
+  newline: true,
+  escapeXML: true,
+  stream: true,
+});
+
 function WorkloadIdInfo() {
   const { items } = Route.useLoaderData();
   const logsContainerRef = useRef<HTMLDivElement>(null);
@@ -99,12 +105,6 @@ function WorkloadIdInfo() {
 
   const status = getStatusFromK8sStatus(activePod.statusPhase);
 
-  const converter = new AnsiToHtml({
-    newline: true,
-    escapeXML: false,
-    stream: true,
-  });
-
   return (
     <div className="mx-16 py-8 grid grid-rows-[auto_auto_1fr] gap-5 max-h-[calc(100dvh-95px)]">
       <div className="flex items-center gap-2 text-[#64748B]">
@@ -141,8 +141,7 @@ function WorkloadIdInfo() {
               className="overflow-y-auto whitespace-pre-wrap h-full font-mono"
               ref={logsContainerRef}
               dangerouslySetInnerHTML={{ __html: converter.toHtml(logs || 'No logs available') }}
-            >
-            </div>
+            />
           </div>
         </Card>
       </div>
