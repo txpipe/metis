@@ -1,3 +1,4 @@
+import AnsiToHtml from 'ansi-to-html';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import clsx from 'clsx';
@@ -44,6 +45,12 @@ function InfoChip({ label, value, valueClassName }: { label: string; value: stri
     </div>
   );
 }
+
+const converter = new AnsiToHtml({
+  newline: true,
+  escapeXML: true,
+  stream: true,
+});
 
 function WorkloadIdInfo() {
   const { items } = Route.useLoaderData();
@@ -130,9 +137,11 @@ function WorkloadIdInfo() {
       <div className="mt-5 max-h-full overflow-hidden min-h-[300px]">
         <Card title="Logs" className="gap-6 h-full">
           <div className="text-[13px] text-[#2B2B2B] bg-white rounded-xl p-6 min-h-0 h-full">
-            <div className="overflow-y-auto whitespace-pre-wrap h-full font-mono" ref={logsContainerRef}>
-              {logs || 'No logs available'}
-            </div>
+            <div
+              className="overflow-y-auto whitespace-pre-wrap h-full font-mono"
+              ref={logsContainerRef}
+              dangerouslySetInnerHTML={{ __html: converter.toHtml(logs || 'No logs available') }}
+            />
           </div>
         </Card>
       </div>
