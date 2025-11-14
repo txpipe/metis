@@ -10,14 +10,15 @@ import { CaretRightIcon } from '~/components/icons/CaretRightIcon';
 import { InfoCircleIcon } from '~/components/icons/InfoCircleIcon';
 import { GraphIcon } from '~/components/icons/GraphIcon';
 import { Card, CardTitle } from '~/components/Card';
-
-// Data
-import { deleteWorkload, getServerWorkloadPods, streamWorkloadPodLogs } from '~/utils/home/calls';
-import { calculateUptimePercentage } from '~/utils/metrics';
-import { getStatusFromK8sStatus } from '~/utils/generic';
 import { Button } from '~/components/ui/Button';
 import { TrashIcon } from '~/components/icons/TrashIcon';
 import { Toast } from '~/components/ui/Toast';
+
+// Data
+import { deleteWorkload, getServerWorkloadPods, streamWorkloadPodLogs } from '~/utils/home/calls';
+import { getGrafanaDashboardId } from '~/utils/details/calls';
+import { calculateUptimePercentage } from '~/utils/metrics';
+import { getStatusFromK8sStatus } from '~/utils/generic';
 
 const textDecoder = new TextDecoder();
 
@@ -30,9 +31,13 @@ export const Route = createFileRoute('/$namespace/$name/')({
         to: '/',
       });
     }
+    const dashboardId = !!import.meta.env.VITE_GRAFANA_URL
+      ? await getGrafanaDashboardId({ data: { namespace: params.namespace } }).catch(() => null)
+      : null;
 
     return {
       items: data.items,
+      dashboardId,
     };
   },
   component: WorkloadIdInfo,
@@ -105,7 +110,8 @@ function DeleteAction() {
 }
 
 function WorkloadIdInfo() {
-  const { items } = Route.useLoaderData();
+  const { namespace } = Route.useParams();
+  const { items, dashboardId } = Route.useLoaderData();
   const logsContainerRef = useRef<HTMLDivElement>(null);
   const readableStreamRef = useRef<ReadableStreamDefaultReader<any> | null>(null);
   const [logs, setLogs] = useState('');
@@ -172,15 +178,17 @@ function WorkloadIdInfo() {
             <h1 className="text-[32px] font-semibold text-[#2B2B2B]">{activePod.annotations?.displayName ?? activePod.containerName}</h1>
             <span className="mt-1 text-[#969FAB] leading-none">{activePod.annotations?.network}</span>
           </div>
-          {/* <a
-            href="#"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="border border-zinc-900 rounded-full py-2.5 px-6 text-sm/none flex items-center justify-center gap-1 self-end"
-          >
-            <GraphIcon className="size-4" strokeWidth={2} />
-            <span>Open Grafana</span>
-          </a> */}
+          {dashboardId && (
+            <a
+              href={`${import.meta.env.VITE_GRAFANA_URL}/d/${dashboardId}/${namespace}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border border-zinc-900 rounded-full py-2.5 px-6 text-sm/none flex items-center justify-center gap-1 self-end"
+            >
+              <GraphIcon className="size-4" strokeWidth={2} />
+              <span>Open Grafana</span>
+            </a>
+          )}
         </div>
       </div>
       <Card>
