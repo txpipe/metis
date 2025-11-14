@@ -18,6 +18,8 @@ export const getGrafanaDashboardId = createServerFn({
       throw new Error('GRAFANA_API_ENDPOINT is not defined');
     }
 
+    // eslint-disable-next-line no-console
+    console.log(`${process.env.GRAFANA_API_ENDPOINT}/search?query=${namespace}&type=dash-db`);
     const response = await fetch(`${process.env.GRAFANA_API_ENDPOINT}/search?query=${namespace}&type=dash-db`, {
       redirect: 'follow',
 

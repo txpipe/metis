@@ -31,8 +31,15 @@ export const Route = createFileRoute('/$namespace/$name/')({
         to: '/',
       });
     }
+
+    // eslint-disable-next-line no-console
+    console.log('GRAFANA URL:', import.meta.env.VITE_GRAFANA_URL);
     const dashboardId = !!import.meta.env.VITE_GRAFANA_URL
-      ? await getGrafanaDashboardId({ data: { namespace: params.namespace } }).catch(() => null)
+      ? await getGrafanaDashboardId({ data: { namespace: params.namespace } }).catch(err => {
+        // eslint-disable-next-line no-console
+        console.log(err);
+        return null;
+      })
       : null;
 
     return {
