@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 
 // Components
-import { Card } from '~/components/Card';
+import { Card, CardTitle } from '~/components/Card';
 import { CardHelmWorkload } from '~/components/CardHelmWorkload';
 import { XIcon } from '~/components/icons/XIcon';
 import { Button } from '~/components/ui/Button';
@@ -35,11 +35,12 @@ function DashboardPage() {
   return (
     <div className="mx-16 py-8">
       <h1 className="text-3xl/[40px] font-semibold text-[#2B2B2B]">Overview</h1>
-      <div className="flex flex-row justify-between items-center mt-3">
-        <p className="mt-3 text-[#42434D]">Manage and monitor all your workloads.</p>
+      <div className="flex flex-row justify-between items-start mt-3">
+        <p className="text-[#42434D]">Manage and monitor all your workloads.</p>
 
         <Button
           type="button"
+          text="base"
           onClick={() => {
             setShowAvailableWorkloads(true);
           }}
@@ -49,15 +50,13 @@ function DashboardPage() {
       </div>
 
       {showAvailableWorkloads && (
-        <Card
-          title="Add workloads"
-          titleAction={(
+        <Card className="mt-10 gap-8">
+          <div className="flex flex-row justify-between items-center">
+            <CardTitle>Add workloads</CardTitle>
             <button type="button" onClick={() => setShowAvailableWorkloads(false)} className="cursor-pointer">
               <XIcon className="w-6.5 h-6.5 text-black" />
             </button>
-          )}
-          className="mt-10 gap-8"
-        >
+          </div>
           <WorkloadsTable
             onWorkloadSelected={() => {
               setShowAvailableWorkloads(false);
@@ -78,7 +77,8 @@ function DashboardPage() {
         </Card>
       )}
 
-      <Card title="My workloads" className="mt-10 gap-8">
+      <Card className="mt-10 gap-8">
+        <CardTitle>My workloads</CardTitle>
         {isEmpty
           ? (
             <div className="grid grid-cols-1 min-h-[140px] items-center">

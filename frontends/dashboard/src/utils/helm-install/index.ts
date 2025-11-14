@@ -17,6 +17,6 @@ export async function runInstall(repo: string, namespace: string, name: string, 
     helm install ${name} ${image} \
     --namespace ${namespace} \
     --version "${version}" \
-    --set extraLabels.supernode/status=onboarding
+    --set extraLabels.supernode/status=ready
   `.trim());
 }

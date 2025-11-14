@@ -8,14 +8,11 @@ export function Header({}: Props) {
       {/* Logo */}
       <div className="flex items-center justify-center gap-3 py-4 sm:py-0">
         <Link to="/" className="w-fit flex text-2xl items-center gap-1.5 font-poppins text-zinc-900">
-          <img src="/logo.svg" alt="SuperNode Logo" className="h-[38.23px]" />
+          <img src="/logo.svg" alt="SuperNode Logo" className="h-9.5" />
           <span>
             SUPER<span className="font-bold">NODE</span>
           </span>
         </Link>
-        <div className="text-zinc-400 text-sm">
-          By Txpipe
-        </div>
       </div>
       {/* Separator */}
       <div className="h-23.5 bg-zinc-200 hidden sm:block" />

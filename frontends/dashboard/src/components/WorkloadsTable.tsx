@@ -100,6 +100,7 @@ function RowActionsCell({
       <Button
         type="button"
         color={added ? 'green' : 'blue'}
+        text="xs"
         size="small-auto-x"
         className={clsx('gap-0.5 w-18', { 'pointer-events-none': added })}
         disabled={added}
@@ -169,7 +170,7 @@ export function WorkloadsTable({ onWorkloadSelected, className }: Props) {
           type="text"
           name="search-id"
           placeholder="Search by Name"
-          className="border-0 rounded-md shadow-[0px_2px_5px_0px_rgba(32,42,54,0.06),0px_1px_5px_-4px_rgba(19,19,22,0.4),0px_0px_0px_1px_rgba(33,33,38,0.1)] py-1.75 pl-10 pr-3 w-62.5"
+          className="border border-zinc-200 rounded-md py-1.75 pl-10 pr-3 w-62.5"
           onChange={e => {
             const value = e.target.value;
             table.setColumnFilters(current => {

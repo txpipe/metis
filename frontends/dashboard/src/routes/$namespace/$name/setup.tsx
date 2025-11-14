@@ -32,7 +32,7 @@ function SetupLayout() {
       <WalletProvider>
         <WizardProvider step={step}>
           <SubHeader
-            logo="/images/midnight.svg"
+            logo="/images/workloads/midnight.svg"
             title="Midnight node"
             subtitle="Become a Midnight Block Producer"
             tags={['Partner-chain']}
