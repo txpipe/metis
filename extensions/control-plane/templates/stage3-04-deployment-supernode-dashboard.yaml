@@ -20,7 +20,7 @@ spec:
       automountServiceAccountToken: true
       containers:
       - name: supernode-dashboard
-        image: ghcr.io/txpipe/metis-dashboard:1449848ba69d7b1767b4196906180dc9a2fd43a7
+        image: ghcr.io/txpipe/metis-dashboard:051b1f421b5e9773647c670c75db339bf8148832
         ports:
         - name: http
           containerPort: 3000
@@ -40,6 +40,10 @@ spec:
           value: "https://oci.supernode.store"
         - name: OCI_ENDPOINT
           value: "oci://oci.supernode.store"
+        - name: GRAFANA_API_ENDPOINT
+          value: "http://grafana:3000/api"
+        - name: GRAFANA_PUBLIC_URL
+          value: "http://localhost:8081"
         - name: HOME
           value: "/tmp"
         - name: XDG_CACHE_HOME
