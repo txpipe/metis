@@ -3,9 +3,9 @@ import { MouseEventHandler, useCallback, useEffect, useRef, useState } from 'rea
 import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import toast from 'react-hot-toast';
 
 // Components
-import toast from 'react-hot-toast';
 import { CaretRightIcon } from '~/components/icons/CaretRightIcon';
 import { InfoCircleIcon } from '~/components/icons/InfoCircleIcon';
 import { GraphIcon } from '~/components/icons/GraphIcon';

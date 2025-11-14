@@ -16,14 +16,12 @@ export const getGrafanaDashboardId = createServerFn({
       throw new Error('GRAFANA_API_ENDPOINT is not defined');
     }
 
-    if (!process.env.GRAFANA_API_TOKEN) {
-      throw new Error('GRAFANA_API_TOKEN is not defined');
-    }
-
     const response = await fetch(`${process.env.GRAFANA_API_ENDPOINT}/search?query=${namespace}&type=dash-db`, {
+      redirect: 'follow',
+
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.GRAFANA_API_TOKEN}`,
+        Authorization: 'Basic YWRtaW46YWRtaW4=',
       },
     });
 
@@ -33,5 +31,7 @@ export const getGrafanaDashboardId = createServerFn({
 
     const dashboards = await response.json();
 
-    return dashboards.find((dashboard: any) => dashboard.uid && dashboard.title === namespace)?.uid || null;
+    return dashboards.find(
+      (dashboard: any) => dashboard.uid && dashboard.title.toLowerCase() === namespace.toLowerCase(),
+    )?.uid || null;
   });
