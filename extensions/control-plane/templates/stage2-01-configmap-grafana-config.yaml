@@ -6,8 +6,25 @@ metadata:
   labels:
     app.kubernetes.io/component: o11y
     app.kubernetes.io/name: grafana
-    app.kubernetes.io/part-of: demeter
 data:
   grafana.ini: |
     [date_formats]
     default_timezone = UTC
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: '{{ .Values.namespace }}'
+  labels:
+    app.kubernetes.io/component: o11y
+    app.kubernetes.io/name: grafana
+data:
+  prometheus.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-operated:9090
+        isDefault: true
