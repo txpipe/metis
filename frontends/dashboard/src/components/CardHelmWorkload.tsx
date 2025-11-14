@@ -4,9 +4,8 @@ import clsx from 'clsx';
 
 // Components
 import { InfoCircleIcon } from '~/components/icons/InfoCircleIcon';
-import { Badge, Props as BadgeProps } from '~/components/ui/Badge';
 import { AlertIcon } from '~/components/icons/AlertIcon';
-import { ArrowRightIcon } from '~/components/icons/ArrowRightIcon';
+import { Badge, Props as BadgeProps } from '~/components/ui/Badge';
 
 // Utils
 import { getStatusFromK8sStatus, UIMappedStatus } from '~/utils/generic';
@@ -26,29 +25,10 @@ const badgePropsByStatus: Record<UIMappedStatus, BadgeProps> = {
   pending: { style: 'status', label: 'Onboarding' },
 };
 
-function WorkloadHeader({ workload, onDelete }: Props) {
-  const [deleting, setDeleting] = useState(false);
+function WorkloadHeader({ workload }: Props) {
   const statusProps = workload.supernodeStatus === 'onboarding'
     ? badgePropsByStatus['pending']
     : badgePropsByStatus[getStatusFromK8sStatus(workload.status)];
-
-  const handleDelete: MouseEventHandler<HTMLButtonElement> = async e => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    setDeleting(true);
-    try {
-      await deleteWorkload({ data: { name: workload.name, namespace: workload.namespace } });
-      onDelete?.();
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
-    } finally {
-      setDeleting(false);
-    }
-    // Implement delete functionality here
-  };
-
   return (
     <div className="flex flex-row gap-3 items-center">
       {workload.annotations?.icon
@@ -63,14 +43,6 @@ function WorkloadHeader({ workload, onDelete }: Props) {
         <div className="text-[#969FAB] mt-1">{workload.annotations?.network}</div>
       </div>
       <Badge size="small" {...statusProps} />
-      <button
-        type="button"
-        className="absolute bottom-4 right-4 rounded-full cursor-pointer disabled:cursor-not-allowed text-xs text-[#FF7474]"
-        onClick={handleDelete}
-        disabled={deleting}
-      >
-        {deleting ? 'Removing...' : 'Remove'}
-      </button>
     </div>
   );
 }
@@ -120,7 +92,26 @@ function WorkloadReady({ workload }: Props) {
   );
 }
 
-function WorkloadPending({ namespace, name }: { namespace: string; name: string; }) {
+function WorkloadPending({ namespace, name, onDelete }: { namespace: string; name: string; onDelete?: Props['onDelete']; }) {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete: MouseEventHandler<HTMLButtonElement> = async e => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setDeleting(true);
+    try {
+      await deleteWorkload({ data: { name, namespace } });
+      onDelete?.();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+    } finally {
+      setDeleting(false);
+    }
+    // Implement delete functionality here
+  };
+
   return (
     <div className="flex-1 grid grid-rows-[1fr_auto] gap-6 mt-6">
       {/* Info box */}
@@ -131,31 +122,40 @@ function WorkloadPending({ namespace, name }: { namespace: string; name: string;
         </span>
       </div>
 
-      <Link
-        to="/$namespace/$name/setup"
-        params={{ namespace, name }}
-        className="flex gap-1.5 items-center w-fit mx-auto text-[#0000FF]"
-      >
-        <span className="underline underline-offset-4">
+      {/* Actions */}
+      <div className="flex flex-row justify-center items-center gap-2">
+        <Link
+          to="/$namespace/$name/setup"
+          params={{ namespace, name }}
+          className="text-[#0000FF] underline underline-offset-4"
+        >
           Start onboarding wizard
-        </span>
-        <ArrowRightIcon className="w-4.5 h-2.5" />
-      </Link>
+        </Link>
+        <span className="text-zinc-400">or</span>
+        <button
+          type="button"
+          className="cursor-pointer disabled:cursor-not-allowed text-zinc-600"
+          onClick={handleDelete}
+          disabled={deleting}
+        >
+          {deleting ? 'Cancelling...' : 'Cancel'}
+        </button>
+      </div>
     </div>
   );
 }
 
 export function CardHelmWorkload({ workload, onDelete }: Props) {
-  const className = 'relative bg-white rounded-3xl p-6 shadow-[1px_0px_16px_0px_rgba(0,0,0,0.1)] flex flex-col min-h-68.75';
+  const className = 'bg-white rounded-3xl p-6 border border-zinc-200 col min-h-68.75';
 
   const name = workload.stsName ?? workload.name;
 
   if (workload.supernodeStatus === 'onboarding') {
     return (
-      <div className={className}>
-        <WorkloadHeader workload={workload} onDelete={onDelete} />
+      <div className={`${className} flex flex-col`}>
+        <WorkloadHeader workload={workload} />
 
-        <WorkloadPending namespace={workload.namespace} name={name} />
+        <WorkloadPending namespace={workload.namespace} name={name} onDelete={onDelete} />
       </div>
     );
   }
@@ -166,7 +166,7 @@ export function CardHelmWorkload({ workload, onDelete }: Props) {
       params={{ namespace: workload.namespace, name }}
       className={className}
     >
-      <WorkloadHeader workload={workload} onDelete={onDelete} />
+      <WorkloadHeader workload={workload} />
 
       <WorkloadReady workload={workload} />
     </Link>

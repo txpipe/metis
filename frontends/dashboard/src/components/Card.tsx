@@ -15,7 +15,7 @@ export function Card({ title, children, className, titleAction }: React.PropsWit
       )}
     >
       <div className="flex flex-row justify-between items-center">
-        <h2 className="text-[22px] font-semibold text-[#686868]">{title}</h2>
+        <h2 className="text-[22px]/[22px] font-semibold text-[#686868]">{title}</h2>
         {titleAction}
       </div>
 

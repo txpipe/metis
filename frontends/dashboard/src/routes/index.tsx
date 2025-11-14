@@ -35,11 +35,12 @@ function DashboardPage() {
   return (
     <div className="mx-16 py-8">
       <h1 className="text-3xl/[40px] font-semibold text-[#2B2B2B]">Overview</h1>
-      <div className="flex flex-row justify-between items-center mt-3">
-        <p className="mt-3 text-[#42434D]">Manage and monitor all your workloads.</p>
+      <div className="flex flex-row justify-between items-start mt-3">
+        <p className="text-[#42434D]">Manage and monitor all your workloads.</p>
 
         <Button
           type="button"
+          text="base"
           onClick={() => {
             setShowAvailableWorkloads(true);
           }}

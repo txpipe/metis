@@ -28,7 +28,7 @@ export const Route = createRootRouteWithContext<{
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'SuperNode Catalog',
+        title: 'SuperNode Console',
       },
     ],
     links: [

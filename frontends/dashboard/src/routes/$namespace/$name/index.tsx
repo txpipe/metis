@@ -47,7 +47,7 @@ function InfoChip({ label, value, valueClassName }: { label: string; value: stri
 }
 
 const converter = new AnsiToHtml({
-  newline: true,
+  newline: false,
   escapeXML: true,
   stream: true,
 });
@@ -140,7 +140,7 @@ function WorkloadIdInfo() {
             <div
               className="overflow-y-auto whitespace-pre-wrap h-full font-mono"
               ref={logsContainerRef}
-              dangerouslySetInnerHTML={{ __html: converter.toHtml(logs || 'No logs available') }}
+              dangerouslySetInnerHTML={{ __html: converter.toHtml(logs || 'No logs available').trim() }}
             />
           </div>
         </Card>
