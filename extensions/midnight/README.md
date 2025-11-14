@@ -18,7 +18,7 @@ focuses on the subset of features needed to run a Midnight as packaged in the
 ## Getting Started
 
 ```shell
-helm install midnight oci://supernode.store/midnight \
+helm install midnight oci://oci.supernode.store/midnight \
   --set nodeKey.existingSecret.name=my-node-key \
   --set nodeKey.existingSecret.key=node.key
 ```

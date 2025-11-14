@@ -37,9 +37,9 @@ spec:
         - name: PROMETHEUS_ENDPOINT
           value: "http://prometheus-operated:9090"
         - name: REGISTRY_ENDPOINT
-          value: "https://supernode.store"
+          value: "https://oci.supernode.store"
         - name: OCI_ENDPOINT
-          value: "oci://supernode.store"
+          value: "oci://oci.supernode.store"
         - name: HOME
           value: "/tmp"
         - name: XDG_CACHE_HOME

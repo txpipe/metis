@@ -16,7 +16,7 @@ node-level collectors that the SuperNode expects to find in-cluster.
 ## Getting Started
 
 ```shell
-helm install control-plane oci://supernode.store/control-plane \
+helm install control-plane oci://oci.supernode.store/control-plane \
   --namespace control-plane \
   --create-namespace
 ```
