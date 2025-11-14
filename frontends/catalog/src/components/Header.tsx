@@ -1,31 +1,64 @@
-import { Link, useLocation } from '@tanstack/react-router';
+import { Link, useLocation, useNavigate } from '@tanstack/react-router';
+import { useCallback } from 'react';
+
+// Icons
+import { DiscordIcon, GithubIcon, XIcon } from '~/components/icons/social';
+
+// Catalog route
+import { Route as CatalogRoute } from '~/routes/catalog';
+
+// Components
+import { SearchInput } from '~/components/SearchInput';
 
 interface Props {}
 
 export function Header({}: Props) {
+  const navigate = useNavigate({ from: CatalogRoute.fullPath });
   const location = useLocation();
+
+  const handleSearchText = useCallback((text: string | null) => {
+    navigate({ to: '/catalog', search: prev => ({ ...prev, query: !!text ? text : undefined }), replace: true });
+  }, [navigate]);
   return (
-    <header className="w-full bg-white z-1 border-b border-neutral-200 grid grid-cols-1 sm:grid-cols-[348px_1px_1fr] items-center gap-4 sm:gap-0">
+    <header className="w-full bg-white z-1 border-b border-neutral-200 grid grid-cols-1 sm:grid-cols-[348px_1px_1fr_348px] items-center gap-4 sm:gap-0">
       {/* Logo */}
       <div className="flex items-center justify-center gap-3 py-4 sm:py-0">
         <Link to="/" className="w-fit flex text-2xl items-center gap-1.5 font-poppins text-zinc-900">
-          <img src="/logo.svg" alt="SuperNode Logo" className="h-[38.23px]" />
+          <img src="/logo.svg" alt="SuperNode Logo" className="h-9.5" />
           <span>
             SUPER<span className="font-bold">NODE</span>
           </span>
         </Link>
-        <div className="text-zinc-400 text-sm">
-          By Txpipe
-        </div>
       </div>
       {/* Separator */}
       <div className="h-23.5 bg-zinc-200 hidden sm:block" />
-      {/* Navbar */}
-      <nav className="px-6 sm:px-12 flex flex-row gap-8 font-medium text-zinc-800">
-        <a href="https://github.com/txpipe/metis" target="_blank" rel="noopener noreferrer">Github</a>
-        <Link to="/catalog" data-active={location.pathname.startsWith('/catalog')} className="data-[active=true]:font-bold">Catalog</Link>
-        {/* <Link to="/">Community</Link> */}
-      </nav>
+      {/* Search Bar (centered) */}
+      <div className="flex items-center justify-center">
+        <div className="relative w-full max-w-92.5">
+          <SearchInput onSearchText={handleSearchText} />
+          {location.pathname !== '/catalog' && (
+            <div className="absolute -right-5 translate-x-full top-0 bottom-0 flex items-center gap-5 ">
+              <div className="w-px h-full bg-zinc-200" />
+              <Link to="/catalog" className="font-medium text-zinc-800">Explore workloads</Link>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right Section */}
+      <div className="flex items-center justify-center gap-6 px-6">
+        <div className="flex items-center gap-4 text-zinc-800">
+          <a href="https://discord.gg/eVc6HJrYmP" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-600">
+            <DiscordIcon />
+          </a>
+          <a href="https://x.com/txpipe_tools" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-600">
+            <XIcon />
+          </a>
+          <a href="https://github.com/txpipe/metis" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-600">
+            <GithubIcon />
+          </a>
+        </div>
+      </div>
     </header>
   );
 }

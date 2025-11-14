@@ -1,6 +1,23 @@
+import { createServerFn } from '@tanstack/react-start';
 import slugify from 'slugify';
 
-export const items: CatalogItem[] = [
+const items: CatalogItem[] = [
+  {
+    icon: '/images/workloads/midnight.svg',
+    name: 'Midnight Node',
+    slug: slugify('Midnight Node').toLowerCase(),
+    description: 'Become a Midnight Block Producer.',
+    category: 'partner-chain',
+    comingSoon: false,
+    author: {
+      name: 'midnight.network',
+      url: 'https://midnight.network/',
+    },
+    repoUrl: 'https://github.com/midnightntwrk/midnight-node',
+    version: '0.12.0',
+    helmResource: `${process.env.OCI_ENDPOINT}/extensions/midnight`,
+    repoExtensionUrl: 'https://github.com/txpipe/metis/tree/main/extensions/midnight',
+  },
   {
     icon: '/images/workloads/cardano-node.svg',
     name: 'Cardano Node',
@@ -18,34 +35,18 @@ export const items: CatalogItem[] = [
     comingSoon: true,
   },
   {
-    icon: '/images/workloads/midnight.svg',
-    name: 'Midnight Node',
-    slug: slugify('Midnight Node').toLowerCase(),
-    description: 'Become a Midnight Block Producer.',
-    category: 'partner-chain',
-    comingSoon: false,
-    author: {
-      name: 'midnight.network',
-      url: 'https://midnight.network/',
-    },
-    repoUrl: 'https://github.com/midnightntwrk/midnight-node',
-    version: '0.12.0',
-    helmResource: `${import.meta.env.VITE_OCI_ENDPOINT}/extensions/midnight`,
-    repoExtensionUrl: 'https://github.com/txpipe/metis/tree/main/extensions/midnight',
+    icon: '/images/workloads/hydra.svg',
+    name: 'Hydra Node',
+    slug: slugify('Hydra Node').toLowerCase(),
+    description: 'Finality without global consensus.',
+    category: 'layer-2',
+    comingSoon: true,
   },
   {
     icon: '/images/workloads/midgard.png',
     name: 'Midgard Node',
     slug: slugify('Midgard Node').toLowerCase(),
     description: 'Permissionless Layer 2 for Cardano.',
-    category: 'layer-2',
-    comingSoon: true,
-  },
-  {
-    icon: '/images/workloads/hydra.svg',
-    name: 'Hydra Node',
-    slug: slugify('Hydra Node').toLowerCase(),
-    description: 'Finality without global consensus.',
     category: 'layer-2',
     comingSoon: true,
   },
@@ -155,6 +156,16 @@ export const items: CatalogItem[] = [
   },
 ];
 
-export function getItemBySlug(slug: string): CatalogItem | undefined {
-  return items.find(item => item.slug === slug);
-}
+export const getCatalog = createServerFn({
+  method: 'GET',
+}).handler(async (): Promise<CatalogItem[]> => {
+  return items;
+});
+
+export const getItemBySlug = createServerFn({
+  method: 'GET',
+})
+  .inputValidator((data: { slug: string; }) => data)
+  .handler(async ({ data }): Promise<CatalogItem | undefined> => {
+    return items.find(item => item.slug === data.slug);
+  });

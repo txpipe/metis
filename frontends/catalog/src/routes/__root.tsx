@@ -14,6 +14,7 @@ import { useMemo } from 'react';
 import { Header } from '~/components/Header';
 
 import appCss from '~/styles.css?url';
+import { Banner } from '~/components/ui/Banner';
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
@@ -50,7 +51,12 @@ function RootDocument({ children }: { children: React.ReactNode; }) {
         <HeadContent />
       </head>
       <body>
-        <Header />
+        <div>
+          <Banner>
+            Please note this is a <span className="font-bold">pre-beta release</span>, and SuperNode remains under active development.
+          </Banner>
+          <Header />
+        </div>
         {children}
         <TanStackDevtools
           config={{

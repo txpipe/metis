@@ -13,7 +13,7 @@ import { CopyIcon, GitIcon, StarIcon } from '~/components/icons';
 
 export const Route = createFileRoute('/catalog/$category/$node/')({
   loader: async ({ params: { node } }) => {
-    const item = getItemBySlug(node);
+    const item = await getItemBySlug({ data: { slug: node } });
     if (!item || item.comingSoon) {
       throw redirect({ to: '/catalog' });
     }
