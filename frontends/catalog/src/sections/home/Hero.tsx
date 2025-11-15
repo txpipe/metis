@@ -8,7 +8,7 @@ export function HeroSection() {
   const hlClass = 'font-bold text-zinc-700';
 
   return (
-    <div className="bg-[url('/images/home-bg.svg')] flex items-center justify-center bg-center min-h-[calc(100dvh-145px)]">
+    <div className="bg-[url('/images/home-bg.svg')] flex items-center justify-center bg-center min-h-[calc(100dvh-145px)] px-2 md:px-0">
       <div className="text-center w-full max-w-245">
         <div className="flex flex-col items-center gap-14 w-full">
           <h1 className="font-bold text-4xl/[48px] md:text-7xl/[89px] text-zinc-800 text-center">
@@ -25,11 +25,11 @@ export function HeroSection() {
           <div className="flex gap-6.75 flex-wrap justify-center">
             <a
               href="#beta"
-              className={button({ variant: 'outlined', color: 'zinc', size: 'normal' })}
+              className={button({ variant: 'outlined', color: 'zinc', size: 'normal', className: 'min-h-10' })}
             >
               Register to beta
             </a>
-            <Link to="/catalog" className={button({ variant: 'solid', color: 'zinc', size: 'normal', className: 'gap-2.5' })}>
+            <Link to="/catalog" className={button({ variant: 'solid', color: 'zinc', size: 'normal', className: 'gap-2.5 min-h-10' })}>
               Explore workloads <StarIcon className="size-4" />
             </Link>
           </div>

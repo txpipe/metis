@@ -20,8 +20,8 @@ export function Section({
     >
       <div
         className={twMerge(
-          'py-16 px-37.5 mx-auto max-w-[1440px] grid gap-12',
-          sideBySide ? 'auto-cols-fr grid-flow-col' : 'auto-rows-auto',
+          'py-8 md:py-16 px-6 md:px-12 lg:px-37.5 mx-auto max-w-[1440px] grid gap-6 md:gap-12',
+          sideBySide ? 'auto-cols-fr md:grid-flow-col' : 'auto-rows-auto',
         )}
       >
         {(title || description) && (

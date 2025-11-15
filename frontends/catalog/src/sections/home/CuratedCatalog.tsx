@@ -8,7 +8,7 @@ export function CuratedCatalogSection() {
       className="bg-zinc-100"
       sideBySide
     >
-      <div className="flex -order-1 flex-wrap gap-6 justify-center opacity-89">
+      <div className="flex md:-order-1 flex-wrap gap-6 justify-center opacity-89">
         <img src="/images/workloads-gray/midnight.svg" alt="Midnight logo" className="size-15.5" />
         <img src="/images/workloads-gray/midgard.png" alt="Midgard logo" className="size-15.5" />
         <img src="/images/workloads-gray/hydra.svg" alt="Hydra logo" className="size-15.5" />

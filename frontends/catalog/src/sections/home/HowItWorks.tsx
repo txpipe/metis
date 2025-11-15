@@ -31,11 +31,11 @@ export function HowItWorksSection() {
       description="SuperNode acts as a unified control plane between your workloads and infrastructure, automating setup and deployment."
       className="bg-zinc-100"
     >
-      <div className="grid grid-cols-[repeat(6,1fr)_auto_auto] items-center gap-8 w-full">
+      <div className="grid grid-cols-[repeat(6,1fr)_auto_auto] items-center gap-8 w-full overflow-auto">
         {filteredCategories.map(category => (
           <div
             key={category.value}
-            className="flex flex-col gap-1.5 text-sm font-medium text-zinc-800 bg-white items-center justify-center border border-zinc-200 rounded-md h-18.5"
+            className="flex flex-col gap-1.5 text-sm font-medium text-zinc-800 bg-white items-center justify-center border border-zinc-200 rounded-md h-18.5 min-w-31"
           >
             {createElement(icons[category.icon], { className: 'size-6' })}
             <span className="text-nowrap">{category.label}</span>

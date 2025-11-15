@@ -5,7 +5,7 @@ import { button } from '~/components/ui/Button';
 
 function CloudProviderCard({ children, className }: React.PropsWithChildren<{ className?: string; }>) {
   return (
-    <div className={clsx('flex flex-col items-center justify-center gap-4 border border-zinc-200 px-6 py-7', className)}>
+    <div className={clsx('flex flex-col items-center justify-center gap-4 border border-zinc-200 px-6 py-7 rounded-lg md:rounded-none', className)}>
       {children}
     </div>
   );
@@ -17,10 +17,10 @@ export function DeploymentSection() {
       title="Choose your own deployment"
       description="Supernode can run on bare metal or any cloud provider. We take care of provisioning and environment setup, you just choose where to run your workloads."
     >
-      <div className="grid auto-cols-fr grid-flow-col gap-4">
-        <CloudProviderCard className="rounded-l-4xl">
+      <div className="grid grid-cols-2 md:auto-cols-fr md:grid-flow-col gap-4">
+        <CloudProviderCard className="md:rounded-l-4xl">
           <Server2Icon strokeWidth={1} className="size-10.5 text-zinc-900" />
-          <p className="text-center text-[44px]/[1.1] font-semibold">
+          <p className="text-center text-[32px]/[1.1] md:text-[44px]/[1.1] font-semibold">
             Bare<br />metal
           </p>
         </CloudProviderCard>
@@ -30,11 +30,11 @@ export function DeploymentSection() {
         <CloudProviderCard>
           <img src="/images/cloud-provider/google-cloud-logo.png" alt="Google Cloud Logo" className="w-full max-w-[196px]" />
         </CloudProviderCard>
-        <CloudProviderCard className="rounded-r-4xl">
+        <CloudProviderCard className="md:rounded-r-4xl">
           <img src="/images/cloud-provider/azure-logo.png" alt="Azure Logo" className="w-full max-w-[125px]" />
         </CloudProviderCard>
       </div>
-      <div className="flex items-center justify-center gap-6 text-lg text-[#0E3550]">
+      <div className="flex flex-col md:flex-row items-center justify-center gap-6 text-lg text-[#0E3550]">
         <p>
           Ready to run your own <span className="font-bold">Supernode</span>?
         </p>
