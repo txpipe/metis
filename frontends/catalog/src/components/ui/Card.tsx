@@ -1,4 +1,6 @@
 import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
 interface Props {
   className?: string;
 }
@@ -11,9 +13,9 @@ export function Card({ children, className }: React.PropsWithChildren<Props>) {
   );
 }
 
-export function CardHeader({ children }: React.PropsWithChildren<Props>) {
+export function CardHeader({ children, className }: React.PropsWithChildren<Props>) {
   return (
-    <div className="text-2xl font-semibold">
+    <div className={twMerge('text-2xl font-semibold', className)}>
       {children}
     </div>
   );

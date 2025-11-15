@@ -12,5 +12,7 @@ declare interface CatalogItem {
   version?: string;
   repoUrl?: string;
   repoExtensionUrl?: string;
-  helmResource?: string;
+  ociName?: string;
+  ociUrl?: string;
+  registryInfo?: RepoInfo;
 }

@@ -46,7 +46,7 @@ function CatalogPage() {
 
   return (
     <Container>
-      <CategoryRow className="gap-6 mt-12" activeCategory={category} />
+      <CategoryRow className="gap-6" activeCategory={category} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[repeat(3,minmax(200px,421px))] w-fit gap-8 mx-auto mt-12">
         {filteredItems.map(item => (
