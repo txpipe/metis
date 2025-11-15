@@ -8,6 +8,7 @@ import { HeroSection } from '~/sections/home/Hero';
 import { RegisterBetaSection } from '~/sections/home/RegisterBeta';
 import { CuratedCatalogSection } from '~/sections/home/CuratedCatalog';
 import { DeploymentSection } from '~/sections/home/Deployment';
+import { HowItWorksSection } from '~/sections/home/HowItWorks';
 
 export const Route = createFileRoute('/')({
   component: LandingPage,
@@ -19,6 +20,7 @@ function LandingPage() {
       <HeroSection />
       <CuratedCatalogSection />
       <DeploymentSection />
+      <HowItWorksSection />
       <RegisterBetaSection />
     </Container>
   );

@@ -9,6 +9,7 @@ import { Route as CatalogRoute } from '~/routes/catalog';
 
 // Components
 import { SearchInput } from '~/components/SearchInput';
+import { LogoIcon } from '~/components/icons/LogoIcon';
 
 interface Props {}
 
@@ -24,7 +25,7 @@ export function Header({}: Props) {
       {/* Logo */}
       <div className="flex items-center justify-center gap-3 py-4 sm:py-0">
         <Link to="/" className="w-fit flex text-2xl items-center gap-1.5 font-poppins text-zinc-900">
-          <img src="/logo.svg" alt="SuperNode Logo" className="h-9.5" />
+          <LogoIcon className="h-9.5 text-[#4A4A4A]" />
           <span>
             SUPER<span className="font-bold">NODE</span>
           </span>
