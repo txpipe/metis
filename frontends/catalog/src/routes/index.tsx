@@ -4,8 +4,9 @@ import { createFileRoute } from '@tanstack/react-router';
 import { Container } from '~/components/ui/Container';
 
 // Sections
-import { HeroSection } from '~/sections/home/hero';
-import { RegisterBetaSection } from '~/sections/home/register-beta';
+import { HeroSection } from '~/sections/home/Hero';
+import { RegisterBetaSection } from '~/sections/home/RegisterBeta';
+import { CuratedCatalogSection } from '~/sections/home/CuratedCatalog';
 
 export const Route = createFileRoute('/')({
   component: LandingPage,
@@ -13,8 +14,9 @@ export const Route = createFileRoute('/')({
 
 function LandingPage() {
   return (
-    <Container className="px-0 py-0">
+    <Container className="px-0 sm:px-0 py-0">
       <HeroSection />
+      <CuratedCatalogSection />
       <RegisterBetaSection />
     </Container>
   );
