@@ -79,3 +79,28 @@ export async function getManifestFromVersion(repoName: string, version: string):
 
   return response;
 }
+
+export async function getRepoInfo(repo: string) {
+  const query = `
+    query ExpandedRepoInfo($repo: String!) {
+      ExpandedRepoInfo(repo: $repo) {
+          Summary {
+              DownloadCount
+              StarCount
+          }
+          Images {
+              DownloadCount
+              PushTimestamp
+          }
+      }
+    }
+  `;
+  const variables = {
+    repo,
+  };
+
+  const response = await runGraphQLQuery<{ ExpandedRepoInfo: RepoInfo; }>('v2/_zot/ext/search', query, variables)
+    .catch(() => ({ data: null }));
+
+  return response;
+}

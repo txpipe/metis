@@ -14,6 +14,7 @@ import { useMemo } from 'react';
 import { Header } from '~/components/Header';
 
 import appCss from '~/styles.css?url';
+import { Banner } from '~/components/ui/Banner';
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
@@ -33,6 +34,19 @@ export const Route = createRootRouteWithContext<{
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
+      {
+        rel: 'apple-touch-icon',
+        sizes: '180x180',
+        href: '/logo192.png',
+      },
+      {
+        rel: 'icon',
+        type: 'image/svg+xml',
+        sizes: 'any',
+        href: '/favicon.svg',
+      },
+      { rel: 'manifest', href: '/manifest.json', color: '#fffff' },
+      { rel: 'icon', href: '/favicon.ico' },
     ],
   }),
 
@@ -50,7 +64,12 @@ function RootDocument({ children }: { children: React.ReactNode; }) {
         <HeadContent />
       </head>
       <body>
-        <Header />
+        <div>
+          <Banner>
+            Please note this is a <span className="font-bold">pre-beta release</span>, and SuperNode remains under active development.
+          </Banner>
+          <Header />
+        </div>
         {children}
         <TanStackDevtools
           config={{
