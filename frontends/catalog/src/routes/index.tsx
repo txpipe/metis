@@ -9,6 +9,7 @@ import { RegisterBetaSection } from '~/sections/home/RegisterBeta';
 import { CuratedCatalogSection } from '~/sections/home/CuratedCatalog';
 import { DeploymentSection } from '~/sections/home/Deployment';
 import { HowItWorksSection } from '~/sections/home/HowItWorks';
+import { CommunitySection } from '~/sections/home/Community';
 
 export const Route = createFileRoute('/')({
   component: LandingPage,
@@ -22,6 +23,7 @@ function LandingPage() {
       <DeploymentSection />
       <HowItWorksSection />
       <RegisterBetaSection />
+      <CommunitySection />
     </Container>
   );
 }

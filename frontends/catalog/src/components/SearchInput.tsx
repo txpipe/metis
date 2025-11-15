@@ -11,7 +11,6 @@ interface Props {
 }
 
 export function SearchInput({ onSearchText, debounceMs = 300 }: Props) {
-  const firstRender = useRef(true);
   const [val, setVal] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debouncedVal = useDebounce<string | null>(val, debounceMs);
@@ -22,11 +21,9 @@ export function SearchInput({ onSearchText, debounceMs = 300 }: Props) {
   });
 
   useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false;
-      return;
+    if (debouncedVal !== null) {
+      onSearchText(debouncedVal);
     }
-    onSearchText(debouncedVal);
   }, [debouncedVal, onSearchText]);
 
   return (
@@ -34,7 +31,7 @@ export function SearchInput({ onSearchText, debounceMs = 300 }: Props) {
       <SearchIcon className="absolute text-zinc-400 pointer-events-none top-1/2 -translate-y-1/2 left-3" />
       <input
         ref={inputRef}
-        onChange={e => setVal(e.currentTarget.value || null)}
+        onChange={e => setVal(e.currentTarget.value)}
         type="text"
         name="search"
         className="w-full pl-10 in-[.os-macos]:pr-14 not-in-[.os-macos]:pr-18 text-zinc-700 placeholder:text-zinc-400 border border-zinc-200 ring-zinc-400 rounded-md"
