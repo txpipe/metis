@@ -28,7 +28,7 @@ function ItemInfo({ item }: { item: Props['item']; }) {
           ? (
             <span className="flex items-center gap-1 text-sm text-zinc-400">
               <CalendarDueIcon className="size-4" />
-              Coming soon
+              Planned
             </span>
           )
           : (
