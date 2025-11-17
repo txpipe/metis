@@ -22,6 +22,8 @@ The script auto-installs (if missing):
 - [`kubectl`](https://kubernetes.io/docs/tasks/tools/)
 - [`helm`](https://helm.sh/docs/intro/install/)
 
+The bootstrap also enables the [Amazon EBS CSI driver add-on](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html) and creates a `StorageClass` backed by EBS (`gp3`) so persistent volume claims can be provisioned automatically.
+
 ## Configuration
 
 ### Defaults
@@ -45,6 +47,13 @@ The script auto-installs (if missing):
 | `--node-type <instance>`  | Worker node instance (`EKS_NODE_TYPE`).                     |
 
 When supplying `--config`, ensure the cluster name within the YAML matches `--cluster-name` (or `EKS_CLUSTER_NAME`) so the script can detect existing clusters and reuse them.
+
+### Persistent Volume Configuration
+
+- The script installs the `aws-ebs-csi-driver` add-on and creates a StorageClass named `gp3` using the EBS CSI provisioner.
+- Override the StorageClass name via `EKS_STORAGE_CLASS_NAME`.
+- Override the EBS volume type (`gp3` by default) via `EKS_STORAGE_CLASS_VOLUME_TYPE`.
+- A default Helm values file is provided at `bootstrap/aws/values.yml` setting `storageClass: gp3`. The root `bootstrap.sh` script automatically uses it for AWS unless you pass `--values` to supply your own overrides.
 
 ## Outputs
 

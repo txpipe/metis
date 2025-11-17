@@ -19,7 +19,7 @@ The script will attempt to install the following tools if they are missing:
 
 ## Configuration
 
-- `KIND_CLUSTER_NAME` (env var): Overrides the default cluster name (`metis-supernode`).
+- `KIND_CLUSTER_NAME` (env var): Overrides the default cluster name (`supernode`).
 - `--config <path>`: Optional Kind cluster config YAML (see [Kind config docs](https://kind.sigs.k8s.io/docs/user/configuration/)).
 
 Example custom config file reference:
@@ -30,8 +30,14 @@ Example custom config file reference:
 
 If no config file is provided, Kind's defaults are used.
 
+### Default control-plane values
+
+- The bootstrap process uses `bootstrap/kind/values.yml` when no other values file is supplied.
+- These defaults switch the Grafana and supernode dashboard services to `NodePort` so they are reachable via the `kind` extra port mappings.
+- Provide `--values <path>` to override or extend the defaults.
+
 ## Outputs
 
-- Creates (or reuses) a Kind cluster named `metis-supernode` by default.
+- Creates (or reuses) a Kind cluster named `supernode` by default.
 - Exports kubeconfig into the default `kubectl` configuration and selects the `kind-<cluster-name>` context.
 - Ensures `helm` is available for the subsequent control-plane chart installation stage.

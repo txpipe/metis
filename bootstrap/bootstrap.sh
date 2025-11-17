@@ -3,7 +3,7 @@ set -eo pipefail
 
 print_usage() {
   cat <<'EOF'
-Usage: bootstrap.sh --provider <name> [--config <path>] [--help]
+Usage: bootstrap.sh --provider <name> --version <name> [--values <path>] [--config <path>] [--help]
 
 Options:
   --provider <name>  Target provider to bootstrap (kind, aws, gcloud, azure).
@@ -25,6 +25,7 @@ fi
 
 PROVIDER=""
 CONFIG_PATH=""
+VALUES=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -98,6 +99,23 @@ fi
 "${cmd[@]}"
 
 # Install control plane
+DEFAULT_VALUES=""
+case "${PROVIDER}" in
+  aws)
+    if [[ -z "${VALUES}" && -f "${PROVIDER}/values.yml" ]]; then
+      DEFAULT_VALUES="${PROVIDER}/values.yml"
+    fi
+    ;;
+  kind)
+    if [[ -z "${VALUES}" && -f "${PROVIDER}/values.yml" ]]; then
+      DEFAULT_VALUES="${PROVIDER}/values.yml"
+    fi
+    ;;
+esac
+if [[ -z "${VALUES}" && -n "${DEFAULT_VALUES}" ]]; then
+  VALUES="${DEFAULT_VALUES}"
+fi
+
 cmd=(
   helm install control-plane oci://oci.supernode.store/control-plane
   --version "${VERSION}"

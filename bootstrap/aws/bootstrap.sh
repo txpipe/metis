@@ -8,6 +8,8 @@ NODE_TYPE="${EKS_NODE_TYPE:-t3.medium}"
 NODE_COUNT="${EKS_NODE_COUNT:-2}"
 NODE_MIN="${EKS_NODE_MIN:-1}"
 NODE_MAX="${EKS_NODE_MAX:-3}"
+STORAGE_CLASS_NAME="${EKS_STORAGE_CLASS_NAME:-gp3}"
+STORAGE_CLASS_VOLUME_TYPE="${EKS_STORAGE_CLASS_VOLUME_TYPE:-gp3}"
 CONFIG_FILE=""
 
 print_usage() {
@@ -16,8 +18,8 @@ Usage: bootstrap/aws/bootstrap.sh [options]
 
 Options:
   --config <path>        Optional eksctl cluster config file (YAML).
-  --cluster-name <name>  Override the EKS cluster name (default: metis-supernode).
-  --region <region>      AWS region (default: us-west-2 or AWS_REGION env).
+  --cluster-name <name>  Override the EKS cluster name (default: supernode).
+  --region <region>      AWS region (default: us-east-2 or AWS_REGION env).
   --nodes <count>        Desired node count when using default provisioning.
   --nodes-min <count>    Min nodes for managed nodegroup.
   --nodes-max <count>    Max nodes for managed nodegroup.
@@ -26,7 +28,8 @@ Options:
 
 Environment:
   EKS_CLUSTER_NAME, AWS_REGION, EKS_NODEGROUP_NAME, EKS_NODE_TYPE,
-  EKS_NODE_COUNT, EKS_NODE_MIN, EKS_NODE_MAX can be used instead of flags.
+  EKS_NODE_COUNT, EKS_NODE_MIN, EKS_NODE_MAX, EKS_STORAGE_CLASS_NAME,
+  EKS_STORAGE_CLASS_VOLUME_TYPE can be used instead of flags.
 
 When --config is supplied, it is passed directly to eksctl and the script
 assumes the cluster name in that file matches --cluster-name (if provided).
@@ -289,6 +292,88 @@ configure_kubectl() {
   aws eks update-kubeconfig --name "${CLUSTER_NAME}" --region "${REGION}"
 }
 
+ensure_ebs_csi_driver() {
+  local addon_name="aws-ebs-csi-driver"
+  echo "Ensuring ${addon_name} add-on is installed..."
+
+  if aws eks describe-addon \
+    --cluster-name "${CLUSTER_NAME}" \
+    --addon-name "${addon_name}" \
+    --region "${REGION}" >/dev/null 2>&1; then
+    echo "${addon_name} add-on already present."
+    return
+  fi
+
+  echo "Associating IAM OIDC provider..."
+  eksctl utils associate-iam-oidc-provider \
+    --cluster "${CLUSTER_NAME}" \
+    --region "${REGION}" \
+    --approve
+
+  echo "Creating or updating IAM service account for the EBS CSI driver..."
+  local role_name="eksctl-${CLUSTER_NAME}-addon-ebs-csi-controller-sa"
+  eksctl create iamserviceaccount \
+    --name ebs-csi-controller-sa \
+    --namespace kube-system \
+    --role-name "${role_name}" \
+    --cluster "${CLUSTER_NAME}" \
+    --region "${REGION}" \
+    --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
+    --approve \
+    --override-existing-serviceaccounts
+
+
+  local role_arn=""
+  echo "Waiting for IAM role '${role_name}' to be ready..."
+  aws iam wait role-exists --role-name "${role_name}"
+  role_arn="$(aws iam get-role \
+    --role-name "${role_name}" \
+    --query 'Role.Arn' \
+    --output text 2>/dev/null || true)"
+
+  if [[ -z "${role_arn}" || "${role_arn}" == "None" ]]; then
+    echo "error: unable to resolve IAM role ARN for '${role_name}'. Verify IAM permissions and rerun." >&2
+    exit 1
+  fi
+
+  echo "Installing ${addon_name}..."
+  eksctl create addon \
+    --name "${addon_name}" \
+    --cluster "${CLUSTER_NAME}" \
+    --region "${REGION}" \
+    --service-account-role-arn "${role_arn}" \
+    --force
+
+  aws eks wait addon-active \
+    --cluster-name "${CLUSTER_NAME}" \
+    --addon-name "${addon_name}" \
+    --region "${REGION}"
+
+  echo "${addon_name} add-on installation completed."
+}
+
+ensure_storage_class() {
+  echo "Ensuring StorageClass '${STORAGE_CLASS_NAME}' exists..."
+  if kubectl get storageclass "${STORAGE_CLASS_NAME}" >/dev/null 2>&1; then
+    echo "StorageClass '${STORAGE_CLASS_NAME}' already present."
+    return
+  fi
+
+  cat <<EOF | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ${STORAGE_CLASS_NAME}
+provisioner: ebs.csi.aws.com
+parameters:
+  type: ${STORAGE_CLASS_VOLUME_TYPE}
+  encrypted: "true"
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+EOF
+  echo "StorageClass '${STORAGE_CLASS_NAME}' created."
+}
+
 main() {
   ensure_curl
   ensure_aws_cli
@@ -298,6 +383,8 @@ main() {
   verify_aws_credentials
   create_cluster
   configure_kubectl
+  ensure_ebs_csi_driver
+  ensure_storage_class
   echo "AWS EKS bootstrap completed successfully."
 }
 

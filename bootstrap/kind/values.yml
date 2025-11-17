@@ -1,0 +1,8 @@
+grafana:
+  service:
+    type: NodePort
+    nodePort: 30000
+supernodeDashboard:
+  service:
+    type: NodePort
+    nodePort: 30001
