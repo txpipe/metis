@@ -1,8 +1,8 @@
 # Control Plane Helm Chart
 
 This chart deploys the observability control-plane required to operate a SuperNode.
-It packages the Prometheus Operator stack, persistent monitoring backends, and the
-node-level collectors that the SuperNode expects to find in-cluster.
+It packages the Prometheus Operator stack and persistent monitoring backends that
+the SuperNode expects to find in-cluster.
 
 ## Features
 
@@ -10,8 +10,6 @@ node-level collectors that the SuperNode expects to find in-cluster.
 - Ships the Prometheus Operator CRDs (Prometheus, Alertmanager, ServiceMonitor, etc.) so the stack can reconcile its custom resources.
 - Provisions a Prometheus instance with 30-day retention, RBAC-secured scraping, and a 40Gi persistent volume bound with the chosen `storageClass`.
 - Runs Grafana in a single-replica StatefulSet with a 5Gi persistent volume and a ConfigMap-provided `grafana.ini` tuned for UTC dashboards.
-- Installs kube-state-metrics behind kube-rbac-proxy sidecars together with a headless Service and ServiceMonitor for TLS-protected scraping.
-- Deploys node-exporter as a DaemonSet with kube-rbac-proxy, host PID/network access, and a matching ServiceMonitor so every node exposes metrics on port `9100`.
 
 ## Getting Started
 
@@ -115,15 +113,12 @@ helm template control-plane . | kubeconform -strict -summary -
 | `storageClass` | Storage class used by Prometheus and Grafana persistent volumes | `standard` |
 | `prometheusOperator.tolerations` | Tolerations applied to the Prometheus Operator deployment | `[]` |
 | `grafana.tolerations` | Tolerations applied to the Grafana StatefulSet | `[]` |
-| `kubeStateMetrics.tolerations` | Tolerations applied to the kube-state-metrics deployment | `[]` |
-| `nodeExporter.tolerations` | Tolerations applied to the node-exporter DaemonSet | `[]` |
 | `prometheus.tolerations` | Tolerations applied to the Prometheus CRD | `[]` |
 
 Consult `values.yaml` for the authoritative list.
 
 ## Maintenance
 
-- Keep the Prometheus Operator, kube-state-metrics, and node-exporter image tags in sync with upstream security releases.
 - Update the CRDs under `crds/` whenever the operator version is bumped.
 - Review the bundled Grafana configuration and dashboards as team requirements evolve.
 - Double-check tolerations and node selectors when adjusting SuperNode scheduling policies so the control-plane keeps landing on the intended nodes.

@@ -24,47 +24,6 @@ grafana:
     resources:
       requests:
         storage: 5Gi
-kubeStateMetrics:
-  tolerations: []
-  resources:
-    main:
-      limits:
-        cpu: 100m
-        memory: 250Mi
-      requests:
-        cpu: 10m
-        memory: 190Mi
-    kubeRbacProxyMain:
-      limits:
-        cpu: 40m
-        memory: 40Mi
-      requests:
-        cpu: 20m
-        memory: 20Mi
-    kubeRbacProxySelf:
-      limits:
-        cpu: 20m
-        memory: 40Mi
-      requests:
-        cpu: 10m
-        memory: 20Mi
-nodeExporter:
-  tolerations: []
-  resources:
-    nodeExporter:
-      limits:
-        cpu: 250m
-        memory: 180Mi
-      requests:
-        cpu: 102m
-        memory: 180Mi
-    kubeRbacProxy:
-      limits:
-        cpu: 20m
-        memory: 40Mi
-      requests:
-        cpu: 10m
-        memory: 20Mi
 supernodeDashboard:
   service:
     type: ClusterIP
