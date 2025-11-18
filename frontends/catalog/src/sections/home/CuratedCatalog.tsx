@@ -4,7 +4,7 @@ export function CuratedCatalogSection() {
   return (
     <Section
       title={'Curated catalog of\nblockchain workloads'}
-      description="A carefully curated collection of blockchain workloads, refined through close collaboration with ecosystem teams. SuperNode manages setup, integrations, and dependencies, providing operators with a smoother path to production."
+      description="A curated collection of blockchain workloads, refined through close collaboration with ecosystem teams. SuperNode manages setup, integrations, and dependencies, providing operators with a smoother path to production."
       className="bg-zinc-100"
       sideBySide
     >

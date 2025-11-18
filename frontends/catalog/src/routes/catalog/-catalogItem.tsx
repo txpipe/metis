@@ -54,9 +54,9 @@ export function CatalogItem({ item }: Props) {
 
   return (
     <Link
-      to={item.ociUrl ? '/catalog/$category/$node' : '/'}
+      to={!item.beta ? '/catalog/$category/$node' : '/'}
       params={{ category: item.category, node: item.slug }}
-      hash={item.ociUrl ? undefined : 'beta'}
+      hash={!item.beta ? undefined : 'beta'}
       className={`${classNames} hover:bg-[#0000FF]/2 hover:border-[#0000FF]/40 transition-colors duration-200 ease-in-out`}
     >
       <ItemInfo item={item} />

@@ -5,14 +5,14 @@ declare interface CatalogItem {
   description: string;
   category: string;
   comingSoon: boolean;
+  beta?: boolean;
   author?: {
     name: string;
     url?: string;
   };
   version?: string;
   repoUrl?: string;
-  repoExtensionUrl?: string;
   ociName?: string;
-  ociUrl?: string;
   registryInfo?: RepoInfo;
+  publishedDate?: string;
 }

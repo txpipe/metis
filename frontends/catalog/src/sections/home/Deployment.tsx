@@ -15,13 +15,13 @@ export function DeploymentSection() {
   return (
     <Section
       title="Choose your own deployment"
-      description="Supernode can run on bare metal or any cloud provider. We take care of provisioning and environment setup, you just choose where to run your workloads."
+      description="Supernode can run on self-hosted environments or any cloud provider. We take care of provisioning and environment setup, you just choose where to run your workloads."
     >
       <div className="grid grid-cols-2 md:auto-cols-fr md:grid-flow-col gap-4">
         <CloudProviderCard className="md:rounded-l-4xl">
           <Server2Icon strokeWidth={1} className="size-10.5 text-zinc-900" />
-          <p className="text-center text-[32px]/[1.1] md:text-[44px]/[1.1] font-semibold">
-            Bare<br />metal
+          <p className="text-center text-xl md:text-xl lg:text-[22px] xl:text-3xl leading-[1.1] font-semibold text-nowrap">
+            Self-Hosted
           </p>
         </CloudProviderCard>
         <CloudProviderCard>

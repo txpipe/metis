@@ -11,14 +11,13 @@ const items: CatalogItem[] = [
     category: 'partner-chain',
     comingSoon: false,
     author: {
-      name: 'midnight.network',
-      url: 'https://midnight.network/',
+      name: 'midnightntwrk',
+      url: 'https://github.com/midnightntwrk',
     },
     repoUrl: 'https://github.com/midnightntwrk/midnight-node',
     version: '0.12.0',
-    ociName: 'extensions/midnight',
-    ociUrl: `${process.env.OCI_ENDPOINT}/extensions/midnight`,
-    repoExtensionUrl: 'https://github.com/txpipe/metis/tree/main/extensions/midnight',
+    ociName: 'midnight',
+    publishedDate: '2025-09-10',
   },
   {
     icon: '/images/workloads/cardano-node.svg',
@@ -27,6 +26,7 @@ const items: CatalogItem[] = [
     description: 'Run a Cardano layer 1 node to validate blocks and strengthen the network.',
     category: 'layer-1',
     comingSoon: false,
+    beta: true,
   },
   {
     icon: '/images/workloads/apex-fusion.png',
@@ -35,6 +35,7 @@ const items: CatalogItem[] = [
     description: 'The foundational UTXO-based layer 1 for the Apex Fusion\'s ecosystem. Run a Prime node.',
     category: 'layer-1',
     comingSoon: false,
+    beta: true,
   },
   {
     icon: '/images/workloads/hydra.svg',
@@ -43,6 +44,7 @@ const items: CatalogItem[] = [
     description: 'The layer 2 scalability solution for Cardano. Implements the Hydra Head protocol.',
     category: 'layer-2',
     comingSoon: false,
+    beta: true,
   },
   {
     icon: '/images/workloads/midgard.png',
@@ -86,17 +88,17 @@ const items: CatalogItem[] = [
   },
   {
     icon: '/images/workloads/fluidtokens.png',
-    name: 'Fluidtokens Aquarium Node',
-    slug: slugify('Fluidtokens Aquarium Node').toLowerCase(),
-    description: 'Support Babel fees on Cardano by running FluidTokens\' Aquarium Node.',
+    name: 'Aquarium Node',
+    slug: slugify('Aquarium Node').toLowerCase(),
+    description: 'Support Babel fees on Cardano by running Aquarium Node — by FluidTokens.',
     category: 'batcher',
     comingSoon: true,
   },
   {
     icon: '/images/workloads/fluidtokens.png',
-    name: 'Fluidtokens Bifrost Bridge',
-    slug: slugify('Fluidtokens Bifrost Bridge').toLowerCase(),
-    description: 'Operate a node to support a Bitcoin to Cardano secured bridge.',
+    name: 'Bifrost Bridge',
+    slug: slugify('Bifrost Bridge').toLowerCase(),
+    description: 'Operate a node to support a Bitcoin to Cardano secured bridge — by FluidTokens.',
     category: 'bridge',
     comingSoon: true,
   },
@@ -155,6 +157,7 @@ const items: CatalogItem[] = [
     description: 'Lorem ipsum dolor sit amet consectetur. Condimentum vitae sit fringilla at nisl.',
     category: 'infrastructure',
     comingSoon: false,
+    beta: true,
   },
 ];
 
@@ -172,7 +175,7 @@ export const getItemBySlug = createServerFn({
     const item = items.find(i => i.slug === data.slug);
 
     if (item?.ociName) {
-      const repoInfo = await getRepoInfo(item.ociName);
+      const repoInfo = await getRepoInfo(`extensions/${item.ociName}`);
       if (repoInfo.data?.ExpandedRepoInfo) {
         item.registryInfo = repoInfo.data.ExpandedRepoInfo;
       }

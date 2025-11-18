@@ -132,16 +132,16 @@ function RouteComponent() {
             </div>
             <div className="flex flex-col gap-3">
               <p className="text-[#18181B]/50 text-lg/[1.2]">Install</p>
-              <p className="w-fit border border-[#18181B]/30 py-3 px-4.5 rounded-xl flex items-center gap-3 bg-white">
-                <p className="font-mono wrap-anywhere break-all ">helm install [namespace] {item.ociUrl}</p>
+              <div className="w-fit border border-[#18181B]/30 py-3 px-4.5 rounded-xl flex items-center gap-3 bg-white">
+                <p className="font-mono wrap-anywhere break-all ">supernode install {item.ociName}</p>
                 <button
                   type="button"
                   className="cursor-pointer"
-                  onClick={() => navigator.clipboard.writeText(`helm install [namespace] ${item.ociUrl}`)}
+                  onClick={() => navigator.clipboard.writeText(`supernode install ${item.ociName}`)}
                 >
                   <CopyIcon className="size-5" />
                 </button>
-              </p>
+              </div>
             </div>
             <div className="flex flex-col gap-3">
               <p className="text-[#18181B]/50 text-lg/[1.2]">Version</p>
@@ -156,7 +156,7 @@ function RouteComponent() {
             {item.registryInfo?.Images?.[0] && (
               <div className="flex flex-col gap-3">
                 <p className="text-[#18181B]/50 text-lg/[1.2]">Publication date</p>
-                <p className="">{dayjs(item.registryInfo?.Images?.[0].PushTimestamp).fromNow()}</p>
+                <p className="">{dayjs(item.publishedDate ?? item.registryInfo?.Images?.[0].PushTimestamp).fromNow()}</p>
               </div>
             )}
           </CardBody>

@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useCallback } from 'react';
 
 // Icons
@@ -15,7 +15,6 @@ interface Props {}
 
 export function Header({}: Props) {
   const navigate = useNavigate({ from: CatalogRoute.fullPath });
-  const location = useLocation();
 
   const handleSearchText = useCallback((text: string | null) => {
     navigate({ to: '/catalog', search: prev => ({ ...prev, query: !!text ? text : undefined }), replace: true });
@@ -37,16 +36,7 @@ export function Header({}: Props) {
       <div className="flex flex-col items-center justify-center px-6 gap-2">
         <div className="relative w-full max-w-92.5">
           <SearchInput onSearchText={handleSearchText} />
-          {location.pathname !== '/catalog' && (
-            <div className="absolute -right-5 translate-x-full top-0 bottom-0 items-center gap-5 hidden lg:flex">
-              <div className="w-px h-full bg-zinc-200" />
-              <Link to="/catalog" className="font-medium text-zinc-800">Explore workloads</Link>
-            </div>
-          )}
         </div>
-        {location.pathname !== '/catalog' && (
-          <Link to="/catalog" className="text-sm font-medium text-zinc-800 block lg:hidden">Explore workloads</Link>
-        )}
       </div>
 
       {/* Right Section */}

@@ -4,7 +4,7 @@ import '@fontsource/poppins/400.css';
 import '@fontsource/poppins/700.css';
 
 import { QueryClient } from '@tanstack/react-query';
-import { HeadContent, ScriptOnce, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
+import { HeadContent, Link, ScriptOnce, Scripts, createRootRouteWithContext } from '@tanstack/react-router';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 import { ReactQueryDevtoolsPanel } from '@tanstack/react-query-devtools';
 import { TanStackDevtools } from '@tanstack/react-devtools';
@@ -66,7 +66,7 @@ function RootDocument({ children }: { children: React.ReactNode; }) {
       <body>
         <div>
           <Banner>
-            Please note this is a <span className="font-bold">pre-beta release</span>, and SuperNode remains under active development.
+            We've released our first private <span className="font-bold">beta</span> version. <Link to="/" hash="beta" className="underline underline-offset-2">Sign-up</Link> to the waiting list
           </Banner>
           <Header />
         </div>
