@@ -35,7 +35,7 @@ export function SearchInput({ onSearchText, debounceMs = 300 }: Props) {
         type="text"
         name="search"
         className="w-full pl-10 in-[.os-macos]:pr-14 not-in-[.os-macos]:pr-18 text-zinc-700 placeholder:text-zinc-400 border border-zinc-200 ring-zinc-400 rounded-md"
-        placeholder="Search"
+        placeholder="Search workloads"
       />
       <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-600 bg-white py-0.5 px-1.5 rounded-sm border border-zinc-300">
         <kbd className="hidden in-[.os-macos]:block">⌘ K</kbd>

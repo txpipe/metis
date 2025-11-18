@@ -21,7 +21,7 @@ function CommonCard({ className, children }: React.PropsWithChildren<{ className
 }
 
 function Separator({ className }: { className?: string; }) {
-  return <div className={clsx('w-px h-full bg-zinc-300', className)} />;
+  return <div className={clsx('w-px h-full bg-zinc-300 hidden min-[1210px]:block', className)} />;
 }
 
 export function HowItWorksSection() {
@@ -31,7 +31,7 @@ export function HowItWorksSection() {
       description="SuperNode acts as a unified control plane between your workloads and infrastructure, automating setup and deployment."
       className="bg-zinc-100"
     >
-      <div className="grid grid-cols-[repeat(6,1fr)_auto_auto] items-center gap-8 w-full overflow-auto">
+      <div className="grid grid-cols-3 lg:grid-cols-6 min-[1210px]:grid-cols-[repeat(6,1fr)_auto_auto]! items-center gap-4 min-[1210px]:gap-8 w-full overflow-auto">
         {filteredCategories.map(category => (
           <div
             key={category.value}
@@ -42,23 +42,23 @@ export function HowItWorksSection() {
           </div>
         ))}
         <Separator />
-        <p className="text-2xl font-semibold text-zinc-800">Workloads</p>
-        <CommonCard className="text-[#0000FF] border-[#0000FF] col-span-6 gap-4">
+        <p className="text-2xl font-semibold text-zinc-800 hidden min-[1210px]:block">Workloads</p>
+        <CommonCard className="text-[#0000FF] border-[#0000FF] col-span-3 lg:col-span-6 gap-4">
           <LogoIcon className="h-9.5" /> SuperNode Control Plane
         </CommonCard>
         <Separator className="row-span-2" />
-        <p className="text-2xl font-semibold text-zinc-800 row-span-2">Orchestration</p>
-        <CommonCard className="col-span-6">
+        <p className="text-2xl font-semibold text-zinc-800 row-span-2 hidden min-[1210px]:block">Orchestration</p>
+        <CommonCard className="col-span-3 lg:col-span-6">
           Kubernetes
         </CommonCard>
-        <div className="grid grid-cols-4 col-span-6 gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 col-span-3 lg:col-span-6 gap-4 min-[1210px]:gap-8">
           <CommonCard>Bare Metal</CommonCard>
           <CommonCard>AWS</CommonCard>
           <CommonCard>GCP</CommonCard>
           <CommonCard>Azure</CommonCard>
         </div>
         <Separator />
-        <p className="text-2xl font-semibold text-zinc-800">Infrastructure</p>
+        <p className="text-2xl font-semibold text-zinc-800 hidden min-[1210px]:block">Infrastructure</p>
       </div>
     </Section>
   );
