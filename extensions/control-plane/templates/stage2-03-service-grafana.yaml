@@ -3,8 +3,9 @@ kind: Service
 metadata:
   name: grafana
   namespace: '{{ .Values.namespace }}'
+{{- $grafanaServiceType := default "ClusterIP" .Values.grafana.service.type }}
 spec:
-  type: NodePort
+  type: {{ $grafanaServiceType }}
   selector:
     app.kubernetes.io/component: o11y
     app.kubernetes.io/name: grafana
@@ -12,5 +13,7 @@ spec:
   - name: http
     port: 3000
     targetPort: 3000
-    nodePort: 30000
     protocol: TCP
+{{- if and (eq $grafanaServiceType "NodePort") (not (empty .Values.grafana.service.nodePort)) }}
+    nodePort: {{ .Values.grafana.service.nodePort }}
+{{- end }}

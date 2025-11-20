@@ -3,13 +3,16 @@ kind: Service
 metadata:
   name: supernode-dashboard
   namespace: '{{ .Values.namespace }}'
+{{- $dashboardServiceType := default "ClusterIP" .Values.supernodeDashboard.service.type }}
 spec:
-  type: NodePort
+  type: {{ $dashboardServiceType }}
   selector:
     app.kubernetes.io/name: supernode-dashboard
   ports:
   - name: http
     port: 3000
     targetPort: 3000
-    nodePort: 30001
     protocol: TCP
+{{- if and (eq $dashboardServiceType "NodePort") (not (empty .Values.supernodeDashboard.service.nodePort)) }}
+    nodePort: {{ .Values.supernodeDashboard.service.nodePort }}
+{{- end }}
