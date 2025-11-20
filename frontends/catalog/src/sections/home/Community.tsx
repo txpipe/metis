@@ -49,13 +49,13 @@ export function CommunitySection() {
           className="md:rounded-l-4xl"
           icon={<DiscordIcon className="size-13 text-zinc-800" />}
           title="Discord"
-          description="Join our Discord community to chat with other developers and the Upstash team."
+          description="Join our Discord community to chat with other developers and the TxPipe team."
           link={{ href: 'https://discord.gg/eVc6HJrYmP', label: 'Join' }}
         />
         <CommunityCard
           icon={<XIcon className="size-13 text-zinc-800" />}
           title="X"
-          description="Follow us on X to stay up to date with the latest news from Upstash."
+          description="Follow us on X to stay up to date with the latest news from TxPipe."
           link={{ href: 'https://x.com/txpipe_tools', label: 'Follow' }}
         />
         <CommunityCard
