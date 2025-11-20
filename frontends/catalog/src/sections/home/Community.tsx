@@ -40,7 +40,7 @@ export function CommunitySection() {
   return (
     <Section
       title="Community"
-      description="Lorem ipsum dolor sit amet consectetur nunc nunc sit velit eget sollicitudin sit posuere augue vestibulum eget turpis lobortis donec sapien integer."
+      description="Stay up to date with development progress, contribute ideas, and help shape the evolution of blockchain infrastructure."
       center
       className="bg-zinc-100 bg-[url(/images/footer-bg.svg)] bg-no-repeat bg-top bg-cover"
     >

@@ -8,7 +8,7 @@ const elements = [
     label: 'Simplified provisioning',
     imgIcon: '/images/home/simplified-provisioning.svg',
     contentImg: '/images/home/simplified-provisioning-header.png',
-    contentBody: 'Lorem ipsum dolor sit amet consectetur. Ante vitae vestibulum mattis at dignissim. Arcu quam amet vel egestas adipiscing nisl vivamus morbi. Parturient ullamcorper et at turpis. Amet quam.',
+    contentBody: 'SuperNode automates provisioning with a guided setup wizard that handles configuration, dependencies, and on-chain registration when required — so you can deploy any workload in minutes.',
   },
   {
     label: 'Version updates',
@@ -20,7 +20,7 @@ const elements = [
     label: 'Health monitoring',
     imgIcon: '/images/home/health-monitoring.svg',
     contentImg: '/images/home/health-monitoring-header.png',
-    contentBody: 'Lorem ipsum dolor sit amet consectetur. Ante vitae vestibulum mattis at dignissim. Arcu quam amet vel egestas adipiscing nisl vivamus morbi. Parturient ullamcorper et at turpis. Amet quam.',
+    contentBody: 'SuperNode monitors the health and performance of every workload, giving you clear visibility and timely signals to keep operations running smoothly.',
   },
 ];
 
