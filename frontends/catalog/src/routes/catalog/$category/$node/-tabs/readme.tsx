@@ -70,7 +70,7 @@ export function TabReadme({ item }: { item: CatalogItem; }) {
               href={item.author?.url ?? '#'}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#0000FF] text-lg/[1.2]"
+              className="text-[#FF007F] text-lg/[1.2]"
             >@{item.author?.name}
             </a>
           </div>

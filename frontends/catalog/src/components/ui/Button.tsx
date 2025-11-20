@@ -27,6 +27,7 @@ export const button = tv({
       blue: '',
       red: '',
       green: '',
+      primary: '',
     },
     radius: {
       none: 'rounded-none',
@@ -69,6 +70,9 @@ export const button = tv({
 
     { variant: 'solid', color: 'red', class: 'bg-[#FF7474]/8 text-[#FF7474] border-[0.5px] border-[#FF7474]/50' },
     { variant: 'outlined', color: 'red', class: 'border-[#FF7474] text-[#FF7474]' },
+
+    { variant: 'solid', color: 'primary', class: 'bg-[#FF007F]/8 text-[#FF007F] border-[0.5px] border-[#FF007F]/50' },
+    { variant: 'outlined', color: 'primary', class: 'border-[#FF007F] text-[#FF007F]' },
   ],
 });
 

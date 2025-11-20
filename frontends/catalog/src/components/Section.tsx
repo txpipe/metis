@@ -3,7 +3,7 @@ import { clsx } from 'clsx';
 
 interface Props {
   id?: string;
-  title?: string;
+  title?: string | React.ReactElement;
   description?: string;
   center?: boolean;
   sideBySide?: boolean;
@@ -32,7 +32,7 @@ export function Section({
               </h2>
             )}
             {description && (
-              <p className={clsx('text-zinc-500 max-w-[596px]', center && 'mx-auto text-center')}>
+              <p className={clsx('text-zinc-500 max-w-[625px]', center && 'mx-auto text-center')}>
                 {description}
               </p>
             )}

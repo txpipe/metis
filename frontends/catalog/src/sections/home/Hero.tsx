@@ -8,14 +8,15 @@ export function HeroSection() {
   const hlClass = 'font-bold text-zinc-700';
 
   return (
-    <div className="bg-[url('/images/home-bg.svg')] flex items-center justify-center bg-center min-h-[calc(100dvh-145px)] py-6 px-4">
-      <div className="text-center w-full max-w-245">
+    <div className="bg-[url('/images/home-bg.svg')] flex items-center justify-center bg-center min-h-[calc(100dvh-200px)] md:min-h-[calc(100dvh-145px)] py-6 px-4">
+      <div className="text-center w-full">
         <div className="flex flex-col items-center gap-4 sm:gap-8 lg:gap-10 xl:gap-14  w-full">
-          <h1 className="font-bold text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-[1.24] text-zinc-800 text-center">
-            Supercharge your<br />blockchain infrastructure
+          <h1 className="font-bold text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-[90px] leading-[1.2] text-zinc-800 text-center">
+            Supercharge your<br />
+            <span className="text-[#FF007F] font-bold">blockchain</span> <span className="font-bold">infrastructure</span>
           </h1>
 
-          <p className="text-sm sm:text-md lg:text-base xl:text-lg text-zinc-500 font-medium">
+          <p className="text-sm sm:text-md lg:text-base xl:text-lg text-zinc-500 font-medium max-w-245">
             A unified <span className={hlClass}>open-source</span> platform to deploy and manage all your&nbsp;
             <span className={hlClass}>blockchain</span> infrastructure without compromising&nbsp;
             <span className={hlClass}>decentralization</span>. Bring your <span className={hlClass}>own cloud</span>,

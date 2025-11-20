@@ -1,10 +1,22 @@
+import { useNavigate } from '@tanstack/react-router';
+import { useCallback } from 'react';
+
+// Components
+import { SearchInput } from '~/components/SearchInput';
 import { Section } from '~/components/Section';
 
+// Catalog route
+import { Route as CatalogRoute } from '~/routes/catalog';
+
 export function CuratedCatalogSection() {
+  const navigate = useNavigate({ from: CatalogRoute.fullPath });
+
+  const handleSearchText = useCallback((text: string | null) => {
+    navigate({ to: '/catalog', search: prev => ({ ...prev, query: !!text ? text : undefined }), replace: true });
+  }, [navigate]);
+
   return (
     <Section
-      title={'Curated catalog of\nblockchain workloads'}
-      description="A curated collection of blockchain workloads, refined through close collaboration with ecosystem teams. SuperNode manages setup, integrations, and dependencies, providing operators with a smoother path to production."
       className="bg-zinc-100"
       sideBySide
     >
@@ -27,6 +39,25 @@ export function CuratedCatalogSection() {
         <img src="/images/workloads-gray/quantum-hosky.svg" alt="Quantum Hosky logo" className="size-15.5" />
         <img src="/images/workloads-gray/deltadefi.png" alt="Deltadefi logo" className="size-15.5" />
         <img src="/images/workloads-gray/fluidtokens.png" alt="Fluidtokens logo" className="size-15.5" />
+      </div>
+
+      <div className="grid auto-rows-min gap-6 whitespace-pre-wrap">
+        <h2 className="text-3xl/[40px] md:text-4xl font-semibold text-zinc-800">
+          {'Curated catalog of\nblockchain workloads'}
+        </h2>
+
+        <p className="text-zinc-500 max-w-[596px]">
+          A curated collection of blockchain workloads, refined through close collaboration with ecosystem teams.
+          SuperNode manages setup, integrations, and dependencies, providing operators with a smoother path to
+          production.
+        </p>
+
+        <SearchInput
+          onSearchText={handleSearchText}
+          className="max-w-none"
+          inputClassName="text-[#FF007F] placeholder:text-[#FF007F]"
+          disableShortcuts
+        />
       </div>
     </Section>
   );

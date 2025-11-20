@@ -1,11 +1,13 @@
 import clsx from 'clsx';
+
+// Components
 import { Server2Icon } from '~/components/icons/Server2Icon';
 import { Section } from '~/components/Section';
 import { button } from '~/components/ui/Button';
 
 function CloudProviderCard({ children, className }: React.PropsWithChildren<{ className?: string; }>) {
   return (
-    <div className={clsx('flex flex-col items-center justify-center gap-4 border border-zinc-200 px-6 py-7 rounded-lg md:rounded-none', className)}>
+    <div className={clsx('flex flex-col items-center justify-center gap-4 border border-zinc-200 bg-white px-6 py-7 rounded-lg md:rounded-none', className)}>
       {children}
     </div>
   );
@@ -15,7 +17,8 @@ export function DeploymentSection() {
   return (
     <Section
       title="Choose your own deployment"
-      description="Supernode can run on self-hosted environments or any cloud provider. We take care of provisioning and environment setup, you just choose where to run your workloads."
+      description="Supernode can run self-hosted or on any cloud provider. We take care of provisioning and environment setup, you just choose where to run your workloads."
+      className="bg-zinc-100"
     >
       <div className="grid grid-cols-2 md:auto-cols-fr md:grid-flow-col gap-4">
         <CloudProviderCard className="md:rounded-l-4xl">
@@ -34,13 +37,13 @@ export function DeploymentSection() {
           <img src="/images/cloud-provider/azure-logo.png" alt="Azure Logo" className="w-full max-w-[125px]" />
         </CloudProviderCard>
       </div>
-      <div className="flex flex-col md:flex-row items-center justify-center gap-6 text-lg text-[#0E3550]">
+      <div className="flex flex-col md:flex-row items-center justify-center gap-6 text-lg text-zinc-800">
         <p>
           Ready to run your own <span className="font-bold">Supernode</span>?
         </p>
         <a
           href="#beta"
-          className={button({ variant: 'outlined', fullWidth: true, className: 'max-w-[210px]' })}
+          className={button({ color: 'primary', variant: 'outlined', fullWidth: true, className: 'max-w-[210px]' })}
         >
           Deploy
         </a>

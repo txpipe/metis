@@ -95,7 +95,7 @@ export function RegisterBetaSection() {
   return (
     <Section
       id="beta"
-      title="Register to beta"
+      title={<>Register to <span className="text-[#FF007F]">private beta</span></>}
       description="SuperNode is still in pre-beta — drop your email and join the first wave of collaborators as soon as we open the doors."
       center
     >

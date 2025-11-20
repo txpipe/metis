@@ -43,8 +43,8 @@ export function HowItWorksSection() {
         ))}
         <Separator />
         <p className="text-2xl font-semibold text-zinc-800 hidden min-[1210px]:block">Workloads</p>
-        <CommonCard className="text-[#0000FF] border-[#0000FF] col-span-3 lg:col-span-6 gap-4">
-          <LogoIcon className="h-9.5" /> SuperNode Control Plane
+        <CommonCard className="text-[#FF007F] border-[#FF007F] col-span-3 lg:col-span-6 gap-3">
+          <LogoIcon className="h-7" /> <span>SuperNode Control Plane</span>
         </CommonCard>
         <Separator className="row-span-2" />
         <p className="text-2xl font-semibold text-zinc-800 row-span-2 hidden min-[1210px]:block">Orchestration</p>
