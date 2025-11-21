@@ -31,7 +31,7 @@ export function HowItWorksSection() {
       description="SuperNode acts as a unified control plane between your workloads and infrastructure, automating setup and deployment."
       className="bg-zinc-100"
     >
-      <div className="grid grid-cols-3 lg:grid-cols-6 min-[1210px]:grid-cols-[repeat(6,1fr)_auto_auto]! items-center gap-4 min-[1210px]:gap-8 w-full overflow-auto">
+      <div className="grid grid-cols-3 lg:grid-cols-6 min-[1210px]:grid-cols-[repeat(6,1fr)_auto]! items-center gap-4 w-full overflow-auto">
         {filteredCategories.map(category => (
           <div
             key={category.value}
@@ -41,24 +41,36 @@ export function HowItWorksSection() {
             <span className="text-nowrap">{category.label}</span>
           </div>
         ))}
-        <Separator />
-        <p className="text-2xl font-semibold text-zinc-800 hidden min-[1210px]:block">Workloads</p>
-        <CommonCard className="text-[#FF007F] border-[#FF007F] col-span-3 lg:col-span-6 gap-3">
-          <LogoIcon className="h-7" /> <span>SuperNode Control Plane</span>
+        <div className="hidden min-[1210px]:grid grid-cols-[auto_1fr] gap-6 self-stretch items-center pl-8">
+          <Separator />
+          <p className="text-2xl font-semibold text-zinc-800">Workloads</p>
+        </div>
+        <CommonCard className="text-[#FF007F] border-[#FF007F] col-span-3 lg:col-span-6 gap-3 text-lg font-medium">
+          <div className="w-fit flex text-lg items-center gap-1.25 font-poppins text-zinc-900">
+            <LogoIcon className="h-6.5" />
+            <span>
+              SUPER<span className="font-bold">NODE</span>
+            </span>
+          </div>
+          <span>Control Plane</span>
         </CommonCard>
-        <Separator className="row-span-2" />
-        <p className="text-2xl font-semibold text-zinc-800 row-span-2 hidden min-[1210px]:block">Orchestration</p>
+        <div className="row-span-2 hidden min-[1210px]:grid grid-cols-[auto_1fr] gap-6 self-stretch items-center pl-8">
+          <Separator />
+          <p className="text-2xl font-semibold text-zinc-800 hidden min-[1210px]:block">Orchestration</p>
+        </div>
         <CommonCard className="col-span-3 lg:col-span-6">
           Kubernetes
         </CommonCard>
-        <div className="grid grid-cols-2 lg:grid-cols-4 col-span-3 lg:col-span-6 gap-4 min-[1210px]:gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 col-span-3 lg:col-span-6 gap-4">
           <CommonCard>Bare Metal</CommonCard>
           <CommonCard>AWS</CommonCard>
           <CommonCard>GCP</CommonCard>
           <CommonCard>Azure</CommonCard>
         </div>
-        <Separator />
-        <p className="text-2xl font-semibold text-zinc-800 hidden min-[1210px]:block">Infrastructure</p>
+        <div className="hidden min-[1210px]:grid grid-cols-[auto_1fr] gap-6 self-stretch items-center pl-8">
+          <Separator />
+          <p className="text-2xl font-semibold text-zinc-800 hidden min-[1210px]:block">Infrastructure</p>
+        </div>
       </div>
     </Section>
   );

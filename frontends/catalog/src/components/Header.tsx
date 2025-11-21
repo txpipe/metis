@@ -42,7 +42,7 @@ export function Header({}: Props) {
       {/* Logo */}
       <div className="flex items-center justify-between md:justify-center gap-3 py-4 md:py-0 px-8 md:px-0">
         <Link to="/" className="w-fit flex text-2xl items-center gap-1.5 font-poppins text-zinc-900">
-          <LogoIcon className="h-9.5 text-[#FF007F]" />
+          <LogoIcon className="h-8.25" />
           <span>
             SUPER<span className="font-bold">NODE</span>
           </span>

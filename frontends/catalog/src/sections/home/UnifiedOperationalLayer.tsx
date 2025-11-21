@@ -8,7 +8,7 @@ const elements = [
     label: 'Simplified provisioning',
     imgIcon: '/images/home/simplified-provisioning.svg',
     contentImg: '/images/home/simplified-provisioning-header.png',
-    contentBody: 'SuperNode automates provisioning with a guided setup wizard that handles configuration, dependencies, and on-chain registration when required — so you can deploy any workload in minutes.',
+    contentBody: 'SuperNode automates provisioning with a guided wizard that handles configuration, dependencies, and on-chain registration when required — so you can deploy any workload in minutes.',
   },
   {
     label: 'Version updates',
