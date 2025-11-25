@@ -14,6 +14,9 @@ import { TanStackDevtools } from '@tanstack/react-devtools';
 import { Header } from '~/components/Header';
 import { Banner } from '~/components/ui/Banner';
 
+// Utils
+import { generateSocialMetadata } from '~/utils/social';
+
 import appCss from '~/styles.css?url';
 
 export const Route = createRootRouteWithContext<{
@@ -29,8 +32,18 @@ export const Route = createRootRouteWithContext<{
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'SuperNode Catalog',
+        title: 'SuperNode',
       },
+      {
+        name: 'description',
+        content: 'Supercharge your blockchain infrastructure',
+      },
+      ...generateSocialMetadata(
+        'SuperNode',
+        'Supercharge your blockchain infrastructure',
+        `${import.meta.env.VITE_PUBLIC_URL}/images/social/banner.jpg`,
+        import.meta.env.VITE_PUBLIC_URL,
+      ),
     ],
     links: [
       { rel: 'stylesheet', href: appCss },

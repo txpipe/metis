@@ -1,0 +1,15 @@
+export function generateSocialMetadata(title: string, description: string, imageUrl: string, pageUrl?: string) {
+  if (!pageUrl) {
+    return [];
+  }
+  return [
+    { property: 'og:title', content: title },
+    { property: 'og:description', content: description },
+    { property: 'og:image', content: imageUrl },
+    { property: 'og:url', content: pageUrl },
+    { name: 'twitter:title', content: title },
+    { name: 'twitter:description', content: description },
+    { name: 'twitter:image', content: imageUrl },
+    { name: 'twitter:url', content: pageUrl },
+  ];
+}

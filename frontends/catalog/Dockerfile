@@ -11,6 +11,7 @@ RUN pnpm install --frozen-lockfile
 FROM base AS build
 COPY --from=dev-deps /app/node_modules ./node_modules
 COPY . .
+ENV VITE_PUBLIC_URL="https://supernode.store"
 RUN pnpm build
 
 FROM base AS prod-deps
@@ -23,5 +24,6 @@ WORKDIR /app
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY package.json pnpm-lock.yaml ./
 COPY --from=build /app/.output ./
+ENV VITE_PUBLIC_URL="https://supernode.store"
 EXPOSE 3000
 CMD ["node", "server/index.mjs"]
