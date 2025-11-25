@@ -14,7 +14,7 @@ const elements = [
     label: 'Version updates',
     imgIcon: '/images/home/version-updates.svg',
     contentImg: '/images/home/version-updates-header.png',
-    contentBody: 'SuperNode keeps all your workloads up to date automatically, handling version upgrades and integrations so you can focus on operating—not maintaining.',
+    contentBody: 'SuperNode keeps you informed — and in control — of new releases with detailed version notifications and a simplified upgrade workflow, helping your infrastructure run smoothly.',
   },
   {
     label: 'Health monitoring',
@@ -32,7 +32,7 @@ export function UnifiedOperationalLayerSection() {
   return (
     <Section
       title="Unified operational layer"
-      description="SuperNode brings all your workloads under one operational layer — provisioning, monitoring, updates, and more — handled automatically and in a consistent way."
+      description="SuperNode brings all your workloads under one operational layer — provisioning, monitoring, updates, and more — handled in a consistent and resilient way."
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="grid grid-rows-3 gap-8">
