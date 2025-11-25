@@ -62,7 +62,7 @@ export function HowItWorksSection() {
           Kubernetes
         </CommonCard>
         <div className="grid grid-cols-2 lg:grid-cols-4 col-span-3 lg:col-span-6 gap-4">
-          <CommonCard>Bare Metal</CommonCard>
+          <CommonCard>Self-Hosted</CommonCard>
           <CommonCard>AWS</CommonCard>
           <CommonCard>GCP</CommonCard>
           <CommonCard>Azure</CommonCard>
