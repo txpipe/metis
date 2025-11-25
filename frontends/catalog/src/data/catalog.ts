@@ -156,7 +156,7 @@ const items: CatalogItem[] = [
     name: 'Blockfrost Icebreaker',
     slug: slugify('Blockfrost Icebreaker').toLowerCase(),
     description: 'Help decentralize the Blockfrost API, by running the IceBreaker node.',
-    category: 'partner-chain',
+    category: 'infrastructure',
     comingSoon: true,
   },
 ];
