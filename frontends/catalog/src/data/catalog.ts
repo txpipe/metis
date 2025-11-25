@@ -47,6 +47,15 @@ const items: CatalogItem[] = [
     beta: true,
   },
   {
+    icon: '/images/workloads/dolos.svg',
+    name: 'Dolos',
+    slug: slugify('Dolos').toLowerCase(),
+    description: 'A Cardano "Data Node" fine-tuned for dApp builders. Requires a fraction of the resources.',
+    category: 'infrastructure',
+    comingSoon: false,
+    beta: true,
+  },
+  {
     icon: '/images/workloads/midgard.png',
     name: 'Midgard Node',
     slug: slugify('Midgard Node').toLowerCase(),
@@ -149,15 +158,6 @@ const items: CatalogItem[] = [
     description: 'Help decentralize the Blockfrost API, by running the IceBreaker node.',
     category: 'partner-chain',
     comingSoon: true,
-  },
-  {
-    icon: '/images/workloads/dolos.svg',
-    name: 'Dolos',
-    slug: slugify('Dolos').toLowerCase(),
-    description: 'A Cardano "Data Node" fine-tuned for dApp builders. Requires a fraction of the resources.',
-    category: 'infrastructure',
-    comingSoon: false,
-    beta: true,
   },
 ];
 
