@@ -27,6 +27,7 @@ export function CuratedCatalogSection() {
         <img src="/images/workloads-gray/sundial.svg" alt="Sundial logo" className="size-15.5" />
         <img src="/images/workloads-gray/cardano-node.svg" alt="Cardano Node logo" className="size-15.5" />
         <img src="/images/workloads-gray/apex-fusion.png" alt="Apex Fusion logo" className="size-15.5" />
+        <img src="/images/workloads-gray/charli3.png" alt="Charli 3 logo" className="size-15.5" />
         <img src="/images/workloads-gray/orcfax-oracle.png" alt="Orcfax Oracle logo" className="size-15.5" />
         <img src="/images/workloads-gray/butane-oracle.png" alt="Butane Oracle logo" className="size-15.5" />
         <img src="/images/workloads-gray/sundae-swap.png" alt="Sundae Swap logo" className="size-15.5" />

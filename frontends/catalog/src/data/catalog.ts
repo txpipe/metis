@@ -47,15 +47,6 @@ const items: CatalogItem[] = [
     beta: true,
   },
   {
-    icon: '/images/workloads/dolos.svg',
-    name: 'Dolos',
-    slug: slugify('Dolos').toLowerCase(),
-    description: 'Lorem ipsum dolor sit amet consectetur. Condimentum vitae sit fringilla at nisl.',
-    category: 'infrastructure',
-    comingSoon: false,
-    beta: true,
-  },
-  {
     icon: '/images/workloads/midgard.png',
     name: 'Midgard Node',
     slug: slugify('Midgard Node').toLowerCase(),
@@ -69,6 +60,14 @@ const items: CatalogItem[] = [
     slug: slugify('Sundial Node').toLowerCase(),
     description: 'A layer 2 on Cardano custom built to serve as Bitcoin\'s utility and yield layer.',
     category: 'layer-2',
+    comingSoon: true,
+  },
+  {
+    icon: '/images/workloads/charli3.png',
+    name: 'Charli3 Oracle',
+    slug: slugify('Charli3 Oracle').toLowerCase(),
+    description: 'Operate a Charli3 oracle node to deliver reliable on-chain price feeds.',
+    category: 'oracle',
     comingSoon: true,
   },
   {
@@ -150,6 +149,15 @@ const items: CatalogItem[] = [
     description: 'Help decentralize the Blockfrost API, by running the IceBreaker node.',
     category: 'partner-chain',
     comingSoon: true,
+  },
+  {
+    icon: '/images/workloads/dolos.svg',
+    name: 'Dolos',
+    slug: slugify('Dolos').toLowerCase(),
+    description: 'Lorem ipsum dolor sit amet consectetur. Condimentum vitae sit fringilla at nisl.',
+    category: 'infrastructure',
+    comingSoon: false,
+    beta: true,
   },
 ];
 
