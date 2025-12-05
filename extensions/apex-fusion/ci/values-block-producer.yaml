@@ -1,0 +1,3 @@
+node:
+  blockProducer:
+    existingSecret: apex-fusion-block-producer

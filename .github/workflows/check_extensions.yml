@@ -39,11 +39,17 @@ jobs:
           - name: default
             valuesArgs: ""
             dir: cardano-node
+          - name: block-producer
+            valuesArgs: "-f cardano-node/ci/values-block-producer.yaml"
+            dir: cardano-node
           - name: default
             valuesArgs: ""
             dir: control-plane
           - name: default
             valuesArgs: ""
+            dir: apex-fusion
+          - name: block-producer
+            valuesArgs: "-f apex-fusion/ci/values-block-producer.yaml"
             dir: apex-fusion
           - name: default
             valuesArgs: ""

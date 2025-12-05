@@ -1,0 +1,3 @@
+node:
+  blockProducer:
+    existingSecret: cardano-node-block-producer

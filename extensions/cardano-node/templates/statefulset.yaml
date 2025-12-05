@@ -3,6 +3,8 @@
 {{- $serviceAccountName := include "cardano-node.serviceAccountName" . -}}
 {{- $proxyConfigName := include "cardano-node.proxyConfigName" . -}}
 {{- $configurationConfigMapName := include "cardano-node.configurationConfigMapName" . -}}
+{{- $blockProducer := .Values.node.blockProducer | default dict -}}
+{{- $hasBlockProducerSecret := and ($blockProducer.existingSecret) (ne ($blockProducer.existingSecret | trim) "") -}}
 {{- $proxyChecksum := "" -}}
 {{- if and .Values.proxy.enabled .Values.proxy.config.create }}
 {{- $proxyChecksum = include (print $.Template.BasePath "/configmap-proxy.yaml") . | sha256sum -}}
@@ -68,9 +70,19 @@ spec:
           command:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.node.args }}
+          {{- $args := dict "all" (default (list) .Values.node.args) }}
+          {{- if $hasBlockProducerSecret }}
+          {{- $mountPath := default "/block-producer" $blockProducer.mountPath }}
+          {{- $kesKeyFile := default "kes.skey" $blockProducer.kesKeyFile }}
+          {{- $vrfKeyFile := default "vrf.skey" $blockProducer.vrfKeyFile }}
+          {{- $opCertFile := default "op.cert" $blockProducer.operationalCertificateFile }}
+          {{- $_ := set $args "all" (concat $args.all (list "--shelley-kes-key" (printf "%s/%s" $mountPath $kesKeyFile) "--shelley-vrf-key" (printf "%s/%s" $mountPath $vrfKeyFile) "--shelley-operational-certificate" (printf "%s/%s" $mountPath $opCertFile))) }}
+          {{- end }}
+          {{- if $args.all }}
           args:
-            {{- toYaml . | nindent 12 }}
+            {{- range $args.all }}
+            - {{ . | quote }}
+            {{- end }}
           {{- end }}
           env:
             - name: CARDANO_NETWORK
@@ -102,6 +114,11 @@ spec:
               mountPath: /data
             - name: ipc
               mountPath: /ipc
+            {{- if $hasBlockProducerSecret }}
+            - name: block-producer-keys
+              mountPath: {{ default "/block-producer" $blockProducer.mountPath }}
+              readOnly: true
+            {{- end }}
             {{- if $configurationConfigMapName }}
             - name: configuration
               mountPath: {{ default "/configuration" .Values.configuration.mountPath }}
@@ -191,6 +208,11 @@ spec:
         - name: configuration
           configMap:
             name: {{ $configurationConfigMapName }}
+        {{- end }}
+        {{- if $hasBlockProducerSecret }}
+        - name: block-producer-keys
+          secret:
+            secretName: {{ $blockProducer.existingSecret }}
         {{- end }}
         {{- if and .Values.persistence.enabled .Values.persistence.existingClaim }}
         - name: chain-data

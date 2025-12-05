@@ -46,3 +46,26 @@ tolerations:
 ```
 
 Apply the overrides with `helm install apex-fusion ./apex-fusion -f my-values.yaml`.
+
+## Block Producer Secrets
+
+Provide an existing Kubernetes secret with the block producer keys to have the
+chart mount the files and inject the required Cardano CLI arguments. Set the
+secret name and optionally override the mount location or filenames:
+
+```yaml
+node:
+  blockProducer:
+    existingSecret: my-block-producer-keys
+    mountPath: /block-producer
+    kesKeyFile: kes.skey
+    vrfKeyFile: vrf.skey
+    operationalCertificateFile: op.cert
+```
+
+When `existingSecret` is set the StatefulSet will mount the secret and add the
+following flags to the node container:
+
+- `--shelley-kes-key`
+- `--shelley-vrf-key`
+- `--shelley-operational-certificate`

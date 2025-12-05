@@ -60,6 +60,12 @@ node:
   network: vector-testnet
   networkMagic: 1
   socketPath: /ipc/node.socket
+  blockProducer:
+    existingSecret: ""
+    mountPath: /block-producer
+    kesKeyFile: kes.skey
+    vrfKeyFile: vrf.skey
+    operationalCertificateFile: op.cert
   terminationGracePeriodSeconds: 60
 
 configuration:
