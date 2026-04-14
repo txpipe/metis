@@ -121,6 +121,55 @@ Add `--mode standard` when you need direct control over node pools (for example,
 
 The script is idempotent: if the cluster already exists it is reused and the kubeconfig is updated.
 
+## Vault On GKE Autopilot
+
+For Vault on GKE Autopilot, use the control-plane GCP example values and direct
+Workload Identity access to Cloud KMS.
+
+Recommended values file:
+
+- `extensions/control-plane/examples/gcp-values.yaml`
+
+Recommended helper script:
+
+- `extensions/control-plane/scripts/setup-gke-autopilot-vault.sh`
+
+That helper script now does the following Vault-specific work:
+
+- enables `cloudkms.googleapis.com`
+- creates the KMS key ring and key if they do not exist
+- grants the Vault Kubernetes service account direct Workload Identity access to
+  the key
+- grants both required KMS roles:
+  - `roles/cloudkms.cryptoKeyEncrypterDecrypter`
+  - `roles/cloudkms.viewer`
+- pre-applies Vault Secrets Operator CRDs before the first control-plane Helm
+  upgrade
+
+The extra viewer role is required because Vault's `gcpckms` seal checks key
+metadata and needs `cloudkms.cryptoKeys.get` in addition to encrypt/decrypt.
+
+### Recommended Order
+
+1. Bootstrap or reuse the GKE cluster.
+2. Run `extensions/control-plane/scripts/setup-gke-autopilot-vault.sh` with:
+   - `PROJECT_ID`
+   - `CLUSTER_NAME`
+   - `LOCATION`
+3. Wait for the Vault StatefulSet to become ready.
+4. Run `vault operator init` once.
+5. Run `extensions/control-plane/scripts/post_install.sh` with `VAULT_TOKEN` set to the Vault root token.
+
+Autopilot-specific note:
+
+- Workload Identity is already enabled, so you do not need the older
+  KSA-to-GSA annotation model for this setup.
+- The direct principal binding on the KMS key should look like:
+
+```text
+principal://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/PROJECT_ID.svc.id.goog/subject/ns/control-plane/sa/control-plane-vault
+```
+
 ## Useful Links
 
 - [Autopilot overview](https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview)

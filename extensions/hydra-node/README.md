@@ -183,10 +183,12 @@ Lightweight schema checks mirror the offline and online permutations through the
 helm lint . -f ci/values-offline-inline.yaml
 helm lint . -f ci/values-offline-existing.yaml
 helm lint . -f ci/values-online-inline.yaml
+helm lint . -f ci/values-vault-static-secret.yaml
 
 helm template hydra-offline . -f ci/values-offline-inline.yaml > /tmp/hydra-offline.yaml
 helm template hydra-offline-existing . -f ci/values-offline-existing.yaml > /tmp/hydra-offline-existing.yaml
 helm template hydra-online . -f ci/values-online-inline.yaml > /tmp/hydra-online.yaml
+helm template hydra-vault . -f ci/values-vault-static-secret.yaml > /tmp/hydra-vault.yaml
 ```
 
 ## Values Highlights
@@ -194,11 +196,14 @@ helm template hydra-online . -f ci/values-online-inline.yaml > /tmp/hydra-online
 | Value | Description | Default |
 |-------|-------------|---------|
 | `node.offlineMode` | Run `hydra-node offline` with pre-seeded ledger state | `true` |
+| `keys.vaultAuth.ref` | Shared VaultAuth reference used by chart-managed VaultStaticSecret resources | `control-plane/default` |
 | `keys.hydraSigning.*` | Source of the Hydra signing key (`hydra.sk`) | empty |
+| `keys.hydraSigning.vaultStaticSecret.*` | Optional VaultStaticSecret that syncs the Hydra signing key into Kubernetes | disabled |
 | `keys.hydraVerification.items` | Filenames (and optional inline payloads) for verification keys | `[]` |
 | `ledger.protocolParameters` | Provides `protocol-parameters.json` for offline heads | inline demo JSON |
 | `ledger.initialUtxo` | Provides `utxo.json` for offline heads | inline demo JSON |
 | `keys.cardano.enabled` | Switch on online mode support (requires additional settings) | `false` |
+| `keys.cardano.signing.vaultStaticSecret.*` | Optional VaultStaticSecret that syncs the Cardano signing key into Kubernetes | disabled |
 | `node.cardanoSocketProxy.enabled` | Launch a `socat` sidecar that exposes a remote Cardano node as a Unix socket | `false` |
 | `service.apiPort` | WebSocket API port exposed on the Service | `4001` |
 | `persistence.size` | Persistent volume claim size for the Hydra state | `5Gi` |

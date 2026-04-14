@@ -66,11 +66,22 @@ node:
   extraVolumes: []
   terminationGracePeriodSeconds: 60
 
+vaultAuth:
+  ref: control-plane/default
+  serviceAccount:
+    create: true
+    name: vault-auth
+
 dbSync:
   connectionString: ""
   existingSecret:
     name: ""
     key: ""
+  vaultStaticSecret:
+    enabled: false
+    mount: kv
+    path: ""
+    refreshAfter: 1m
   managed:
     enabled: false
     connection:
@@ -164,6 +175,11 @@ nodeKey:
   existingSecret:
     name: ""
     key: node.key
+  vaultStaticSecret:
+    enabled: false
+    mount: kv
+    path: ""
+    refreshAfter: 1m
   value: ""
 
 chainConfig:

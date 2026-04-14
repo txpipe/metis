@@ -97,3 +97,10 @@ Resolve the ConfigMap name for custom node configuration files.
 {{- "" }}
 {{- end }}
 {{- end }}
+
+{{/*
+Resolve the Secret name that holds block producer runtime artifacts.
+*/}}
+{{- define "apex-fusion.blockProducerSecretName" -}}
+{{- printf "%s-block-producer" (include "apex-fusion.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}

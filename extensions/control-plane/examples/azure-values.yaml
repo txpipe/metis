@@ -1,0 +1,17 @@
+# Example values for running the control-plane on AKS with Vault auto-unseal via Azure Key Vault.
+# Assumes the Vault pods use Azure Workload Identity or Managed Identity.
+
+storageClass: managed-csi
+
+vault:
+  server:
+    dataStorage:
+      storageClass: managed-csi
+  integration:
+    seal:
+      mode: azurekeyvault
+      azurekeyvault:
+        tenantId: 00000000-0000-0000-0000-000000000000
+        clientId: 11111111-1111-1111-1111-111111111111
+        vaultName: my-vault
+        keyName: control-plane

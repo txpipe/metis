@@ -108,11 +108,13 @@ helm lint .
 helm lint . -f ci/values-inline-secrets.yaml
 helm lint . -f ci/values-existing-secrets.yaml
 helm lint . -f ci/values-managed-dbsync.yaml
+helm lint . -f ci/values-vault-static-secret.yaml
 
 helm template midnight . | kubeconform -strict -summary -
 helm template midnight . -f ci/values-inline-secrets.yaml | kubeconform -strict -summary -
 helm template midnight . -f ci/values-existing-secrets.yaml | kubeconform -strict -summary -
 helm template midnight . -f ci/values-managed-dbsync.yaml | kubeconform -strict -summary -
+helm template midnight . -f ci/values-vault-static-secret.yaml | kubeconform -strict -skip VaultStaticSecret -summary -
 ```
 
 ## Managed DB Sync
@@ -169,8 +171,11 @@ Kubernetes secret.
 | `node.cfgPreset` | Chain preset to join | `testnet-02` |
 | `node.bootnodes` | List of bootnodes passed to the node | `[...]` |
 | `node.appendArgs` | Additional CLI arguments passed through `APPEND_ARGS` | `[...]` |
+| `vaultAuth.ref` | Shared VaultAuth reference used by chart-managed VaultStaticSecret resources | `control-plane/default` |
 | `nodeKey.existingSecret` | Reference to a secret that holds `NODE_KEY` | empty |
+| `nodeKey.vaultStaticSecret.*` | Optional VaultStaticSecret that syncs the node key into Kubernetes | disabled |
 | `dbSync.existingSecret` | Reference to a secret that holds the Cardano DB sync connection string | empty |
+| `dbSync.vaultStaticSecret.*` | Optional VaultStaticSecret that syncs the DB sync connection string into Kubernetes | disabled |
 | `dbSync.managed.enabled` | Deploy Postgres and DB sync pods alongside the node | `false` |
 | `dbSync.managed.dbSync.network` | Cardano network the managed DB sync connects to | `preprod` |
 | `dbSync.managed.nodeConnection` | Source of the fully synced node connection string for DB sync | empty |

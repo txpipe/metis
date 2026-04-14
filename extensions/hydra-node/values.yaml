@@ -122,11 +122,21 @@ ledger:
 
 keys:
   mountPath: /etc/keys
+  vaultAuth:
+    ref: control-plane/default
+    serviceAccount:
+      create: true
+      name: vault-auth
   hydraSigning:
     filename: hydra.sk
     existingSecret:
       name: ""
       key: ""
+    vaultStaticSecret:
+      enabled: false
+      mount: kv
+      path: ""
+      refreshAfter: 1m
     value: ""
   hydraVerification:
     existingConfigMap:
@@ -140,6 +150,11 @@ keys:
       existingSecret:
         name: ""
         key: ""
+      vaultStaticSecret:
+        enabled: false
+        mount: kv
+        path: ""
+        refreshAfter: 1m
       value: ""
     verification:
       filename: cardano.vk

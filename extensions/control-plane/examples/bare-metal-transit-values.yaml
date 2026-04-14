@@ -1,0 +1,29 @@
+# Example values for running the control-plane on bare metal with Vault transit auto-unseal.
+# Assumes a separate trusted Vault cluster provides the transit key and token.
+
+storageClass: longhorn
+
+vault:
+  server:
+    dataStorage:
+      storageClass: longhorn
+    extraSecretEnvironmentVars:
+      - envName: VAULT_TOKEN
+        secretName: vault-transit-credentials
+        secretKey: token
+    volumes:
+      - name: vault-transit-ca
+        secret:
+          secretName: vault-transit-ca
+    volumeMounts:
+      - name: vault-transit-ca
+        mountPath: /vault/tls/transit
+        readOnly: true
+  integration:
+    seal:
+      mode: transit
+      transit:
+        address: https://vault.example.internal:8200
+        keyName: control-plane-unseal
+        mountPath: transit/
+        tlsCaCert: /vault/tls/transit/ca.crt

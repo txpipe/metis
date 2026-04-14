@@ -36,6 +36,33 @@ If no config file is provided, Kind's defaults are used.
 - These defaults switch the Grafana and supernode dashboard services to `NodePort` so they are reachable via the `kind` extra port mappings.
 - Provide `--values <path>` to override or extend the defaults.
 
+### Example: Kind With Vault Dev Mode
+
+If you want the shortest local Vault setup, point bootstrap at the control-plane
+dev-mode example values:
+
+```bash
+./bootstrap.sh \
+  --provider kind \
+  --version 0.1.0 \
+  --values ../extensions/control-plane/examples/dev-values.yaml
+```
+
+That keeps Vault Secrets Operator enabled, but runs Vault in disposable dev mode
+so there is no init/unseal step. If you want to configure the shared VSO auth
+resources afterward, run the local post-install script with the dev root token
+from that example (`root` by default).
+
+The shared `bootstrap.sh` flow also pre-applies the Vault Secrets Operator CRDs
+before installing the control-plane chart, so the dev-mode example works on a
+fresh Kind cluster without a second install pass.
+
+If you want to configure the shared VSO auth resources after the install, use:
+
+```bash
+VAULT_TOKEN=root ../extensions/control-plane/scripts/post_install.sh
+```
+
 ## Outputs
 
 - Creates (or reuses) a Kind cluster named `supernode` by default.

@@ -1,0 +1,15 @@
+{{- if .Values.vault.enabled }}
+{{- $devEnabled := .Values.vault.server.dev.enabled -}}
+{{- $standaloneEnabled := .Values.vault.server.standalone.enabled -}}
+{{- $haEnabled := .Values.vault.server.ha.enabled -}}
+{{- $enabledModes := 0 -}}
+{{- if $devEnabled }}{{- $enabledModes = add1 $enabledModes }}{{- end }}
+{{- if $standaloneEnabled }}{{- $enabledModes = add1 $enabledModes }}{{- end }}
+{{- if $haEnabled }}{{- $enabledModes = add1 $enabledModes }}{{- end }}
+{{- if ne $enabledModes 1 }}
+{{- fail "control-plane supports exactly one Vault server mode: dev, standalone, or ha (with raft)" }}
+{{- end }}
+{{- if and $haEnabled (not .Values.vault.server.ha.raft.enabled) }}
+{{- fail "control-plane only supports Vault HA when integrated raft storage is enabled" }}
+{{- end }}
+{{- end }}

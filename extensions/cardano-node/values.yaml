@@ -13,6 +13,12 @@ serviceAccount:
   annotations: {}
   name: ""
 
+vaultAuth:
+  ref: control-plane/default
+  serviceAccount:
+    create: true
+    name: vault-auth
+
 podAnnotations: {}
 extraLabels: {}
 
@@ -69,11 +75,15 @@ node:
   networkMagic: 2
   socketPath: /ipc/node.socket
   blockProducer:
-    existingSecret: ""
+    enabled: false
     mountPath: /block-producer
     kesKeyFile: kes.skey
     vrfKeyFile: vrf.skey
     operationalCertificateFile: op.cert
+    vaultStaticSecret:
+      mount: kv
+      path: ""
+      refreshAfter: 1m
   terminationGracePeriodSeconds: 60
 
 configuration:

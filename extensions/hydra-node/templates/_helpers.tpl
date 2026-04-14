@@ -90,7 +90,7 @@ Resolve Secret name for Hydra signing key.
 {{- define "hydra-node.hydraSigningSecretName" -}}
 {{- if .Values.keys.hydraSigning.existingSecret.name }}
 {{- .Values.keys.hydraSigning.existingSecret.name }}
-{{- else if .Values.keys.hydraSigning.value }}
+{{- else if or .Values.keys.hydraSigning.value .Values.keys.hydraSigning.vaultStaticSecret.enabled }}
 {{- printf "%s-hydra-signing" (include "hydra-node.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- "" }}
@@ -127,7 +127,7 @@ Resolve Secret name for Cardano signing key.
 {{- define "hydra-node.cardanoSigningSecretName" -}}
 {{- if .Values.keys.cardano.signing.existingSecret.name }}
 {{- .Values.keys.cardano.signing.existingSecret.name }}
-{{- else if and .Values.keys.cardano.enabled .Values.keys.cardano.signing.value }}
+{{- else if and .Values.keys.cardano.enabled (or .Values.keys.cardano.signing.value .Values.keys.cardano.signing.vaultStaticSecret.enabled) }}
 {{- printf "%s-cardano-signing" (include "hydra-node.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- "" }}

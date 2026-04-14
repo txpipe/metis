@@ -1,0 +1,25 @@
+# Example values for running the control-plane on GKE with Vault auto-unseal via Cloud KMS.
+# Assumes the Vault pods use GKE Workload Identity or another GCP-native credential source.
+
+storageClass: standard-rwo
+
+vault:
+  server:
+    dev:
+      enabled: false
+    standalone:
+      enabled: true
+    ha:
+      enabled: false
+      raft:
+        enabled: false
+    dataStorage:
+      storageClass: standard-rwo
+  integration:
+    seal:
+      mode: gcpckms
+      gcpckms:
+        project: my-gcp-project
+        region: global
+        keyRing: vault-unseal
+        cryptoKey: control-plane

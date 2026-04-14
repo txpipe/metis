@@ -76,9 +76,15 @@ jobs:
           tar -xzf kubeconform.tar.gz
           sudo mv kubeconform /usr/local/bin/kubeconform
 
+      - name: Build Helm dependencies (${{ matrix.dir }})
+        run: |
+          if grep -q '^dependencies:' ./${{ matrix.dir }}/Chart.yaml; then
+            helm dependency build ./${{ matrix.dir }}
+          fi
+
       - name: Helm lint (${{ matrix.name }} - ${{ matrix.dir }})
         run: helm lint ./${{ matrix.dir }} ${{ matrix.valuesArgs }}
 
       - name: Template manifests and validate schema (${{ matrix.name }} - ${{ matrix.dir }})
         run: |
-          helm template ${{ matrix.dir }} ./${{ matrix.dir }} ${{ matrix.valuesArgs }} | kubeconform -strict -skip PodMonitor,ServiceMonitor,Prometheus -summary -
+          helm template ${{ matrix.dir }} ./${{ matrix.dir }} ${{ matrix.valuesArgs }} | kubeconform -strict -skip PodMonitor,ServiceMonitor,Prometheus,VaultConnection,VaultAuth -summary -

@@ -18,6 +18,43 @@ Run the script from this directory so that relative paths resolve correctly.
 - `--config` forwards a provider-specific configuration file to the underlying script.
 - `--values` passes a Helm values file for the control plane. If omitted, provider defaults are applied when available (AWS and Kind ship with `values.yml`).
 
+For Vault-specific control-plane examples, see `extensions/control-plane/examples/`.
+Those files are not applied automatically by the bootstrap scripts; pass one
+explicitly with `--values` if you want to start from a provider-tailored Vault
+configuration or from one of the non-default Vault server modes such as
+standalone or dev.
+
+## Vault Handling
+
+The shared `bootstrap.sh` flow now pre-applies the Vault Secrets Operator CRDs
+before installing the control-plane chart. This avoids first-install failures
+when the chart renders `VaultConnection` and `VaultAuth` resources on a fresh
+cluster.
+
+What `bootstrap.sh` does for Vault:
+
+- provisions or reuses the Kubernetes cluster
+- installs the control-plane chart with the values file you choose
+- pre-applies the Vault Secrets Operator CRDs before the Helm install
+
+What it does not do automatically:
+
+- configure cloud-provider KMS permissions for Vault auto-unseal
+- initialize Vault in standalone or HA modes
+- run the local Vault post-install script that configures Kubernetes auth and
+  the shared VSO role/policy
+
+Mode-specific follow-up:
+
+- `dev`: no init/unseal required
+- `standalone`: run `vault operator init` once, then bootstrap Vault auth
+- `ha`: run `vault operator init` once, then bootstrap Vault auth
+
+Useful follow-up helpers:
+
+- `extensions/control-plane/scripts/setup-gke-autopilot-vault.sh`
+- `extensions/control-plane/scripts/post_install.sh` (requires local `vault` CLI)
+
 ## Providers
 
 Pick the provider that matches where you want to run the Supernode cluster and
@@ -53,6 +90,7 @@ The script will:
 - Ensure `kind`, `kubectl`, and `helm` are installed.
 - Create (or reuse) a Kind cluster named `supernode` by default.
 - Apply `bootstrap/kind/values.yml` unless you supply your own `--values` file.
+- Pre-apply Vault Secrets Operator CRDs before the control-plane install.
 - Install the `control-plane` release in the `control-plane` namespace using the version you specified.
 
 Once the command completes, your local kubeconfig will be pointed at the Kind cluster and the Supernode control plane will be ready for use. Consult the provider-specific README for additional customization options or troubleshooting steps.

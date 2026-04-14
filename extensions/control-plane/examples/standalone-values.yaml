@@ -1,0 +1,17 @@
+# Example values for a single-node persistent Vault deployment.
+# This keeps VSO enabled but runs Vault without HA.
+
+storageClass: standard
+
+vault:
+  server:
+    dev:
+      enabled: false
+    standalone:
+      enabled: true
+    ha:
+      enabled: false
+      raft:
+        enabled: false
+    dataStorage:
+      storageClass: standard

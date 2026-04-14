@@ -1,0 +1,14 @@
+{{- if .Values.node.blockProducer.enabled }}
+{{- if .Values.node.blockProducer.existingSecret }}
+{{- fail "node.blockProducer.existingSecret is no longer supported; write the runtime artifacts to Vault and configure node.blockProducer.vaultStaticSecret.path instead" }}
+{{- end }}
+{{- if not .Values.vaultAuth.ref }}
+{{- fail "vaultAuth.ref is required when node.blockProducer.enabled=true" }}
+{{- end }}
+{{- if not .Values.node.blockProducer.vaultStaticSecret.mount }}
+{{- fail "node.blockProducer.vaultStaticSecret.mount is required when node.blockProducer.enabled=true" }}
+{{- end }}
+{{- if not .Values.node.blockProducer.vaultStaticSecret.path }}
+{{- fail "node.blockProducer.vaultStaticSecret.path is required when node.blockProducer.enabled=true" }}
+{{- end }}
+{{- end }}

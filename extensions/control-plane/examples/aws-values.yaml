@@ -1,0 +1,15 @@
+# Example values for running the control-plane on AWS with Vault auto-unseal via AWS KMS.
+# Assumes the Vault pods authenticate to AWS through IRSA or another IAM-backed mechanism.
+
+storageClass: gp3
+
+vault:
+  server:
+    dataStorage:
+      storageClass: gp3
+  integration:
+    seal:
+      mode: awskms
+      awskms:
+        region: us-east-1
+        kmsKeyId: 11111111-2222-3333-4444-555555555555

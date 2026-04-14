@@ -3,8 +3,9 @@
 {{- $serviceAccountName := include "apex-fusion.serviceAccountName" . -}}
 {{- $proxyConfigName := include "apex-fusion.proxyConfigName" . -}}
 {{- $configurationConfigMapName := include "apex-fusion.configurationConfigMapName" . -}}
+{{- $blockProducerSecretName := include "apex-fusion.blockProducerSecretName" . -}}
 {{- $blockProducer := .Values.node.blockProducer | default dict -}}
-{{- $hasBlockProducerSecret := and ($blockProducer.existingSecret) (ne ($blockProducer.existingSecret | trim) "") -}}
+{{- $blockProducerEnabled := default false $blockProducer.enabled -}}
 {{- $proxyChecksum := "" -}}
 {{- if and .Values.proxy.enabled .Values.proxy.config.create }}
 {{- $proxyChecksum = include (print $.Template.BasePath "/configmap-proxy.yaml") . | sha256sum -}}
@@ -71,7 +72,7 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- $args := dict "all" (list "run" "--database-path" "/data/db" "--socket-path" "/ipc/node.socket" "--port" "3000" "--config" (printf "/opt/cardano/config/%s/configuration.yaml" .Values.node.network)) }}
-          {{- if $hasBlockProducerSecret }}
+          {{- if $blockProducerEnabled }}
           {{- $mountPath := default "/block-producer" $blockProducer.mountPath }}
           {{- $kesKeyFile := default "kes.skey" $blockProducer.kesKeyFile }}
           {{- $vrfKeyFile := default "vrf.skey" $blockProducer.vrfKeyFile }}
@@ -114,7 +115,7 @@ spec:
               mountPath: /data
             - name: ipc
               mountPath: /ipc
-            {{- if $hasBlockProducerSecret }}
+            {{- if $blockProducerEnabled }}
             - name: block-producer-keys
               mountPath: {{ default "/block-producer" $blockProducer.mountPath }}
               readOnly: true
@@ -209,10 +210,10 @@ spec:
           configMap:
             name: {{ $configurationConfigMapName }}
         {{- end }}
-        {{- if $hasBlockProducerSecret }}
+        {{- if $blockProducerEnabled }}
         - name: block-producer-keys
           secret:
-            secretName: {{ $blockProducer.existingSecret }}
+            secretName: {{ $blockProducerSecretName }}
         {{- end }}
         {{- if and .Values.persistence.enabled .Values.persistence.existingClaim }}
         - name: chain-data

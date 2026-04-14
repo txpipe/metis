@@ -113,7 +113,7 @@ Resolve the Secret name for the DB sync connection string.
 {{- .Values.dbSync.existingSecret.name }}
 {{- else -}}
 {{- $connectionString := include "midnight.dbSyncConnectionStringValue" . }}
-{{- if $connectionString }}
+{{- if or $connectionString .Values.dbSync.vaultStaticSecret.enabled }}
 {{- printf "%s-dbsync" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- "" }}
@@ -138,7 +138,7 @@ Resolve the Secret name for the node key.
 {{- define "midnight.nodeKeySecretName" -}}
 {{- if .Values.nodeKey.existingSecret.name }}
 {{- .Values.nodeKey.existingSecret.name }}
-{{- else if .Values.nodeKey.value }}
+{{- else if or .Values.nodeKey.value .Values.nodeKey.vaultStaticSecret.enabled }}
 {{- printf "%s-node-key" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- else -}}
 {{- "" }}

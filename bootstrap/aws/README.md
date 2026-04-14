@@ -61,6 +61,25 @@ When supplying `--config`, ensure the cluster name within the YAML matches `--cl
 - Updates local kubeconfig via `aws eks update-kubeconfig`.
 - Ensures `helm` is available for subsequent OCI control-plane installation.
 
+## Vault On EKS
+
+To run Vault with AWS KMS auto-unseal on EKS, pass the control-plane AWS example
+values file when invoking the shared bootstrap flow:
+
+- `extensions/control-plane/examples/aws-values.yaml`
+
+The shared `bootstrap.sh` flow pre-applies Vault Secrets Operator CRDs before
+the Helm install, but you still need to handle the AWS IAM side separately.
+
+At minimum, the Vault server pods need IAM permission to use the chosen KMS key.
+In practice this usually means wiring IRSA or another pod-identity mechanism to
+the Vault Kubernetes service account before or after the cluster bootstrap.
+
+After the control-plane chart is installed:
+
+- initialize Vault once if you are not using dev mode
+- run `extensions/control-plane/scripts/post_install.sh` so the shared VSO auth resources are configured
+
 ## Useful Links
 
 - [EKS IAM policies](https://docs.aws.amazon.com/eks/latest/userguide/service_IAM_role.html)

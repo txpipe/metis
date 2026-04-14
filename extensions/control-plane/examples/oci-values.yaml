@@ -1,0 +1,16 @@
+# Example values for running the control-plane on OCI with Vault auto-unseal via OCI KMS.
+# Assumes the Vault pods use instance principals, workload identity, or another OCI-native credential source.
+
+storageClass: oci-bv
+
+vault:
+  server:
+    dataStorage:
+      storageClass: oci-bv
+  integration:
+    seal:
+      mode: ocikms
+      ocikms:
+        keyId: ocid1.key.oc1.iad.exampleuniqueID
+        cryptoEndpoint: https://abcd-crypto.kms.us-ashburn-1.oraclecloud.com
+        managementEndpoint: https://abcd-management.kms.us-ashburn-1.oraclecloud.com

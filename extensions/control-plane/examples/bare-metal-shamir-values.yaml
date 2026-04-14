@@ -1,0 +1,12 @@
+# Example values for running the control-plane on bare metal without auto-unseal.
+# Use this when no external KMS or trusted transit Vault is available.
+
+storageClass: longhorn
+
+vault:
+  server:
+    dataStorage:
+      storageClass: longhorn
+  integration:
+    seal:
+      mode: shamir

@@ -1,5 +1,130 @@
 namespace: control-plane
 storageClass: standard
+
+vault:
+  enabled: true
+  injector:
+    enabled: false
+  csi:
+    enabled: false
+  ui:
+    enabled: true
+  server:
+    logLevel: info
+    dev:
+      enabled: false
+      devRootToken: root
+    authDelegator:
+      enabled: true
+    dataStorage:
+      enabled: true
+      size: 10Gi
+      storageClass: standard
+    auditStorage:
+      enabled: false
+    serviceAccount:
+      create: true
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        memory: 512Mi
+    standalone:
+      enabled: false
+      config: |-
+        {{ include "control-plane.vaultConfigCommon" . }}
+
+        storage "file" {
+          path = "/vault/data"
+        }
+    ha:
+      enabled: true
+      replicas: 3
+      raft:
+        enabled: true
+        setNodeId: true
+        config: |-
+          {{ include "control-plane.vaultConfigCommon" . }}
+
+          storage "raft" {
+            path = "/vault/data"
+          }
+
+          service_registration "kubernetes" {}
+  serverTelemetry:
+    serviceMonitor:
+      enabled: true
+      selectors:
+        app.kubernetes.io/component: o11y
+  integration:
+    enabled: true
+    connection:
+      address: ""
+      tlsServerName: ""
+      skipTLSVerify: false
+      caCertSecretRef: ""
+      headers: {}
+    auth:
+      namespace: ""
+      allowedNamespaces:
+        - "*"
+      mount: kubernetes
+      role: control-plane
+      serviceAccount:
+        create: true
+        name: vault-auth
+      audiences: []
+      tokenExpirationSeconds: 600
+    seal:
+      mode: shamir
+      awskms:
+        region: ""
+        kmsKeyId: ""
+        endpoint: ""
+      gcpckms:
+        project: ""
+        region: ""
+        keyRing: ""
+        cryptoKey: ""
+      azurekeyvault:
+        tenantId: ""
+        clientId: ""
+        vaultName: ""
+        keyName: ""
+        environment: ""
+        resource: ""
+      ocikms:
+        keyId: ""
+        cryptoEndpoint: ""
+        managementEndpoint: ""
+        authTypeApiKey: false
+      transit:
+        address: ""
+        keyName: ""
+        mountPath: transit/
+        namespace: ""
+        disableRenewal: false
+        tlsCaCert: ""
+        tlsClientCert: ""
+        tlsClientKey: ""
+        tlsServerName: ""
+        tlsSkipVerify: false
+
+vaultSecretsOperator:
+  enabled: true
+  nameOverride: vault-secrets-operator
+  fullnameOverride: vault-secrets-operator
+  defaultVaultConnection:
+    enabled: false
+  defaultAuthMethod:
+    enabled: false
+  telemetry:
+    serviceMonitor:
+      enabled: false
+  csi:
+    enabled: false
+
 prometheusOperator:
   tolerations: []
   resources:

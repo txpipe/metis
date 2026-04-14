@@ -1,0 +1,18 @@
+# Example values for a disposable development Vault deployment.
+# Vault runs in dev mode, uses an in-memory store, and still deploys VSO.
+
+storageClass: standard
+
+vault:
+  server:
+    dev:
+      enabled: true
+      devRootToken: root
+    standalone:
+      enabled: false
+    ha:
+      enabled: false
+      raft:
+        enabled: false
+    dataStorage:
+      enabled: false

@@ -1,1 +1,5 @@
 storageClass: gp3
+vault:
+  server:
+    dataStorage:
+      storageClass: gp3

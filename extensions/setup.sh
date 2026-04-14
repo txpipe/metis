@@ -1,6 +1,6 @@
 # Create K8s cluster
 kind create cluster --name supernode --config config.yml
-kubectl config use-context kind-supernode 
+kubectl config use-context kind-supernode
 
 # Install control plane
 helm install control-plane ./control-plane/ \
@@ -68,3 +68,24 @@ helm install prime-testnet ./apex-fusion \
   --create-namespace \
   --set extraLabels.supernode/status=ready \
   --set node.network=prime-testnet
+
+helm install vector-testnet ./apex-fusion \
+  --namespace vector-testnet-relay \
+  --create-namespace \
+  --set extraLabels.supernode/status=ready \
+  --set node.network=vector-testnet-relay
+
+helm install vector-testnet ./apex-fusion \
+  --namespace vector-testnet-relay \
+  --create-namespace \
+  --set extraLabels.supernode/status=ready \
+  --set node.network=vector-testnet \
+  --set service.type=LoadBalancer \
+  --set persistence.storageClass=standard-rwo \
+  --set persistence.size=50Gi
+
+helm install cardano-mainnet ./cardano-node/ \
+  --namespace cardano-node \
+  --set extraLabels.supernode/status=ready \
+  --create-namespace \
+  --values values.yaml

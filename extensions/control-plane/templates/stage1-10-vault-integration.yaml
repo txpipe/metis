@@ -1,0 +1,53 @@
+{{- if and .Values.vault.integration.enabled .Values.vaultSecretsOperator.enabled }}
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultConnection
+metadata:
+  name: default
+  namespace: '{{ .Values.namespace }}'
+  labels:
+    app.kubernetes.io/component: o11y
+    app.kubernetes.io/name: vault-connection
+spec:
+  address: {{ default (printf "http://%s-vault.%s.svc:8200" .Release.Name .Values.namespace) .Values.vault.integration.connection.address | quote }}
+{{- with .Values.vault.integration.connection.tlsServerName }}
+  tlsServerName: {{ . | quote }}
+{{- end }}
+{{- if .Values.vault.integration.connection.skipTLSVerify }}
+  skipTLSVerify: true
+{{- end }}
+{{- with .Values.vault.integration.connection.caCertSecretRef }}
+  caCertSecretRef: {{ . | quote }}
+{{- end }}
+{{- with .Values.vault.integration.connection.headers }}
+  headers:
+{{ toYaml . | indent 4 }}
+{{- end }}
+---
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: default
+  namespace: '{{ .Values.namespace }}'
+  labels:
+    app.kubernetes.io/component: o11y
+    app.kubernetes.io/name: vault-auth
+spec:
+  vaultConnectionRef: default
+  method: kubernetes
+  mount: '{{ .Values.vault.integration.auth.mount }}'
+{{- with .Values.vault.integration.auth.namespace }}
+  namespace: {{ . | quote }}
+{{- end }}
+{{- with .Values.vault.integration.auth.allowedNamespaces }}
+  allowedNamespaces:
+{{ toYaml . | indent 4 }}
+{{- end }}
+  kubernetes:
+    role: '{{ .Values.vault.integration.auth.role }}'
+    serviceAccount: '{{ .Values.vault.integration.auth.serviceAccount.name }}'
+{{- with .Values.vault.integration.auth.audiences }}
+    audiences:
+{{ toYaml . | indent 6 }}
+{{- end }}
+    tokenExpirationSeconds: {{ .Values.vault.integration.auth.tokenExpirationSeconds }}
+{{- end }}
