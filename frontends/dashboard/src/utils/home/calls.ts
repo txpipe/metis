@@ -4,9 +4,9 @@ import { setResponseStatus } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
 // Utils
-import { getClients } from '~/utils/k8s';
-import { getHelmReleases, getNetworkFromHelmRelease, getNodeRoleFromHelmRelease } from '~/utils/helm';
-import { getCardanoNodeMetrics, getStatefulSetUptime, emptyUptimeResult } from '~/utils/metrics';
+import { execPodCommand, getClients } from '~/utils/k8s';
+import { getHelmReleases, getMergedHelmValues, getNetworkFromHelmRelease, getNodeRoleFromHelmRelease } from '~/utils/helm';
+import { parseCardanoNodeMetrics, getStatefulSetUptime, emptyUptimeResult } from '~/utils/metrics';
 import { getBlobDetails, searchWorkloads } from '~/utils/registry';
 import { runCommand } from '~/utils/process';
 import { nanoid } from '~/utils/generic';
@@ -29,6 +29,36 @@ function getAnnotationsFromRelease(release: DecodedHelmRelease): SupernodeAnnota
 
 function supportsCardanoNodeMetrics(chartName?: string) {
   return chartName === 'cardano-node' || chartName === 'apex-fusion';
+}
+
+async function getCardanoNodeMetricsForPod(
+  pod: SimplifiedPod,
+  role: NodeRole,
+  metricsPort: number,
+): Promise<CardanoNodeMetrics | undefined> {
+  if (!pod.name || !pod.namespace || !pod.containerName) {
+    return undefined;
+  }
+
+  const { stdout, stderr } = await execPodCommand(
+    pod.namespace,
+    pod.name,
+    pod.containerName,
+    ['sh', '-lc', `curl -s --fail http://127.0.0.1:${metricsPort}/metrics || wget -qO- http://127.0.0.1:${metricsPort}/metrics`],
+  );
+
+  if (stderr.trim()) {
+    // eslint-disable-next-line no-console
+    console.warn(`[metrics] stderr from ${pod.namespace}/${pod.name}: ${stderr.trim()}`);
+  }
+
+  if (!stdout.trim()) {
+    // eslint-disable-next-line no-console
+    console.warn(`[metrics] empty stdout from ${pod.namespace}/${pod.name} on port ${metricsPort}`);
+    return undefined;
+  }
+
+  return parseCardanoNodeMetrics(stdout, role);
 }
 
 export const getServerWorkloads = createServerFn({
@@ -127,12 +157,14 @@ export const getServerWorkloadPods = createServerFn({
 
   const uptime = await getStatefulSetUptime(namespace, name);
   const chartName = helmRelease?.chart.metadata.name;
-  const metrics = helmRelease && supportsCardanoNodeMetrics(chartName)
-    ? await getCardanoNodeMetrics(namespace, name, getNodeRoleFromHelmRelease(helmRelease))
-    : undefined;
+  const mergedValues = helmRelease ? getMergedHelmValues(helmRelease) : undefined;
+  const role = helmRelease ? getNodeRoleFromHelmRelease(helmRelease) : undefined;
+  const metricsPort = typeof mergedValues?.service?.metricsPort === 'number'
+    ? mergedValues.service.metricsPort
+    : Number(mergedValues?.service?.metricsPort || 0);
 
-  return {
-    items: podsList.items.filter(p => !!p.metadata).map(pod => ({
+  const items = await Promise.all(podsList.items.filter(p => !!p.metadata).map(async pod => {
+    const simplifiedPod = {
       name: pod.metadata?.name,
       generateName: pod.metadata?.generateName,
       namespace: pod.metadata?.namespace,
@@ -141,9 +173,25 @@ export const getServerWorkloadPods = createServerFn({
       statusPhase: pod.status?.phase,
       hostname: pod.spec?.hostname,
       uptime,
-      metrics,
       annotations: helmRelease ? getAnnotationsFromRelease(helmRelease) : undefined,
-    } satisfies SimplifiedPod)),
+    } satisfies SimplifiedPod;
+
+    const metrics = helmRelease && role && supportsCardanoNodeMetrics(chartName) && metricsPort > 0
+      ? await getCardanoNodeMetricsForPod(simplifiedPod, role, metricsPort).catch(err => {
+        // eslint-disable-next-line no-console
+        console.error(`[metrics] failed collecting metrics for ${simplifiedPod.namespace}/${simplifiedPod.name}`, err);
+        return undefined;
+      })
+      : undefined;
+
+    return {
+      ...simplifiedPod,
+      metrics,
+    } satisfies SimplifiedPod;
+  }));
+
+  return {
+    items,
   };
 });
 

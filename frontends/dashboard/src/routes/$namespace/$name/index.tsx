@@ -19,14 +19,19 @@ import { Toast } from '~/components/ui/Toast';
 import { deleteWorkload, getServerWorkloadPods, streamWorkloadPodLogs } from '~/utils/home/calls';
 import { getGrafanaDashboardUrl } from '~/utils/details/calls';
 import {
+  formatBooleanMetric,
+  formatBytesToGiB,
   formatCountPair,
+  formatCountTriplet,
   formatDelaySeconds,
-  formatEpochSlot,
   formatKesSummary,
   formatMetricValue,
   formatPeerCounts,
   formatPendingTx,
+  formatPercent,
+  formatPercentTriplet,
   formatRoleLabel,
+  formatVersionRevision,
 } from '~/utils/metricsFormat';
 import { calculateUptimePercentage } from '~/utils/metrics';
 import { getStatusFromK8sStatus } from '~/utils/generic';
@@ -37,15 +42,31 @@ const metricDescriptions = {
   status: 'Current workload state reported by Kubernetes.',
   health: 'Percentage of the last 30 days this workload was healthy.',
   blockHeight: 'Latest block number observed by the node.',
-  epochSlot: 'Current epoch and the slot within that epoch.',
+  epoch: 'Current epoch observed by the node.',
+  slotInEpoch: 'Current slot within the active epoch observed by the node.',
+  absoluteSlot: 'Absolute slot number observed by the node across the chain timeline.',
   density: 'Recent chain density reported by the node, expressed as a percentage.',
+  forks: 'Number of chain forks the node has observed since startup.',
+  nodeVersion: 'Cardano node build version and revision reported by the metrics endpoint.',
+  forgingEnabled: 'Whether this node currently has forging enabled.',
   pendingTx: 'Transactions currently in the mempool, plus buffered size when available.',
   txProcessed: 'Total transactions processed by the node since startup.',
   peersInOut: 'Active inbound and outbound node connections.',
+  connectionDirections: 'Current connection counts split by unidirectional, bidirectional, and full duplex.',
+  inboundStates: 'Inbound governor connection states reported by the node.',
+  outboundStates: 'Peer selection states for outbound connections.',
   lastBlockDelay: 'Latest observed block propagation delay.',
+  blocksServed: 'Blocks served to peers by this node since startup.',
+  blocksLate: 'Blocks observed later than five seconds by the block fetch client.',
+  propagationCdf: 'Percentage of observed blocks arriving within 1, 3, and 5 seconds.',
+  memLive: 'Live RTS memory currently retained by the node process.',
+  memHeap: 'Heap memory currently reserved by the node RTS.',
+  gcMinor: 'Number of minor garbage collections since startup.',
+  gcMajor: 'Number of major garbage collections since startup.',
   blocksAdopted: 'Blocks successfully adopted by this producer since startup.',
   kesSummary: 'Current KES period and how many periods remain before rotation is required.',
   leaderAdopted: 'Leadership slots assigned to this producer versus blocks adopted.',
+  forgedAboutToLead: 'Forged blocks versus slots the node reports as about to lead.',
   invalidMissed: 'Forged but not adopted blocks, and scheduled slots the node missed.',
 } as const;
 
@@ -336,16 +357,46 @@ function WorkloadIdInfo() {
                   description={metricDescriptions.blockHeight}
                 />
                 <InfoCard
-                  label="Epoch / slot"
-                  value={formatEpochSlot(cardanoNodeMetrics.epoch, cardanoNodeMetrics.slotInEpoch)}
-                  description={metricDescriptions.epochSlot}
+                  label="Epoch"
+                  value={formatMetricValue(cardanoNodeMetrics.epoch)}
+                  description={metricDescriptions.epoch}
+                />
+                <InfoCard
+                  label="Slot in epoch"
+                  value={formatMetricValue(cardanoNodeMetrics.slotInEpoch)}
+                  description={metricDescriptions.slotInEpoch}
+                />
+                <InfoCard
+                  label="Absolute slot"
+                  value={formatMetricValue(cardanoNodeMetrics.slotNum)}
+                  description={metricDescriptions.absoluteSlot}
                 />
                 <InfoCard
                   label="Density"
-                  value={cardanoNodeMetrics.density === null || cardanoNodeMetrics.density === undefined
-                    ? '-'
-                    : `${formatMetricValue(cardanoNodeMetrics.density, { maximumFractionDigits: 2 })}%`}
+                  value={formatPercent(cardanoNodeMetrics.density)}
                   description={metricDescriptions.density}
+                />
+                <InfoCard
+                  label="Forks"
+                  value={formatMetricValue(cardanoNodeMetrics.forks)}
+                  description={metricDescriptions.forks}
+                />
+                <InfoCard
+                  label="Node version"
+                  value={formatVersionRevision(
+                    cardanoNodeMetrics.nodeVersion,
+                    cardanoNodeMetrics.nodeRevision,
+                  )}
+                  description={metricDescriptions.nodeVersion}
+                />
+                <InfoCard
+                  label="Forging enabled"
+                  value={formatBooleanMetric(cardanoNodeMetrics.forgingEnabled)}
+                  description={metricDescriptions.forgingEnabled}
+                  valueClassName={clsx({
+                    'text-[#69C876]': cardanoNodeMetrics.forgingEnabled === true,
+                    'text-[#FF7474]': cardanoNodeMetrics.forgingEnabled === false,
+                  })}
                 />
               </>
             )}
@@ -366,16 +417,84 @@ function WorkloadIdInfo() {
                 />
               </MetricsSection>
 
-              <MetricsSection title="Network" withDivider>
+              <MetricsSection title="Connections" withDivider>
                 <InfoCard
                   label="Peers in / out"
                   value={formatPeerCounts(cardanoNodeMetrics.peersIncoming, cardanoNodeMetrics.peersOutgoing)}
                   description={metricDescriptions.peersInOut}
                 />
                 <InfoCard
+                  label="Uni / bi / duplex"
+                  value={formatCountTriplet(
+                    cardanoNodeMetrics.connectionUniDir,
+                    cardanoNodeMetrics.connectionBiDir,
+                    cardanoNodeMetrics.connectionDuplex,
+                  )}
+                  description={metricDescriptions.connectionDirections}
+                />
+                <InfoCard
+                  label="Inbound warm / hot"
+                  value={formatCountPair(cardanoNodeMetrics.inboundGovernorWarm, cardanoNodeMetrics.inboundGovernorHot)}
+                  description={metricDescriptions.inboundStates}
+                />
+                <InfoCard
+                  label="Outbound cold / warm / hot"
+                  value={formatCountTriplet(
+                    cardanoNodeMetrics.peerSelectionCold,
+                    cardanoNodeMetrics.peerSelectionWarm,
+                    cardanoNodeMetrics.peerSelectionHot,
+                  )}
+                  description={metricDescriptions.outboundStates}
+                />
+              </MetricsSection>
+
+              <MetricsSection title="Block propagation" withDivider>
+                <InfoCard
                   label="Last block delay"
                   value={formatDelaySeconds(cardanoNodeMetrics.lastBlockDelaySeconds)}
                   description={metricDescriptions.lastBlockDelay}
+                />
+                <InfoCard
+                  label="Served"
+                  value={formatMetricValue(cardanoNodeMetrics.blocksServed)}
+                  description={metricDescriptions.blocksServed}
+                />
+                <InfoCard
+                  label="Late (>5s)"
+                  value={formatMetricValue(cardanoNodeMetrics.blocksLate)}
+                  description={metricDescriptions.blocksLate}
+                />
+                <InfoCard
+                  label="Within 1 / 3 / 5s"
+                  value={formatPercentTriplet(
+                    cardanoNodeMetrics.blocksWithin1s,
+                    cardanoNodeMetrics.blocksWithin3s,
+                    cardanoNodeMetrics.blocksWithin5s,
+                  )}
+                  description={metricDescriptions.propagationCdf}
+                />
+              </MetricsSection>
+
+              <MetricsSection title="Resources" withDivider>
+                <InfoCard
+                  label="Mem live"
+                  value={formatBytesToGiB(cardanoNodeMetrics.memLiveBytes)}
+                  description={metricDescriptions.memLive}
+                />
+                <InfoCard
+                  label="Mem heap"
+                  value={formatBytesToGiB(cardanoNodeMetrics.memHeapBytes)}
+                  description={metricDescriptions.memHeap}
+                />
+                <InfoCard
+                  label="GC minor"
+                  value={formatMetricValue(cardanoNodeMetrics.gcMinorCount)}
+                  description={metricDescriptions.gcMinor}
+                />
+                <InfoCard
+                  label="GC major"
+                  value={formatMetricValue(cardanoNodeMetrics.gcMajorCount)}
+                  description={metricDescriptions.gcMajor}
                 />
               </MetricsSection>
 
@@ -395,6 +514,11 @@ function WorkloadIdInfo() {
                     label="Leader / adopted"
                     value={formatCountPair(cardanoNodeMetrics.leaderCount, cardanoNodeMetrics.adoptedCount)}
                     description={metricDescriptions.leaderAdopted}
+                  />
+                  <InfoCard
+                    label="Forged / about to lead"
+                    value={formatCountPair(cardanoNodeMetrics.forgedCount, cardanoNodeMetrics.aboutToLeadCount)}
+                    description={metricDescriptions.forgedAboutToLead}
                   />
                   <InfoCard
                     label="Invalid / missed"

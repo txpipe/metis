@@ -117,29 +117,24 @@ export function calculateUptimePercentage(uptimeData?: UptimeEntry[]): number {
   return Math.round(percentage * 100) / 100; // Redondear a 2 decimales
 }
 
-function getPodSelector(namespace: string, name: string) {
-  return `namespace="${namespace}", pod=~"${name}-[0-9]+"`;
-}
-
-async function getInstantMetricValue(query: string): Promise<number | null> {
-  try {
-    const res = await driver.instantQuery(query);
-    const value = res.result?.[0]?.value?.value;
-
-    if (value === undefined || value === null) {
-      return null;
-    }
-
-    const parsedValue = Number(value);
-    return Number.isFinite(parsedValue) ? parsedValue : null;
-  } catch (_) {
+function readMetricValue(metricsText: string, regex: RegExp): number | null {
+  const match = metricsText.match(regex);
+  if (!match) {
     return null;
   }
+
+  const rawValue = match[match.length - 1];
+  if (!rawValue) {
+    return null;
+  }
+
+  const parsedValue = Number(rawValue);
+  return Number.isFinite(parsedValue) ? parsedValue : null;
 }
 
-async function getFirstMatchingMetricValue(queries: string[]): Promise<number | null> {
-  for (const query of queries) {
-    const value = await getInstantMetricValue(query);
+function readFirstMatchingMetricValue(metricsText: string, regexes: RegExp[]): number | null {
+  for (const regex of regexes) {
+    const value = readMetricValue(metricsText, regex);
     if (value !== null) {
       return value;
     }
@@ -148,96 +143,145 @@ async function getFirstMatchingMetricValue(queries: string[]): Promise<number | 
   return null;
 }
 
-function wrapMetricQuery(metricName: string, selector: string) {
-  return `max(${metricName}{${selector}})`;
+function readBuildInfo(metricsText: string) {
+  const versionMatch = metricsText.match(/cardano_node_metrics_cardano_build_info[^\n]*version="([^"]+)"/);
+  const revisionMatch = metricsText.match(/cardano_node_metrics_cardano_build_info[^\n]*revision="([^"]+)"/);
+
+  return {
+    version: versionMatch?.[1] ?? null,
+    revision: revisionMatch?.[1] ? revisionMatch[1].slice(0, 8) : null,
+  };
 }
 
-export async function getCardanoNodeMetrics(
-  namespace: string,
-  name: string,
-  role: NodeRole,
-): Promise<CardanoNodeMetrics> {
-  const selector = getPodSelector(namespace, name);
-
-  const [
-    blockHeight,
-    epoch,
-    slotInEpoch,
-    density,
-    txProcessed,
-    pendingTx,
-    pendingTxBytes,
-    peersIncoming,
-    peersOutgoing,
-    lastBlockDelaySeconds,
-    kesPeriod,
-    kesRemaining,
-    leaderCount,
-    adoptedCount,
-    forgedCount,
-    missedSlots,
-  ] = await Promise.all([
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_blockNum_int', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_epoch_int', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_slotInEpoch_int', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_density_real', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_txsProcessedNum_int', selector),
-      wrapMetricQuery('cardano_node_metrics_txsProcessedNum_counter', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_txsInMempool_int', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_mempoolBytes_int', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_connectionManager_incomingConns_int', selector),
-      wrapMetricQuery('cardano_node_metrics_connectionManager_inboundConns_int', selector),
-      wrapMetricQuery('cardano_node_metrics_connectionManager_incomingConns', selector),
-      wrapMetricQuery('cardano_node_metrics_connectionManager_inboundConns', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_connectionManager_outgoingConns_int', selector),
-      wrapMetricQuery('cardano_node_metrics_connectionManager_outboundConns_int', selector),
-      wrapMetricQuery('cardano_node_metrics_connectionManager_outgoingConns', selector),
-      wrapMetricQuery('cardano_node_metrics_connectionManager_outboundConns', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_blockfetchclient_blockdelay_s', selector),
-      wrapMetricQuery('cardano_node_metrics_blockfetchclient_blockdelay_real', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_currentKESPeriod_int', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_remainingKESPeriods_int', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_Forge_node_is_leader_int', selector),
-      wrapMetricQuery('cardano_node_metrics_Forge_node_is_leader_counter', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_Forge_adopted_int', selector),
-      wrapMetricQuery('cardano_node_metrics_Forge_adopted_counter', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_Forge_forged_int', selector),
-      wrapMetricQuery('cardano_node_metrics_Forge_forged_counter', selector),
-    ]),
-    getFirstMatchingMetricValue([
-      wrapMetricQuery('cardano_node_metrics_slotsMissedNum_int', selector),
-      wrapMetricQuery('cardano_node_metrics_slotsMissed_int', selector),
-    ]),
+export function parseCardanoNodeMetrics(metricsText: string, role: NodeRole): CardanoNodeMetrics {
+  const blockHeight = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_blockNum_int[\s]+([^\s]+)/,
   ]);
+  const epoch = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_epoch_int[\s]+([^\s]+)/,
+  ]);
+  const slotNum = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_slotNum_int[\s]+([^\s]+)/,
+  ]);
+  const slotInEpoch = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_slotInEpoch_int[\s]+([^\s]+)/,
+  ]);
+  const density = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_density_real[\s]+([^\s]+)/,
+  ]);
+  const forks = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_forks_(?:int|counter)[\s]+([^\s]+)/,
+  ]);
+  const txProcessed = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_txsProcessedNum_int[\s]+([^\s]+)/,
+    /cardano_node_metrics_txsProcessedNum_counter[\s]+([^\s]+)/,
+  ]);
+  const pendingTx = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_txsInMempool_int[\s]+([^\s]+)/,
+  ]);
+  const pendingTxBytes = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_mempoolBytes_int[\s]+([^\s]+)/,
+  ]);
+  const peersIncoming = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_connectionManager_incomingConns_int[\s]+([^\s]+)/,
+    /cardano_node_metrics_connectionManager_inboundConns_int[\s]+([^\s]+)/,
+    /cardano_node_metrics_connectionManager_incomingConns[\s]+([^\s]+)/,
+    /cardano_node_metrics_connectionManager_inboundConns[\s]+([^\s]+)/,
+  ]);
+  const peersOutgoing = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_connectionManager_outgoingConns_int[\s]+([^\s]+)/,
+    /cardano_node_metrics_connectionManager_outboundConns_int[\s]+([^\s]+)/,
+    /cardano_node_metrics_connectionManager_outgoingConns[\s]+([^\s]+)/,
+    /cardano_node_metrics_connectionManager_outboundConns[\s]+([^\s]+)/,
+  ]);
+  const connectionUniDir = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_connectionManager_unidirectionalConns(?:_int|)[\s]+([^\s]+)/,
+  ]);
+  const connectionBiDir = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_connectionManager_duplexConns(?:_int|)[\s]+([^\s]+)/,
+  ]);
+  const connectionDuplex = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_connectionManager_fullDuplexConns(?:_int|)[\s]+([^\s]+)/,
+  ]);
+  const inboundGovernorWarm = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_inboundGovernor_warm(?:_int|)[\s]+([^\s]+)/,
+  ]);
+  const inboundGovernorHot = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_inboundGovernor_hot(?:_int|)[\s]+([^\s]+)/,
+  ]);
+  const peerSelectionCold = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_peerSelection_[cC]old(?:_int|)[\s]+([^\s]+)/,
+  ]);
+  const peerSelectionWarm = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_peerSelection_[wW]arm(?:_int|)[\s]+([^\s]+)/,
+  ]);
+  const peerSelectionHot = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_peerSelection_[hH]ot(?:_int|)[\s]+([^\s]+)/,
+  ]);
+  const lastBlockDelaySeconds = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_blockfetchclient_blockdelay_s[\s]+([^\s]+)/,
+    /cardano_node_metrics_blockfetchclient_blockdelay_real[\s]+([^\s]+)/,
+  ]);
+  const blocksServed = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_served_block_count(?:er|_int)[\s]+([^\s]+)/,
+  ]);
+  const blocksLate = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_blockfetchclient_lateblocks(?:_counter|)[\s]+([^\s]+)/,
+  ]);
+  const blocksWithin1s = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_blockfetchclient_blockdelay_cdfOne(?:_real|)[\s]+([^\s]+)/,
+  ]);
+  const blocksWithin3s = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_blockfetchclient_blockdelay_cdfThree(?:_real|)[\s]+([^\s]+)/,
+  ]);
+  const blocksWithin5s = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_blockfetchclient_blockdelay_cdfFive(?:_real|)[\s]+([^\s]+)/,
+  ]);
+  const memLiveBytes = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_RTS_gcLiveBytes_int[\s]+([^\s]+)/,
+  ]);
+  const memHeapBytes = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_RTS_gcHeapBytes_int[\s]+([^\s]+)/,
+  ]);
+  const gcMinorCount = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_RTS_gcMinorNum_int[\s]+([^\s]+)/,
+  ]);
+  const gcMajorCount = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_RTS_gcMajorNum_int[\s]+([^\s]+)/,
+  ]);
+  const kesPeriod = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_currentKESPeriod_int[\s]+([^\s]+)/,
+  ]);
+  const kesRemaining = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_remainingKESPeriods_int[\s]+([^\s]+)/,
+  ]);
+  const leaderCount = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_Forge_node_is_leader_int[\s]+([^\s]+)/,
+    /cardano_node_metrics_Forge_node_is_leader_counter[\s]+([^\s]+)/,
+  ]);
+  const adoptedCount = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_Forge_adopted_int[\s]+([^\s]+)/,
+    /cardano_node_metrics_Forge_adopted_counter[\s]+([^\s]+)/,
+  ]);
+  const forgedCount = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_Forge_forged_int[\s]+([^\s]+)/,
+    /cardano_node_metrics_Forge_forged_counter[\s]+([^\s]+)/,
+  ]);
+  const aboutToLeadCount = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_Forge_forge_about_to_lead_int[\s]+([^\s]+)/,
+    /cardano_node_metrics_Forge_forge_about_to_lead_counter[\s]+([^\s]+)/,
+    /cardano_node_metrics_Forge_about_to_lead_int[\s]+([^\s]+)/,
+    /cardano_node_metrics_Forge_about_to_lead_counter[\s]+([^\s]+)/,
+  ]);
+  const missedSlots = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_slotsMissedNum_int[\s]+([^\s]+)/,
+    /cardano_node_metrics_slotsMissed_int[\s]+([^\s]+)/,
+  ]);
+  const forgingEnabledMetric = readFirstMatchingMetricValue(metricsText, [
+    /cardano_node_metrics_forging_enabled_int[\s]+([^\s]+)/,
+    /cardano_node_metrics_forging_enabled[\s]+([^\s]+)/,
+  ]);
+  const { version: nodeVersion, revision: nodeRevision } = readBuildInfo(metricsText);
 
   const invalidCount = (forgedCount !== null && adoptedCount !== null)
     ? Math.max(forgedCount - adoptedCount, 0)
@@ -248,18 +292,42 @@ export async function getCardanoNodeMetrics(
     role,
     blockHeight,
     epoch,
+    slotNum,
     slotInEpoch,
     density: density !== null ? density * 100 : null,
+    forks,
     txProcessed,
     pendingTx,
     pendingTxBytes,
+    nodeVersion,
+    nodeRevision,
+    forgingEnabled: forgingEnabledMetric !== null ? forgingEnabledMetric === 1 : null,
     peersIncoming,
     peersOutgoing,
+    connectionUniDir,
+    connectionBiDir,
+    connectionDuplex,
+    inboundGovernorWarm,
+    inboundGovernorHot,
+    peerSelectionCold,
+    peerSelectionWarm,
+    peerSelectionHot,
     lastBlockDelaySeconds,
+    blocksServed,
+    blocksLate,
+    blocksWithin1s: blocksWithin1s !== null ? blocksWithin1s * 100 : null,
+    blocksWithin3s: blocksWithin3s !== null ? blocksWithin3s * 100 : null,
+    blocksWithin5s: blocksWithin5s !== null ? blocksWithin5s * 100 : null,
+    memLiveBytes,
+    memHeapBytes,
+    gcMinorCount,
+    gcMajorCount,
     kesPeriod,
     kesRemaining,
     leaderCount,
     adoptedCount,
+    forgedCount,
+    aboutToLeadCount,
     invalidCount,
     missedSlots,
   };

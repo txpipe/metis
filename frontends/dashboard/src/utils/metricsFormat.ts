@@ -27,6 +27,14 @@ export function formatBytes(value: number | null | undefined) {
   return `${formatMetricValue(kibibytes, { maximumFractionDigits: 1 })} KiB`;
 }
 
+export function formatBytesToGiB(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return '-';
+  }
+
+  return `${formatMetricValue(value / (1024 ** 3), { maximumFractionDigits: 1 })} GiB`;
+}
+
 export function formatPendingTx(count: number | null | undefined, bytes: number | null | undefined) {
   if (count === null || count === undefined) {
     return '-';
@@ -69,6 +77,70 @@ export function formatCountPair(primary: number | null | undefined, secondary: n
   }
 
   return `${formatMetricValue(primary)} / ${formatMetricValue(secondary)}`;
+}
+
+export function formatCountTriplet(
+  first: number | null | undefined,
+  second: number | null | undefined,
+  third: number | null | undefined,
+) {
+  if (
+    (first === null || first === undefined)
+    && (second === null || second === undefined)
+    && (third === null || third === undefined)
+  ) {
+    return '-';
+  }
+
+  return `${formatMetricValue(first)} / ${formatMetricValue(second)} / ${formatMetricValue(third)}`;
+}
+
+export function formatPercent(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return '-';
+  }
+
+  return `${formatMetricValue(value, { maximumFractionDigits: 2 })}%`;
+}
+
+export function formatPercentTriplet(
+  first: number | null | undefined,
+  second: number | null | undefined,
+  third: number | null | undefined,
+) {
+  if (
+    (first === null || first === undefined)
+    && (second === null || second === undefined)
+    && (third === null || third === undefined)
+  ) {
+    return '-';
+  }
+
+  return `${formatPercent(first)} / ${formatPercent(second)} / ${formatPercent(third)}`;
+}
+
+export function formatBooleanMetric(value: boolean | null | undefined) {
+  if (value === null || value === undefined) {
+    return '-';
+  }
+
+  return value ? 'Enabled' : 'Disabled';
+}
+
+export function formatVersionRevision(version: string | null | undefined, revision: string | null | undefined) {
+  if (!version && !revision) {
+    return '-';
+  }
+
+  if (!revision) {
+    return version ?? '-';
+  }
+
+  if (!version) {
+    return revision;
+  }
+
+  return `${version} [${revision}]`;
 }
 
 export function formatRoleLabel(role: NodeRole) {
