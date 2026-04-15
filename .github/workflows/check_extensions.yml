@@ -70,6 +70,10 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@v4.3.0
 
+      - name: Add Helm repositories
+        run: |
+          helm repo add hashicorp https://helm.releases.hashicorp.com
+
       - name: Install kubeconform
         run: |
           curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.4/kubeconform-linux-amd64.tar.gz -o kubeconform.tar.gz
