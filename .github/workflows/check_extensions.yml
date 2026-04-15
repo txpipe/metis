@@ -52,7 +52,7 @@ jobs:
             valuesArgs: "-f apex-fusion/ci/values-block-producer.yaml"
             dir: apex-fusion
           - name: default
-            valuesArgs: ""
+            valuesArgs: "-f dolos/ci/values-default.yaml"
             dir: dolos
           - name: offline-inline
             valuesArgs: "-f hydra-node/ci/values-offline-inline.yaml"
@@ -87,4 +87,4 @@ jobs:
 
       - name: Template manifests and validate schema (${{ matrix.name }} - ${{ matrix.dir }})
         run: |
-          helm template ${{ matrix.dir }} ./${{ matrix.dir }} ${{ matrix.valuesArgs }} | kubeconform -strict -skip PodMonitor,ServiceMonitor,Prometheus,VaultConnection,VaultAuth -summary -
+          helm template ${{ matrix.dir }} ./${{ matrix.dir }} ${{ matrix.valuesArgs }} | kubeconform -strict -skip PodMonitor,ServiceMonitor,Prometheus,VaultConnection,VaultAuth,VaultStaticSecret -summary -

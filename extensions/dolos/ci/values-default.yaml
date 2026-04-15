@@ -1,0 +1,2 @@
+config:
+  upstreamAddress: trusted-relay.example.org:3000

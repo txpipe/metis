@@ -272,7 +272,11 @@ function WorkloadIdInfo() {
   }, [logs]);
 
   useEffect(() => {
-    if (!activePod?.name || !activePodNamespace || !activePodContainerName) {
+    const podName = activePod?.name;
+    const podNamespace = activePodNamespace;
+    const containerName = activePodContainerName;
+
+    if (!podName || !podNamespace || !containerName) {
       return;
     }
 
@@ -281,9 +285,9 @@ function WorkloadIdInfo() {
     const streamLogs = async () => {
       const response = await streamWorkloadPodLogs({
         data: {
-          podName: activePod.name,
-          namespace: activePodNamespace,
-          containerName: activePodContainerName,
+          podName,
+          namespace: podNamespace,
+          containerName,
         },
       });
 
