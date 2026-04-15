@@ -116,3 +116,151 @@ export function calculateUptimePercentage(uptimeData?: UptimeEntry[]): number {
   const percentage = (healthyDays / validDays.length) * 100;
   return Math.round(percentage * 100) / 100; // Redondear a 2 decimales
 }
+
+function getPodSelector(namespace: string, name: string) {
+  return `namespace="${namespace}", pod=~"${name}-[0-9]+"`;
+}
+
+async function getInstantMetricValue(query: string): Promise<number | null> {
+  try {
+    const res = await driver.instantQuery(query);
+    const value = res.result?.[0]?.value?.value;
+
+    if (value === undefined || value === null) {
+      return null;
+    }
+
+    const parsedValue = Number(value);
+    return Number.isFinite(parsedValue) ? parsedValue : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function getFirstMatchingMetricValue(queries: string[]): Promise<number | null> {
+  for (const query of queries) {
+    const value = await getInstantMetricValue(query);
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function wrapMetricQuery(metricName: string, selector: string) {
+  return `max(${metricName}{${selector}})`;
+}
+
+export async function getCardanoNodeMetrics(
+  namespace: string,
+  name: string,
+  role: NodeRole,
+): Promise<CardanoNodeMetrics> {
+  const selector = getPodSelector(namespace, name);
+
+  const [
+    blockHeight,
+    epoch,
+    slotInEpoch,
+    density,
+    txProcessed,
+    pendingTx,
+    pendingTxBytes,
+    peersIncoming,
+    peersOutgoing,
+    lastBlockDelaySeconds,
+    kesPeriod,
+    kesRemaining,
+    leaderCount,
+    adoptedCount,
+    forgedCount,
+    missedSlots,
+  ] = await Promise.all([
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_blockNum_int', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_epoch_int', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_slotInEpoch_int', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_density_real', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_txsProcessedNum_int', selector),
+      wrapMetricQuery('cardano_node_metrics_txsProcessedNum_counter', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_txsInMempool_int', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_mempoolBytes_int', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_connectionManager_incomingConns_int', selector),
+      wrapMetricQuery('cardano_node_metrics_connectionManager_inboundConns_int', selector),
+      wrapMetricQuery('cardano_node_metrics_connectionManager_incomingConns', selector),
+      wrapMetricQuery('cardano_node_metrics_connectionManager_inboundConns', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_connectionManager_outgoingConns_int', selector),
+      wrapMetricQuery('cardano_node_metrics_connectionManager_outboundConns_int', selector),
+      wrapMetricQuery('cardano_node_metrics_connectionManager_outgoingConns', selector),
+      wrapMetricQuery('cardano_node_metrics_connectionManager_outboundConns', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_blockfetchclient_blockdelay_s', selector),
+      wrapMetricQuery('cardano_node_metrics_blockfetchclient_blockdelay_real', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_currentKESPeriod_int', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_remainingKESPeriods_int', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_Forge_node_is_leader_int', selector),
+      wrapMetricQuery('cardano_node_metrics_Forge_node_is_leader_counter', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_Forge_adopted_int', selector),
+      wrapMetricQuery('cardano_node_metrics_Forge_adopted_counter', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_Forge_forged_int', selector),
+      wrapMetricQuery('cardano_node_metrics_Forge_forged_counter', selector),
+    ]),
+    getFirstMatchingMetricValue([
+      wrapMetricQuery('cardano_node_metrics_slotsMissedNum_int', selector),
+      wrapMetricQuery('cardano_node_metrics_slotsMissed_int', selector),
+    ]),
+  ]);
+
+  const invalidCount = (forgedCount !== null && adoptedCount !== null)
+    ? Math.max(forgedCount - adoptedCount, 0)
+    : null;
+
+  return {
+    type: 'cardano-node',
+    role,
+    blockHeight,
+    epoch,
+    slotInEpoch,
+    density: density !== null ? density * 100 : null,
+    txProcessed,
+    pendingTx,
+    pendingTxBytes,
+    peersIncoming,
+    peersOutgoing,
+    lastBlockDelaySeconds,
+    kesPeriod,
+    kesRemaining,
+    leaderCount,
+    adoptedCount,
+    invalidCount,
+    missedSlots,
+  };
+}

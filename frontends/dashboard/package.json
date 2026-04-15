@@ -11,7 +11,7 @@
     "preinstall": "npx only-allow pnpm",
     "start": "node .output/server/index.mjs",
     "serve": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

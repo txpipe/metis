@@ -5,8 +5,8 @@ import { z } from 'zod';
 
 // Utils
 import { getClients } from '~/utils/k8s';
-import { getHelmReleases, getNetworkFromHelmRelease } from '~/utils/helm';
-import { getStatefulSetUptime, emptyUptimeResult } from '~/utils/metrics';
+import { getHelmReleases, getNetworkFromHelmRelease, getNodeRoleFromHelmRelease } from '~/utils/helm';
+import { getCardanoNodeMetrics, getStatefulSetUptime, emptyUptimeResult } from '~/utils/metrics';
 import { getBlobDetails, searchWorkloads } from '~/utils/registry';
 import { runCommand } from '~/utils/process';
 import { nanoid } from '~/utils/generic';
@@ -25,6 +25,10 @@ function getAnnotationsFromRelease(release: DecodedHelmRelease): SupernodeAnnota
     category: release.chart.metadata.annotations['category'],
     network: getNetworkFromHelmRelease(release),
   };
+}
+
+function supportsCardanoNodeMetrics(chartName?: string) {
+  return chartName === 'cardano-node' || chartName === 'apex-fusion';
 }
 
 export const getServerWorkloads = createServerFn({
@@ -122,6 +126,10 @@ export const getServerWorkloadPods = createServerFn({
   });
 
   const uptime = await getStatefulSetUptime(namespace, name);
+  const chartName = helmRelease?.chart.metadata.name;
+  const metrics = helmRelease && supportsCardanoNodeMetrics(chartName)
+    ? await getCardanoNodeMetrics(namespace, name, getNodeRoleFromHelmRelease(helmRelease))
+    : undefined;
 
   return {
     items: podsList.items.filter(p => !!p.metadata).map(pod => ({
@@ -129,9 +137,11 @@ export const getServerWorkloadPods = createServerFn({
       generateName: pod.metadata?.generateName,
       namespace: pod.metadata?.namespace,
       containerName: pod.spec?.containers?.[0].name,
+      chartName,
       statusPhase: pod.status?.phase,
       hostname: pod.spec?.hostname,
       uptime,
+      metrics,
       annotations: helmRelease ? getAnnotationsFromRelease(helmRelease) : undefined,
     } satisfies SimplifiedPod)),
   };

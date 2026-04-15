@@ -80,17 +80,21 @@ export async function getHelmReleases(api: CoreV1Api, namespace = 'all') {
   return releases;
 }
 
+export function getMergedHelmValues(release: DecodedHelmRelease): Record<string, any> {
+  return merge(
+    release.chart.values || {},
+    release.config || {},
+    { arrayMerge: (_target, source) => source },
+  );
+}
+
 export function getNetworkFromHelmRelease(release: DecodedHelmRelease): string {
   const annotations = release.chart.metadata.annotations;
   if (!release.chart.values && !release.config) {
     return 'unknown';
   }
 
-  const values = merge(
-    release.chart.values || {},
-    release.config || {},
-    { arrayMerge: (_target, source) => source },
-  );
+  const values = getMergedHelmValues(release);
   if (annotations && annotations.networkPath) {
     const parts = annotations.networkPath.split('.');
     let current: any = values;
@@ -107,6 +111,11 @@ export function getNetworkFromHelmRelease(release: DecodedHelmRelease): string {
   }
 
   return 'unknown';
+}
+
+export function getNodeRoleFromHelmRelease(release: DecodedHelmRelease): NodeRole {
+  const values = getMergedHelmValues(release);
+  return values.node?.blockProducer?.enabled ? 'block-producer' : 'relay';
 }
 
 export async function upgradeToReady(namespace: string) {

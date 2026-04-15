@@ -1,5 +1,6 @@
 import AnsiToHtml from 'ansi-to-html';
-import { MouseEventHandler, useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, MouseEventHandler, useEffect, useRef, useState } from 'react';
+import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -7,10 +8,10 @@ import toast from 'react-hot-toast';
 
 // Components
 import { CaretRightIcon } from '~/components/icons/CaretRightIcon';
-import { InfoCircleIcon } from '~/components/icons/InfoCircleIcon';
 import { GraphIcon } from '~/components/icons/GraphIcon';
 import { Card, CardTitle } from '~/components/Card';
 import { Button } from '~/components/ui/Button';
+import { InfoTooltip } from '~/components/ui/InfoTooltip';
 import { TrashIcon } from '~/components/icons/TrashIcon';
 import { Toast } from '~/components/ui/Toast';
 
@@ -22,38 +23,174 @@ import { getStatusFromK8sStatus } from '~/utils/generic';
 
 const textDecoder = new TextDecoder();
 
-export const Route = createFileRoute('/$namespace/$name/')({
-  loader: async ({ params }) => {
-    const data = await getServerWorkloadPods({ data: params });
+function formatMetricValue(value: number | null | undefined, options?: Intl.NumberFormatOptions) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return '-';
+  }
 
-    if (data.error || !data.items?.length) {
-      throw redirect({
-        to: '/',
-      });
-    }
+  return new Intl.NumberFormat('en-US', options).format(value);
+}
 
-    const dashboardUrl = await getGrafanaDashboardUrl({ data: { namespace: params.namespace } }).catch(err => {
-      // eslint-disable-next-line no-console
-      console.log(err);
-      return null;
+function formatDelaySeconds(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return '-';
+  }
+
+  return `${formatMetricValue(value, { maximumFractionDigits: 2 })}s`;
+}
+
+function formatBytes(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return '-';
+  }
+
+  const kibibytes = value / 1024;
+  if (kibibytes >= 1024) {
+    return `${formatMetricValue(kibibytes / 1024, { maximumFractionDigits: 1 })} MiB`;
+  }
+
+  return `${formatMetricValue(kibibytes, { maximumFractionDigits: 1 })} KiB`;
+}
+
+function formatPendingTx(count: number | null | undefined, bytes: number | null | undefined) {
+  if (count === null || count === undefined) {
+    return '-';
+  }
+
+  if (bytes === null || bytes === undefined) {
+    return `${formatMetricValue(count)} tx`;
+  }
+
+  return `${formatMetricValue(count)} tx / ${formatBytes(bytes)}`;
+}
+
+function formatPeerCounts(incoming: number | null | undefined, outgoing: number | null | undefined) {
+  if ((incoming === null || incoming === undefined) && (outgoing === null || outgoing === undefined)) {
+    return '-';
+  }
+
+  return `${formatMetricValue(incoming)} / ${formatMetricValue(outgoing)}`;
+}
+
+function formatEpochSlot(epoch: number | null | undefined, slotInEpoch: number | null | undefined) {
+  if ((epoch === null || epoch === undefined) && (slotInEpoch === null || slotInEpoch === undefined)) {
+    return '-';
+  }
+
+  return `E${formatMetricValue(epoch)} / S${formatMetricValue(slotInEpoch)}`;
+}
+
+function formatKesSummary(kesPeriod: number | null | undefined, kesRemaining: number | null | undefined) {
+  if ((kesPeriod === null || kesPeriod === undefined) && (kesRemaining === null || kesRemaining === undefined)) {
+    return '-';
+  }
+
+  return `${formatMetricValue(kesPeriod)} / ${formatMetricValue(kesRemaining)} left`;
+}
+
+function formatCountPair(primary: number | null | undefined, secondary: number | null | undefined) {
+  if ((primary === null || primary === undefined) && (secondary === null || secondary === undefined)) {
+    return '-';
+  }
+
+  return `${formatMetricValue(primary)} / ${formatMetricValue(secondary)}`;
+}
+
+function formatRoleLabel(role: NodeRole) {
+  return role === 'block-producer' ? 'Block producer' : 'Relay';
+}
+
+const metricDescriptions = {
+  status: 'Current workload state reported by Kubernetes.',
+  health: 'Percentage of the last 30 days this workload was healthy.',
+  blockHeight: 'Latest block number observed by the node.',
+  epochSlot: 'Current epoch and the slot within that epoch.',
+  density: 'Recent chain density reported by the node, expressed as a percentage.',
+  pendingTx: 'Transactions currently in the mempool, plus buffered size when available.',
+  txProcessed: 'Total transactions processed by the node since startup.',
+  peersInOut: 'Active inbound and outbound node connections.',
+  lastBlockDelay: 'Latest observed block propagation delay.',
+  blocksAdopted: 'Blocks successfully adopted by this producer since startup.',
+  kesSummary: 'Current KES period and how many periods remain before rotation is required.',
+  leaderAdopted: 'Leadership slots assigned to this producer versus blocks adopted.',
+  invalidMissed: 'Forged but not adopted blocks, and scheduled slots the node missed.',
+} as const;
+
+async function getWorkloadDetails(namespace: string, name: string) {
+  const data = await getServerWorkloadPods({ data: { namespace, name } });
+
+  if (data.error || !data.items?.length) {
+    throw redirect({
+      to: '/',
     });
+  }
 
-    return {
-      items: data.items,
-      dashboardUrl,
-    };
+  const dashboardUrl = await getGrafanaDashboardUrl({ data: { namespace } }).catch(err => {
+    // eslint-disable-next-line no-console
+    console.log(err);
+    return null;
+  });
+
+  return {
+    items: data.items,
+    dashboardUrl,
+  };
+}
+
+const workloadDetailsQueryOptions = (namespace: string, name: string) => queryOptions({
+  queryKey: ['workloadDetails', namespace, name],
+  queryFn: () => getWorkloadDetails(namespace, name),
+  refetchInterval: 30000,
+  refetchIntervalInBackground: true,
+});
+
+export const Route = createFileRoute('/$namespace/$name/')({
+  loader: async ({ context, params }) => {
+    await context.queryClient.ensureQueryData(workloadDetailsQueryOptions(params.namespace, params.name));
   },
   component: WorkloadIdInfo,
 });
 
-function InfoCard({ label, value, valueClassName }: { label: string; value: string; valueClassName?: string; }) {
+function InfoCard({
+  label,
+  value,
+  valueClassName,
+  description,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+  description?: string;
+}) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-4.5 px-6.5 rounded-xl border border-zinc-200 bg-white">
       <div className="flex flex-row gap-1 items-center text-[#969FAB] text-sm font-medium">
         {label}
-        <InfoCircleIcon className="w-3 h-3" />
+        {description && <InfoTooltip content={description} />}
       </div>
       <div className={twMerge('text-sm text-[#2B2B2B]/80', valueClassName)}>{value}</div>
+    </div>
+  );
+}
+
+function MetricsSection({
+  title,
+  children,
+  withDivider = false,
+  aside,
+}: {
+  title: string;
+  children: ReactNode;
+  withDivider?: boolean;
+  aside?: ReactNode;
+}) {
+  return (
+    <div className={clsx(withDivider && 'border-t border-zinc-200 pt-6')}>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#64748B]">{title}</div>
+        {aside}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">{children}</div>
     </div>
   );
 }
@@ -113,42 +250,20 @@ function DeleteAction() {
 }
 
 function WorkloadIdInfo() {
-  const { items, dashboardUrl } = Route.useLoaderData();
+  const { namespace, name } = Route.useParams();
+  const workloadDetailsQuery = useSuspenseQuery(workloadDetailsQueryOptions(namespace, name));
+  const { items, dashboardUrl } = workloadDetailsQuery.data;
   const logsContainerRef = useRef<HTMLDivElement>(null);
   const readableStreamRef = useRef<ReadableStreamDefaultReader<any> | null>(null);
-  const [logs, setLogs] = useState('');
-  const [activePod, _setActivePod] = useState<SimplifiedPod>(items[0]);
-
-  const startStreamLogs = useCallback(async () => {
-    if (!activePod || (!activePod.name || !activePod.namespace || !activePod.containerName)) {
-      return;
-    }
-
-    const response = await streamWorkloadPodLogs({
-      data: {
-        podName: activePod.name || '',
-        namespace: activePod.namespace || '',
-        containerName: activePod.containerName || '',
-      },
-    });
-
-    if (!response) {
-      return;
-    }
-
-    readableStreamRef.current = response.getReader();
-    let done = false;
-    while (!done) {
-      const { value, done: doneReading } = await readableStreamRef.current.read();
-      done = doneReading;
-      if (value) {
-        const text = textDecoder.decode(value);
-        if (text) {
-          setLogs(prev => (prev + text).slice(-10000)); // Keep only last 10k characters
-        }
-      }
-    }
-  }, [activePod]);
+  const activePod = items[0];
+  const activePodNamespace = activePod?.namespace;
+  const activePodContainerName = activePod?.containerName;
+  const activePodKey = [activePod?.name, activePodNamespace, activePodContainerName].filter(Boolean).join('/');
+  const [logState, setLogState] = useState(() => ({
+    podKey: activePodKey,
+    value: '',
+  }));
+  const logs = logState.podKey === activePodKey ? logState.value : '';
 
   useEffect(() => {
     if (logsContainerRef.current) {
@@ -157,16 +272,73 @@ function WorkloadIdInfo() {
   }, [logs]);
 
   useEffect(() => {
-    startStreamLogs();
+    if (!activePod?.name || !activePodNamespace || !activePodContainerName) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const streamLogs = async () => {
+      const response = await streamWorkloadPodLogs({
+        data: {
+          podName: activePod.name,
+          namespace: activePodNamespace,
+          containerName: activePodContainerName,
+        },
+      });
+
+      if (!response || cancelled) {
+        return;
+      }
+
+      const reader = response.getReader();
+      readableStreamRef.current = reader;
+
+      try {
+        let done = false;
+        while (!done && !cancelled) {
+          const { value, done: doneReading } = await reader.read();
+          done = doneReading;
+          if (!value) {
+            continue;
+          }
+
+          const text = textDecoder.decode(value);
+          if (!text) {
+            continue;
+          }
+
+          setLogState(prev => ({
+            podKey: activePodKey,
+            value: ((prev.podKey === activePodKey ? prev.value : '') + text).slice(-10000),
+          }));
+        }
+      } finally {
+        if (readableStreamRef.current === reader) {
+          readableStreamRef.current = null;
+        }
+      }
+    };
+
+    void streamLogs();
+
     return () => {
+      cancelled = true;
       readableStreamRef.current?.cancel();
     };
-  }, [startStreamLogs]);
+  }, [activePod?.name, activePodContainerName, activePodKey, activePodNamespace]);
+
+  if (!activePod) {
+    return null;
+  }
 
   const status = getStatusFromK8sStatus(activePod.statusPhase);
+  const metrics = activePod.metrics;
+  const cardanoNodeMetrics = metrics?.type === 'cardano-node' ? metrics : null;
+  const isBlockProducer = cardanoNodeMetrics?.role === 'block-producer';
 
   return (
-    <div className="mx-16 py-8 grid grid-rows-[auto_auto_auto_1fr_auto] gap-10">
+    <div className="mx-16 py-8 grid gap-10">
       <div>
         <div className="flex items-center gap-2 text-[#64748B]">
           <Link to="/">Overview</Link>
@@ -194,19 +366,108 @@ function WorkloadIdInfo() {
         </div>
       </div>
       <Card>
-        <div className="grid grid-flow-col auto-cols-fr w-max gap-6">
-          <InfoCard
-            label="Status"
-            value={status}
-            valueClassName={clsx('capitalize', {
-              'text-[#69C876]': status === 'connected',
-              'text-[#FF7474]': status === 'error',
-              'text-[#2B2B2B]': status === 'paused',
-              'text-[#0000FF]': status === 'pending',
-            })}
-          />
-          <InfoCard label="Health" value={`${calculateUptimePercentage(activePod.uptime)}% uptime`} />
-          <InfoCard label="Blocks produced" value="0" />
+        <div className="space-y-6">
+          <MetricsSection
+            title="Node"
+            aside={cardanoNodeMetrics && (
+              <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-[#64748B]">
+                {formatRoleLabel(cardanoNodeMetrics.role)}
+              </span>
+            )}
+          >
+            <InfoCard
+              label="Status"
+              value={status}
+              description={metricDescriptions.status}
+              valueClassName={clsx('capitalize', {
+                'text-[#69C876]': status === 'connected',
+                'text-[#FF7474]': status === 'error',
+                'text-[#2B2B2B]': status === 'paused',
+                'text-[#0000FF]': status === 'pending',
+              })}
+            />
+            <InfoCard
+              label="Health"
+              value={`${calculateUptimePercentage(activePod.uptime)}% uptime`}
+              description={metricDescriptions.health}
+            />
+            {cardanoNodeMetrics && (
+              <>
+                <InfoCard
+                  label="Block height"
+                  value={formatMetricValue(cardanoNodeMetrics.blockHeight)}
+                  description={metricDescriptions.blockHeight}
+                />
+                <InfoCard
+                  label="Epoch / slot"
+                  value={formatEpochSlot(cardanoNodeMetrics.epoch, cardanoNodeMetrics.slotInEpoch)}
+                  description={metricDescriptions.epochSlot}
+                />
+                <InfoCard
+                  label="Density"
+                  value={cardanoNodeMetrics.density === null || cardanoNodeMetrics.density === undefined
+                    ? '-'
+                    : `${formatMetricValue(cardanoNodeMetrics.density, { maximumFractionDigits: 2 })}%`}
+                  description={metricDescriptions.density}
+                />
+              </>
+            )}
+          </MetricsSection>
+
+          {cardanoNodeMetrics && (
+            <>
+              <MetricsSection title="Mempool" withDivider>
+                <InfoCard
+                  label="Pending tx"
+                  value={formatPendingTx(cardanoNodeMetrics.pendingTx, cardanoNodeMetrics.pendingTxBytes)}
+                  description={metricDescriptions.pendingTx}
+                />
+                <InfoCard
+                  label="Tx processed"
+                  value={formatMetricValue(cardanoNodeMetrics.txProcessed)}
+                  description={metricDescriptions.txProcessed}
+                />
+              </MetricsSection>
+
+              <MetricsSection title="Network" withDivider>
+                <InfoCard
+                  label="Peers in / out"
+                  value={formatPeerCounts(cardanoNodeMetrics.peersIncoming, cardanoNodeMetrics.peersOutgoing)}
+                  description={metricDescriptions.peersInOut}
+                />
+                <InfoCard
+                  label="Last block delay"
+                  value={formatDelaySeconds(cardanoNodeMetrics.lastBlockDelaySeconds)}
+                  description={metricDescriptions.lastBlockDelay}
+                />
+              </MetricsSection>
+
+              {isBlockProducer && (
+                <MetricsSection title="Producer" withDivider>
+                  <InfoCard
+                    label="Blocks adopted"
+                    value={formatMetricValue(cardanoNodeMetrics.adoptedCount)}
+                    description={metricDescriptions.blocksAdopted}
+                  />
+                  <InfoCard
+                    label="KES current / remaining"
+                    value={formatKesSummary(cardanoNodeMetrics.kesPeriod, cardanoNodeMetrics.kesRemaining)}
+                    description={metricDescriptions.kesSummary}
+                  />
+                  <InfoCard
+                    label="Leader / adopted"
+                    value={formatCountPair(cardanoNodeMetrics.leaderCount, cardanoNodeMetrics.adoptedCount)}
+                    description={metricDescriptions.leaderAdopted}
+                  />
+                  <InfoCard
+                    label="Invalid / missed"
+                    value={formatCountPair(cardanoNodeMetrics.invalidCount, cardanoNodeMetrics.missedSlots)}
+                    description={metricDescriptions.invalidMissed}
+                  />
+                </MetricsSection>
+              )}
+            </>
+          )}
         </div>
       </Card>
 
