@@ -14,6 +14,32 @@ export function formatDelaySeconds(value: number | null | undefined) {
   return `${formatMetricValue(value, { maximumFractionDigits: 2 })}s`;
 }
 
+export function formatDurationSeconds(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return '-';
+  }
+
+  const totalSeconds = Math.max(Math.floor(value), 0);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+
+  return `${seconds}s`;
+}
+
 export function formatBytes(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return '-';
@@ -141,6 +167,19 @@ export function formatVersionRevision(version: string | null | undefined, revisi
   }
 
   return `${version} [${revision}]`;
+}
+
+export function formatTimestamp(value: string | null | undefined) {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString();
 }
 
 export function formatRoleLabel(role: NodeRole) {

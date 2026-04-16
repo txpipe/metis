@@ -5,8 +5,8 @@ import { z } from 'zod';
 
 // Utils
 import { execPodCommand, getClients } from '~/utils/k8s';
-import { getHelmReleases, getMergedHelmValues, getNetworkFromHelmRelease, getNodeRoleFromHelmRelease } from '~/utils/helm';
-import { parseCardanoNodeMetrics, getStatefulSetUptime, emptyUptimeResult } from '~/utils/metrics';
+import { getHelmReleases, getNetworkFromHelmRelease, getNodeRoleFromHelmRelease } from '~/utils/helm';
+import { getStatefulSetUptime, emptyUptimeResult } from '~/utils/metrics';
 import { getBlobDetails, searchWorkloads } from '~/utils/registry';
 import { runCommand } from '~/utils/process';
 import { nanoid } from '~/utils/generic';
@@ -34,7 +34,6 @@ function supportsCardanoNodeMetrics(chartName?: string) {
 async function getCardanoNodeMetricsForPod(
   pod: SimplifiedPod,
   role: NodeRole,
-  metricsPort: number,
 ): Promise<CardanoNodeMetrics | undefined> {
   if (!pod.name || !pod.namespace || !pod.containerName) {
     return undefined;
@@ -44,7 +43,7 @@ async function getCardanoNodeMetricsForPod(
     pod.namespace,
     pod.name,
     pod.containerName,
-    ['sh', '-lc', `curl -s --fail http://127.0.0.1:${metricsPort}/metrics || wget -qO- http://127.0.0.1:${metricsPort}/metrics`],
+    ['bash', '-lc', '/opt/metis/bin/metrics.sh'],
   );
 
   if (stderr.trim()) {
@@ -54,11 +53,26 @@ async function getCardanoNodeMetricsForPod(
 
   if (!stdout.trim()) {
     // eslint-disable-next-line no-console
-    console.warn(`[metrics] empty stdout from ${pod.namespace}/${pod.name} on port ${metricsPort}`);
+    console.warn(`[metrics] empty stdout from ${pod.namespace}/${pod.name}`);
     return undefined;
   }
 
-  return parseCardanoNodeMetrics(stdout, role);
+  const parsedMetrics = JSON.parse(stdout) as Partial<CardanoNodeMetrics>;
+  if (!parsedMetrics || typeof parsedMetrics !== 'object' || Array.isArray(parsedMetrics)) {
+    return undefined;
+  }
+
+  if (Array.isArray(parsedMetrics.errors) && parsedMetrics.errors.length > 0) {
+    // eslint-disable-next-line no-console
+    console.warn(`[metrics] script warnings for ${pod.namespace}/${pod.name}: ${parsedMetrics.errors.join('; ')}`);
+  }
+
+  return {
+    ...parsedMetrics,
+    type: 'cardano-node',
+    role,
+    errors: Array.isArray(parsedMetrics.errors) ? parsedMetrics.errors : [],
+  } as CardanoNodeMetrics;
 }
 
 export const getServerWorkloads = createServerFn({
@@ -157,11 +171,7 @@ export const getServerWorkloadPods = createServerFn({
 
   const uptime = await getStatefulSetUptime(namespace, name);
   const chartName = helmRelease?.chart.metadata.name;
-  const mergedValues = helmRelease ? getMergedHelmValues(helmRelease) : undefined;
   const role = helmRelease ? getNodeRoleFromHelmRelease(helmRelease) : undefined;
-  const metricsPort = typeof mergedValues?.service?.metricsPort === 'number'
-    ? mergedValues.service.metricsPort
-    : Number(mergedValues?.service?.metricsPort || 0);
 
   const items = await Promise.all(podsList.items.filter(p => !!p.metadata).map(async pod => {
     const simplifiedPod = {
@@ -176,8 +186,8 @@ export const getServerWorkloadPods = createServerFn({
       annotations: helmRelease ? getAnnotationsFromRelease(helmRelease) : undefined,
     } satisfies SimplifiedPod;
 
-    const metrics = helmRelease && role && supportsCardanoNodeMetrics(chartName) && metricsPort > 0
-      ? await getCardanoNodeMetricsForPod(simplifiedPod, role, metricsPort).catch(err => {
+    const metrics = helmRelease && role && supportsCardanoNodeMetrics(chartName)
+      ? await getCardanoNodeMetricsForPod(simplifiedPod, role).catch(err => {
         // eslint-disable-next-line no-console
         console.error(`[metrics] failed collecting metrics for ${simplifiedPod.namespace}/${simplifiedPod.name}`, err);
         return undefined;

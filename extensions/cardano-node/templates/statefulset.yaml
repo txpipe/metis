@@ -3,6 +3,7 @@
 {{- $serviceAccountName := include "cardano-node.serviceAccountName" . -}}
 {{- $proxyConfigName := include "cardano-node.proxyConfigName" . -}}
 {{- $configurationConfigMapName := include "cardano-node.configurationConfigMapName" . -}}
+{{- $metricsConfigMapName := include "cardano-node.metricsConfigMapName" . -}}
 {{- $blockProducerSecretName := include "cardano-node.blockProducerSecretName" . -}}
 {{- $blockProducer := .Values.node.blockProducer | default dict -}}
 {{- $blockProducerEnabled := default false $blockProducer.enabled -}}
@@ -96,6 +97,8 @@ spec:
             {{- end }}
             - name: RESTORE_SNAPSHOT
               value: "true"
+            - name: METIS_SHELLEY_GENESIS_PATH
+              value: {{ printf "/opt/cardano/config/%s/shelley-genesis.json" .Values.node.network | quote }}
             {{- with .Values.node.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -124,6 +127,10 @@ spec:
             - name: configuration
               mountPath: {{ default "/configuration" .Values.configuration.mountPath }}
             {{- end }}
+            - name: metrics-scripts
+              mountPath: /opt/metis/bin/metrics.sh
+              subPath: metrics.sh
+              readOnly: true
             {{- with .Values.node.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -210,6 +217,10 @@ spec:
           configMap:
             name: {{ $configurationConfigMapName }}
         {{- end }}
+        - name: metrics-scripts
+          configMap:
+            name: {{ $metricsConfigMapName }}
+            defaultMode: 0555
         {{- if $blockProducerEnabled }}
         - name: block-producer-keys
           secret:

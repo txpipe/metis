@@ -1,0 +1,261 @@
+{{- $configMapName := include "cardano-node.metricsConfigMapName" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configMapName }}
+  labels:
+    {{- include "cardano-node.labels" . | nindent 4 }}
+data:
+  metrics.sh: |-
+    #!/usr/bin/env bash
+    set -u
+
+    errors=()
+
+    append_error() {
+      errors+=("$1")
+    }
+
+    metric_value() {
+      local metrics_text="$1"
+      shift
+
+      local metric_name
+      for metric_name in "$@"; do
+        local value
+        value="$(printf '%s\n' "$metrics_text" | awk -v key="$metric_name" '$1 == key { print $2; exit }')"
+        if [ -n "$value" ]; then
+          printf '%s' "$value"
+          return 0
+        fi
+      done
+
+      return 1
+    }
+
+    metrics="$(curl -s --fail "http://127.0.0.1:{{ .Values.service.metricsPort }}/metrics" || wget -qO- "http://127.0.0.1:{{ .Values.service.metricsPort }}/metrics" || true)"
+    if [ -z "$metrics" ]; then
+      append_error "failed to read node metrics"
+    fi
+
+    build_info_line="$(printf '%s\n' "$metrics" | awk '$1 ~ /^cardano_node_metrics_cardano_build_info/ { print; exit }')"
+    node_version=""
+    node_revision=""
+
+    if [ -n "$build_info_line" ]; then
+      node_version="$(printf '%s\n' "$build_info_line" | awk 'match($0, /version="[^"]+"/) { print substr($0, RSTART + 9, RLENGTH - 10); exit }')"
+      node_revision="$(printf '%s\n' "$build_info_line" | awk 'match($0, /revision="[^"]+"/) { print substr($0, RSTART + 10, 8); exit }')"
+    fi
+
+    block_height="$(metric_value "$metrics" cardano_node_metrics_blockNum_int || true)"
+    epoch="$(metric_value "$metrics" cardano_node_metrics_epoch_int || true)"
+    slot_num="$(metric_value "$metrics" cardano_node_metrics_slotNum_int || true)"
+    slot_in_epoch="$(metric_value "$metrics" cardano_node_metrics_slotInEpoch_int || true)"
+    density="$(metric_value "$metrics" cardano_node_metrics_density_real || true)"
+    forks="$(metric_value "$metrics" cardano_node_metrics_forks_int cardano_node_metrics_forks_counter cardano_node_metrics_forks || true)"
+    tx_processed="$(metric_value "$metrics" cardano_node_metrics_txsProcessedNum_int cardano_node_metrics_txsProcessedNum_counter || true)"
+    pending_tx="$(metric_value "$metrics" cardano_node_metrics_txsInMempool_int || true)"
+    pending_tx_bytes="$(metric_value "$metrics" cardano_node_metrics_mempoolBytes_int || true)"
+    forging_enabled="$(metric_value "$metrics" cardano_node_metrics_forging_enabled_int cardano_node_metrics_forging_enabled || true)"
+    peers_incoming="$(metric_value "$metrics" cardano_node_metrics_connectionManager_incomingConns_int cardano_node_metrics_connectionManager_inboundConns_int cardano_node_metrics_connectionManager_incomingConns cardano_node_metrics_connectionManager_inboundConns || true)"
+    peers_outgoing="$(metric_value "$metrics" cardano_node_metrics_connectionManager_outgoingConns_int cardano_node_metrics_connectionManager_outboundConns_int cardano_node_metrics_connectionManager_outgoingConns cardano_node_metrics_connectionManager_outboundConns || true)"
+    connection_uni_dir="$(metric_value "$metrics" cardano_node_metrics_connectionManager_unidirectionalConns_int cardano_node_metrics_connectionManager_unidirectionalConns || true)"
+    connection_bi_dir="$(metric_value "$metrics" cardano_node_metrics_connectionManager_duplexConns_int cardano_node_metrics_connectionManager_duplexConns || true)"
+    connection_duplex="$(metric_value "$metrics" cardano_node_metrics_connectionManager_fullDuplexConns_int cardano_node_metrics_connectionManager_fullDuplexConns || true)"
+    inbound_governor_warm="$(metric_value "$metrics" cardano_node_metrics_inboundGovernor_warm_int cardano_node_metrics_inboundGovernor_warm || true)"
+    inbound_governor_hot="$(metric_value "$metrics" cardano_node_metrics_inboundGovernor_hot_int cardano_node_metrics_inboundGovernor_hot || true)"
+    peer_selection_cold="$(metric_value "$metrics" cardano_node_metrics_peerSelection_cold_int cardano_node_metrics_peerSelection_Cold_int cardano_node_metrics_peerSelection_cold cardano_node_metrics_peerSelection_Cold || true)"
+    peer_selection_warm="$(metric_value "$metrics" cardano_node_metrics_peerSelection_warm_int cardano_node_metrics_peerSelection_Warm_int cardano_node_metrics_peerSelection_warm cardano_node_metrics_peerSelection_Warm || true)"
+    peer_selection_hot="$(metric_value "$metrics" cardano_node_metrics_peerSelection_hot_int cardano_node_metrics_peerSelection_Hot_int cardano_node_metrics_peerSelection_hot cardano_node_metrics_peerSelection_Hot || true)"
+    last_block_delay_seconds="$(metric_value "$metrics" cardano_node_metrics_blockfetchclient_blockdelay_s cardano_node_metrics_blockfetchclient_blockdelay_real || true)"
+    blocks_served="$(metric_value "$metrics" cardano_node_metrics_served_block_counter cardano_node_metrics_served_block_count_int || true)"
+    blocks_late="$(metric_value "$metrics" cardano_node_metrics_blockfetchclient_lateblocks_counter cardano_node_metrics_blockfetchclient_lateblocks || true)"
+    blocks_within_1s="$(metric_value "$metrics" cardano_node_metrics_blockfetchclient_blockdelay_cdfOne_real cardano_node_metrics_blockfetchclient_blockdelay_cdfOne || true)"
+    blocks_within_3s="$(metric_value "$metrics" cardano_node_metrics_blockfetchclient_blockdelay_cdfThree_real cardano_node_metrics_blockfetchclient_blockdelay_cdfThree || true)"
+    blocks_within_5s="$(metric_value "$metrics" cardano_node_metrics_blockfetchclient_blockdelay_cdfFive_real cardano_node_metrics_blockfetchclient_blockdelay_cdfFive || true)"
+    mem_live_bytes="$(metric_value "$metrics" cardano_node_metrics_RTS_gcLiveBytes_int || true)"
+    mem_heap_bytes="$(metric_value "$metrics" cardano_node_metrics_RTS_gcHeapBytes_int || true)"
+    gc_minor_count="$(metric_value "$metrics" cardano_node_metrics_RTS_gcMinorNum_int || true)"
+    gc_major_count="$(metric_value "$metrics" cardano_node_metrics_RTS_gcMajorNum_int || true)"
+    kes_period="$(metric_value "$metrics" cardano_node_metrics_currentKESPeriod_int || true)"
+    kes_remaining="$(metric_value "$metrics" cardano_node_metrics_remainingKESPeriods_int || true)"
+    leader_count="$(metric_value "$metrics" cardano_node_metrics_Forge_node_is_leader_int cardano_node_metrics_Forge_node_is_leader_counter || true)"
+    adopted_count="$(metric_value "$metrics" cardano_node_metrics_Forge_adopted_int cardano_node_metrics_Forge_adopted_counter || true)"
+    forged_count="$(metric_value "$metrics" cardano_node_metrics_Forge_forged_int cardano_node_metrics_Forge_forged_counter || true)"
+    about_to_lead_count="$(metric_value "$metrics" cardano_node_metrics_Forge_forge_about_to_lead_int cardano_node_metrics_Forge_forge_about_to_lead_counter cardano_node_metrics_Forge_about_to_lead_int cardano_node_metrics_Forge_about_to_lead_counter || true)"
+    missed_slots="$(metric_value "$metrics" cardano_node_metrics_slotsMissedNum_int cardano_node_metrics_slotsMissed_int || true)"
+
+    shelley_genesis_path="${METIS_SHELLEY_GENESIS_PATH:-}"
+    epoch_length=""
+    slot_length=""
+    slots_per_kes_period=""
+    system_start_raw=""
+    system_start_unix=""
+
+    if [ -n "$shelley_genesis_path" ]; then
+      if [ -r "$shelley_genesis_path" ]; then
+        epoch_length="$(jq -r '.epochLength // empty' "$shelley_genesis_path" 2>/dev/null || true)"
+        slot_length="$(jq -r '.slotLength // empty' "$shelley_genesis_path" 2>/dev/null || true)"
+        slots_per_kes_period="$(jq -r '.slotsPerKESPeriod // empty' "$shelley_genesis_path" 2>/dev/null || true)"
+        system_start_raw="$(jq -r '.systemStart // empty' "$shelley_genesis_path" 2>/dev/null || true)"
+        if [ -n "$system_start_raw" ]; then
+          system_start_unix="$(jq -nr --arg value "$system_start_raw" '
+            def normalize_system_start:
+              sub("\\.[0-9]+Z$"; "Z")
+              | sub("\\+00:00$"; "Z");
+            $value
+            | normalize_system_start as $normalized
+            | (try ($normalized | fromdateiso8601) catch empty)
+              // (try ($normalized | strptime("%Y-%m-%dT%H:%M:%SZ") | mktime) catch empty)
+          ' 2>/dev/null || true)"
+        fi
+        if [ -z "$epoch_length" ]; then
+          append_error "epochLength missing in $shelley_genesis_path"
+        fi
+        if [ -z "$slot_length" ]; then
+          append_error "slotLength missing in $shelley_genesis_path"
+        fi
+        if [ -z "$system_start_raw" ]; then
+          append_error "systemStart missing in $shelley_genesis_path"
+        elif [ -z "$system_start_unix" ]; then
+          append_error "failed to parse systemStart '$system_start_raw'"
+        fi
+      else
+        append_error "shelley genesis file is not readable: $shelley_genesis_path"
+      fi
+    else
+      append_error "METIS_SHELLEY_GENESIS_PATH is not set"
+    fi
+
+    now_epoch="$(date +%s 2>/dev/null || true)"
+
+    errors_json='[]'
+    if [ ${#errors[@]} -gt 0 ]; then
+      errors_json="$(printf '%s\n' "${errors[@]}" | jq -R . | jq -s .)"
+    fi
+
+    jq -n \
+      --arg blockHeight "$block_height" \
+      --arg epoch "$epoch" \
+      --arg slotNum "$slot_num" \
+      --arg slotInEpoch "$slot_in_epoch" \
+      --arg density "$density" \
+      --arg forks "$forks" \
+      --arg txProcessed "$tx_processed" \
+      --arg pendingTx "$pending_tx" \
+      --arg pendingTxBytes "$pending_tx_bytes" \
+      --arg nodeVersion "$node_version" \
+      --arg nodeRevision "$node_revision" \
+      --arg forgingEnabled "$forging_enabled" \
+      --arg peersIncoming "$peers_incoming" \
+      --arg peersOutgoing "$peers_outgoing" \
+      --arg connectionUniDir "$connection_uni_dir" \
+      --arg connectionBiDir "$connection_bi_dir" \
+      --arg connectionDuplex "$connection_duplex" \
+      --arg inboundGovernorWarm "$inbound_governor_warm" \
+      --arg inboundGovernorHot "$inbound_governor_hot" \
+      --arg peerSelectionCold "$peer_selection_cold" \
+      --arg peerSelectionWarm "$peer_selection_warm" \
+      --arg peerSelectionHot "$peer_selection_hot" \
+      --arg lastBlockDelaySeconds "$last_block_delay_seconds" \
+      --arg blocksServed "$blocks_served" \
+      --arg blocksLate "$blocks_late" \
+      --arg blocksWithin1s "$blocks_within_1s" \
+      --arg blocksWithin3s "$blocks_within_3s" \
+      --arg blocksWithin5s "$blocks_within_5s" \
+      --arg memLiveBytes "$mem_live_bytes" \
+      --arg memHeapBytes "$mem_heap_bytes" \
+      --arg gcMinorCount "$gc_minor_count" \
+      --arg gcMajorCount "$gc_major_count" \
+      --arg kesPeriod "$kes_period" \
+      --arg kesRemaining "$kes_remaining" \
+      --arg leaderCount "$leader_count" \
+      --arg adoptedCount "$adopted_count" \
+      --arg forgedCount "$forged_count" \
+      --arg aboutToLeadCount "$about_to_lead_count" \
+      --arg missedSlots "$missed_slots" \
+      --arg epochLength "$epoch_length" \
+      --arg slotLength "$slot_length" \
+      --arg slotsPerKESPeriod "$slots_per_kes_period" \
+      --arg systemStartUnix "$system_start_unix" \
+      --arg nowEpoch "$now_epoch" \
+      --argjson errors "$errors_json" \
+      '
+        def nullable_number($value):
+          if $value == "" then null else ($value | tonumber?) end;
+        def nullable_string($value):
+          if $value == "" then null else $value end;
+        def nullable_boolean_metric($value):
+          if $value == "" then null
+          elif ($value | tonumber?) == 1 then true
+          elif ($value | tonumber?) == 0 then false
+          else null
+          end;
+        def clamp($value; $min; $max):
+          if $value < $min then $min
+          elif $value > $max then $max
+          else $value
+          end;
+
+        (nullable_number($slotNum)) as $slotNumValue |
+        (nullable_number($slotInEpoch)) as $slotInEpochValue |
+        (nullable_number($epochLength)) as $epochLengthValue |
+        (nullable_number($slotLength)) as $slotLengthValue |
+        (nullable_number($systemStartUnix)) as $systemStartUnixValue |
+        (nullable_number($nowEpoch)) as $nowEpochValue |
+        (nullable_number($kesRemaining)) as $kesRemainingValue |
+        (nullable_number($slotsPerKESPeriod)) as $slotsPerKESPeriodValue |
+        (if $slotLengthValue != null and $slotLengthValue > 0 and $systemStartUnixValue != null and $nowEpochValue != null then (((($nowEpochValue - $systemStartUnixValue) / $slotLengthValue) | floor) | if . < 0 then 0 else . end) else null end) as $tipRefSlot |
+        (if $kesRemainingValue != null and $slotsPerKESPeriodValue != null and $slotLengthValue != null then (($kesRemainingValue * $slotsPerKESPeriodValue * $slotLengthValue) | floor) else null end) as $kesExpirationSeconds |
+        {
+          type: "cardano-node",
+          blockHeight: nullable_number($blockHeight),
+          epoch: nullable_number($epoch),
+          slotNum: $slotNumValue,
+          slotInEpoch: $slotInEpochValue,
+          density: (nullable_number($density) | if . == null then null else . * 100 end),
+          forks: nullable_number($forks),
+          txProcessed: nullable_number($txProcessed),
+          pendingTx: nullable_number($pendingTx),
+          pendingTxBytes: nullable_number($pendingTxBytes),
+          nodeVersion: nullable_string($nodeVersion),
+          nodeRevision: nullable_string($nodeRevision),
+          forgingEnabled: nullable_boolean_metric($forgingEnabled),
+          peersIncoming: nullable_number($peersIncoming),
+          peersOutgoing: nullable_number($peersOutgoing),
+          connectionUniDir: nullable_number($connectionUniDir),
+          connectionBiDir: nullable_number($connectionBiDir),
+          connectionDuplex: nullable_number($connectionDuplex),
+          inboundGovernorWarm: nullable_number($inboundGovernorWarm),
+          inboundGovernorHot: nullable_number($inboundGovernorHot),
+          peerSelectionCold: nullable_number($peerSelectionCold),
+          peerSelectionWarm: nullable_number($peerSelectionWarm),
+          peerSelectionHot: nullable_number($peerSelectionHot),
+          lastBlockDelaySeconds: nullable_number($lastBlockDelaySeconds),
+          blocksServed: nullable_number($blocksServed),
+          blocksLate: nullable_number($blocksLate),
+          blocksWithin1s: (nullable_number($blocksWithin1s) | if . == null then null else . * 100 end),
+          blocksWithin3s: (nullable_number($blocksWithin3s) | if . == null then null else . * 100 end),
+          blocksWithin5s: (nullable_number($blocksWithin5s) | if . == null then null else . * 100 end),
+          memLiveBytes: nullable_number($memLiveBytes),
+          memHeapBytes: nullable_number($memHeapBytes),
+          gcMinorCount: nullable_number($gcMinorCount),
+          gcMajorCount: nullable_number($gcMajorCount),
+          kesPeriod: nullable_number($kesPeriod),
+          kesRemaining: $kesRemainingValue,
+          leaderCount: nullable_number($leaderCount),
+          adoptedCount: nullable_number($adoptedCount),
+          forgedCount: nullable_number($forgedCount),
+          aboutToLeadCount: nullable_number($aboutToLeadCount),
+          invalidCount: (if nullable_number($forgedCount) != null and nullable_number($adoptedCount) != null then ((nullable_number($forgedCount) - nullable_number($adoptedCount)) | if . < 0 then 0 else . end) else null end),
+          missedSlots: nullable_number($missedSlots),
+          epochProgressPercent: (if $slotInEpochValue != null and $epochLengthValue != null and $epochLengthValue > 0 then (($slotInEpochValue / $epochLengthValue) * 100) else null end),
+          epochTimeRemainingSeconds: (if $slotInEpochValue != null and $epochLengthValue != null and $slotLengthValue != null then ((($epochLengthValue - $slotInEpochValue) * $slotLengthValue) | if . < 0 then 0 else . end) else null end),
+          tipRefSlot: $tipRefSlot,
+          tipDiffSlots: (if $tipRefSlot != null and $slotNumValue != null then ($tipRefSlot - $slotNumValue) else null end),
+          syncPercent: (if $tipRefSlot != null and $tipRefSlot > 0 and $slotNumValue != null then clamp((($slotNumValue / $tipRefSlot) * 100); 0; 100) else null end),
+          kesExpirationSeconds: $kesExpirationSeconds,
+          kesExpirationTime: (if $kesExpirationSeconds != null and $nowEpochValue != null then (($nowEpochValue + $kesExpirationSeconds) | todateiso8601) else null end),
+          errors: $errors
+        }
+      '

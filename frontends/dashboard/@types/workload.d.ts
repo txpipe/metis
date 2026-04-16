@@ -43,6 +43,11 @@ declare interface CardanoNodeMetrics {
   epoch: number | null;
   slotNum: number | null;
   slotInEpoch: number | null;
+  epochProgressPercent: number | null;
+  epochTimeRemainingSeconds: number | null;
+  tipRefSlot: number | null;
+  tipDiffSlots: number | null;
+  syncPercent: number | null;
   density: number | null;
   forks: number | null;
   txProcessed: number | null;
@@ -79,6 +84,9 @@ declare interface CardanoNodeMetrics {
   aboutToLeadCount: number | null;
   invalidCount: number | null;
   missedSlots: number | null;
+  kesExpirationSeconds: number | null;
+  kesExpirationTime: string | null;
+  errors: string[];
 }
 
 declare interface RegistryWorkload {

@@ -24,6 +24,7 @@ import {
   formatCountPair,
   formatCountTriplet,
   formatDelaySeconds,
+  formatDurationSeconds,
   formatKesSummary,
   formatMetricValue,
   formatPeerCounts,
@@ -31,6 +32,7 @@ import {
   formatPercent,
   formatPercentTriplet,
   formatRoleLabel,
+  formatTimestamp,
   formatVersionRevision,
 } from '~/utils/metricsFormat';
 import { calculateUptimePercentage } from '~/utils/metrics';
@@ -44,7 +46,12 @@ const metricDescriptions = {
   blockHeight: 'Latest block number observed by the node.',
   epoch: 'Current epoch observed by the node.',
   slotInEpoch: 'Current slot within the active epoch observed by the node.',
+  epochProgress: 'Percentage of the current epoch completed from slot-in-epoch and Shelley genesis epoch length.',
+  epochTimeRemaining: 'Approximate time remaining in the current epoch derived from Shelley genesis timing.',
   absoluteSlot: 'Absolute slot number observed by the node across the chain timeline.',
+  tipRefSlot: 'Reference chain tip computed from the Shelley genesis system start and slot length.',
+  tipDiffSlots: 'Difference between the computed reference tip and the node tip.',
+  syncPercent: 'Estimated sync percentage against the computed reference tip.',
   density: 'Recent chain density reported by the node, expressed as a percentage.',
   forks: 'Number of chain forks the node has observed since startup.',
   nodeVersion: 'Cardano node build version and revision reported by the metrics endpoint.',
@@ -65,6 +72,8 @@ const metricDescriptions = {
   gcMajor: 'Number of major garbage collections since startup.',
   blocksAdopted: 'Blocks successfully adopted by this producer since startup.',
   kesSummary: 'Current KES period and how many periods remain before rotation is required.',
+  kesExpiration: 'Approximate KES expiration time derived from remaining KES periods and Shelley genesis timing.',
+  kesExpirationRemaining: 'Approximate time remaining before KES rotation is required.',
   leaderAdopted: 'Leadership slots assigned to this producer versus blocks adopted.',
   forgedAboutToLead: 'Forged blocks versus slots the node reports as about to lead.',
   invalidMissed: 'Forged but not adopted blocks, and scheduled slots the node missed.',
@@ -367,9 +376,34 @@ function WorkloadIdInfo() {
                   description={metricDescriptions.slotInEpoch}
                 />
                 <InfoCard
+                  label="Epoch progress"
+                  value={formatPercent(cardanoNodeMetrics.epochProgressPercent)}
+                  description={metricDescriptions.epochProgress}
+                />
+                <InfoCard
+                  label="Epoch remaining"
+                  value={formatDurationSeconds(cardanoNodeMetrics.epochTimeRemainingSeconds)}
+                  description={metricDescriptions.epochTimeRemaining}
+                />
+                <InfoCard
                   label="Absolute slot"
                   value={formatMetricValue(cardanoNodeMetrics.slotNum)}
                   description={metricDescriptions.absoluteSlot}
+                />
+                <InfoCard
+                  label="Tip ref slot"
+                  value={formatMetricValue(cardanoNodeMetrics.tipRefSlot)}
+                  description={metricDescriptions.tipRefSlot}
+                />
+                <InfoCard
+                  label="Tip diff"
+                  value={formatMetricValue(cardanoNodeMetrics.tipDiffSlots)}
+                  description={metricDescriptions.tipDiffSlots}
+                />
+                <InfoCard
+                  label="Sync"
+                  value={formatPercent(cardanoNodeMetrics.syncPercent)}
+                  description={metricDescriptions.syncPercent}
                 />
                 <InfoCard
                   label="Density"
@@ -438,7 +472,7 @@ function WorkloadIdInfo() {
                   description={metricDescriptions.inboundStates}
                 />
                 <InfoCard
-                  label="Outbound cold / warm / hot"
+                  label="Out cold / warm / hot"
                   value={formatCountTriplet(
                     cardanoNodeMetrics.peerSelectionCold,
                     cardanoNodeMetrics.peerSelectionWarm,
@@ -509,6 +543,16 @@ function WorkloadIdInfo() {
                     label="KES current / remaining"
                     value={formatKesSummary(cardanoNodeMetrics.kesPeriod, cardanoNodeMetrics.kesRemaining)}
                     description={metricDescriptions.kesSummary}
+                  />
+                  <InfoCard
+                    label="KES expiration"
+                    value={formatTimestamp(cardanoNodeMetrics.kesExpirationTime)}
+                    description={metricDescriptions.kesExpiration}
+                  />
+                  <InfoCard
+                    label="KES expires in"
+                    value={formatDurationSeconds(cardanoNodeMetrics.kesExpirationSeconds)}
+                    description={metricDescriptions.kesExpirationRemaining}
                   />
                   <InfoCard
                     label="Leader / adopted"

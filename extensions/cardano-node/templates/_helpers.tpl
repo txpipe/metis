@@ -99,6 +99,13 @@ Resolve the ConfigMap name for custom node configuration files.
 {{- end }}
 
 {{/*
+Resolve the ConfigMap name for Metis metrics scripts.
+*/}}
+{{- define "cardano-node.metricsConfigMapName" -}}
+{{- printf "%s-metrics" (include "cardano-node.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
 Resolve the Secret name that holds block producer runtime artifacts.
 */}}
 {{- define "cardano-node.blockProducerSecretName" -}}
