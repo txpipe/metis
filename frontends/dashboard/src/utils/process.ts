@@ -4,6 +4,11 @@ import childProcess from 'child_process';
 const exec = promisify(childProcess.exec);
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 
+export function shellEscape(value: string): string {
+  const quote = '\'';
+  return quote + value.replace(/'/g, `${quote}\\${quote}${quote}`) + quote;
+}
+
 export async function runCommand(command: string): Promise<string> {
   const { stdout, stderr } = await exec(command, { timeout: DEFAULT_TIMEOUT });
 

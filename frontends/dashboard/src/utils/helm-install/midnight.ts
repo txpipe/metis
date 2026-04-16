@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto';
 
 // Utils
 import { getClients } from '~/utils/k8s';
-import { runCommand } from '~/utils/process';
+import { runCommand, shellEscape } from '~/utils/process';
 
 export async function install(namespace: string, name: string, image: string, version: string) {
   const { core } = getClients();
@@ -24,9 +24,9 @@ export async function install(namespace: string, name: string, image: string, ve
   });
 
   await runCommand(`
-    helm install ${name} ${image} \
-    --namespace ${namespace} \
-    --version "${version}" \
+    helm install ${shellEscape(name)} ${shellEscape(image)} \
+    --namespace ${shellEscape(namespace)} \
+    --version ${shellEscape(version)} \
     --set nodeKey.existingSecret.name=${secretName} \
     --set nodeKey.existingSecret.key=node.key \
     --set persistence.size=5Gi \
