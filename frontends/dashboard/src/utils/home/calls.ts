@@ -15,14 +15,20 @@ import { nanoid } from '~/utils/generic';
 import { runInstall } from '~/utils/helm-install';
 
 function getAnnotationsFromRelease(release: DecodedHelmRelease): SupernodeAnnotations | undefined {
-  if (!release.chart.metadata.annotations) {
+  const annotations = release.chart.metadata.annotations;
+
+  const customDisplayName = typeof release.config?.displayName === 'string'
+    ? release.config.displayName.trim()
+    : '';
+
+  if (!annotations && !customDisplayName) {
     return undefined;
   }
 
   return {
-    displayName: release.chart.metadata.annotations['displayName'] || release.name,
-    icon: release.chart.metadata.annotations['icon'],
-    category: release.chart.metadata.annotations['category'],
+    displayName: customDisplayName || annotations?.['displayName'] || release.name,
+    icon: annotations?.['icon'] || '',
+    category: annotations?.['category'],
     network: getNetworkFromHelmRelease(release),
   };
 }

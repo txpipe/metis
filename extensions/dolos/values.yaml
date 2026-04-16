@@ -1,5 +1,6 @@
 nameOverride: ""
 fullnameOverride: ""
+displayName: ""
 
 image:
   repository: ghcr.io/txpipe/dolos
