@@ -99,6 +99,13 @@ Resolve the ConfigMap name for custom node configuration files.
 {{- end }}
 
 {{/*
+Resolve the ConfigMap name for Metis metrics scripts.
+*/}}
+{{- define "apex-fusion.metricsConfigMapName" -}}
+{{- printf "%s-metrics" (include "apex-fusion.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
 Resolve the Secret name that holds block producer runtime artifacts.
 */}}
 {{- define "apex-fusion.blockProducerSecretName" -}}

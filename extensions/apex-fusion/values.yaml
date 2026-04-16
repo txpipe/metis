@@ -41,7 +41,7 @@ service:
   n2nNodePort: null
   n2cPort: 3307
   n2cNodePort: null
-  metricsPort: 12798
+  metricsPort: 12789
   metricsNodePort: null
   extraPorts: []
 

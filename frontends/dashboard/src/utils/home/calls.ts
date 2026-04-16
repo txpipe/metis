@@ -4,8 +4,8 @@ import { setResponseStatus } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
 // Utils
-import { getClients } from '~/utils/k8s';
-import { getHelmReleases, getNetworkFromHelmRelease } from '~/utils/helm';
+import { execPodCommand, getClients } from '~/utils/k8s';
+import { getHelmReleases, getNetworkFromHelmRelease, getNodeRoleFromHelmRelease } from '~/utils/helm';
 import { getStatefulSetUptime, emptyUptimeResult } from '~/utils/metrics';
 import { getBlobDetails, searchWorkloads } from '~/utils/registry';
 import { runCommand } from '~/utils/process';
@@ -25,6 +25,54 @@ function getAnnotationsFromRelease(release: DecodedHelmRelease): SupernodeAnnota
     category: release.chart.metadata.annotations['category'],
     network: getNetworkFromHelmRelease(release),
   };
+}
+
+function supportsCardanoNodeMetrics(chartName?: string) {
+  return chartName === 'cardano-node' || chartName === 'apex-fusion';
+}
+
+async function getCardanoNodeMetricsForPod(
+  pod: SimplifiedPod,
+  role: NodeRole,
+): Promise<CardanoNodeMetrics | undefined> {
+  if (!pod.name || !pod.namespace || !pod.containerName) {
+    return undefined;
+  }
+
+  const { stdout, stderr } = await execPodCommand(
+    pod.namespace,
+    pod.name,
+    pod.containerName,
+    ['bash', '-lc', '/opt/metis/bin/metrics.sh'],
+  );
+
+  if (stderr.trim()) {
+    // eslint-disable-next-line no-console
+    console.warn(`[metrics] stderr from ${pod.namespace}/${pod.name}: ${stderr.trim()}`);
+  }
+
+  if (!stdout.trim()) {
+    // eslint-disable-next-line no-console
+    console.warn(`[metrics] empty stdout from ${pod.namespace}/${pod.name}`);
+    return undefined;
+  }
+
+  const parsedMetrics = JSON.parse(stdout) as Partial<CardanoNodeMetrics>;
+  if (!parsedMetrics || typeof parsedMetrics !== 'object' || Array.isArray(parsedMetrics)) {
+    return undefined;
+  }
+
+  if (Array.isArray(parsedMetrics.errors) && parsedMetrics.errors.length > 0) {
+    // eslint-disable-next-line no-console
+    console.warn(`[metrics] script warnings for ${pod.namespace}/${pod.name}: ${parsedMetrics.errors.join('; ')}`);
+  }
+
+  return {
+    ...parsedMetrics,
+    type: 'cardano-node',
+    role,
+    errors: Array.isArray(parsedMetrics.errors) ? parsedMetrics.errors : [],
+  } as CardanoNodeMetrics;
 }
 
 export const getServerWorkloads = createServerFn({
@@ -122,18 +170,38 @@ export const getServerWorkloadPods = createServerFn({
   });
 
   const uptime = await getStatefulSetUptime(namespace, name);
+  const chartName = helmRelease?.chart.metadata.name;
+  const role = helmRelease ? getNodeRoleFromHelmRelease(helmRelease) : undefined;
 
-  return {
-    items: podsList.items.filter(p => !!p.metadata).map(pod => ({
+  const items = await Promise.all(podsList.items.filter(p => !!p.metadata).map(async pod => {
+    const simplifiedPod = {
       name: pod.metadata?.name,
       generateName: pod.metadata?.generateName,
       namespace: pod.metadata?.namespace,
       containerName: pod.spec?.containers?.[0].name,
+      chartName,
       statusPhase: pod.status?.phase,
       hostname: pod.spec?.hostname,
       uptime,
       annotations: helmRelease ? getAnnotationsFromRelease(helmRelease) : undefined,
-    } satisfies SimplifiedPod)),
+    } satisfies SimplifiedPod;
+
+    const metrics = helmRelease && role && supportsCardanoNodeMetrics(chartName)
+      ? await getCardanoNodeMetricsForPod(simplifiedPod, role).catch(err => {
+        // eslint-disable-next-line no-console
+        console.error(`[metrics] failed collecting metrics for ${simplifiedPod.namespace}/${simplifiedPod.name}`, err);
+        return undefined;
+      })
+      : undefined;
+
+    return {
+      ...simplifiedPod,
+      metrics,
+    } satisfies SimplifiedPod;
+  }));
+
+  return {
+    items,
   };
 });
 
