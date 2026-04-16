@@ -84,6 +84,12 @@ declare interface CardanoNodeMetrics {
   aboutToLeadCount: number | null;
   invalidCount: number | null;
   missedSlots: number | null;
+  scheduledLeaderCount: number | null;
+  scheduledIdealCount: number | null;
+  scheduledLuckPercent: number | null;
+  nextLeaderSlot: number | null;
+  nextLeaderTime: string | null;
+  nextLeaderTimeRemainingSeconds: number | null;
   kesExpirationSeconds: number | null;
   kesExpirationTime: string | null;
   errors: string[];

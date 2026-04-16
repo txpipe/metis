@@ -14,6 +14,8 @@ serviceAccount:
   annotations: {}
   name: ""
 
+# Advanced override for clusters that do not use the default shared Vault auth
+# provided by the control-plane extension.
 vaultAuth:
   ref: control-plane/default
   serviceAccount:
@@ -65,10 +67,12 @@ node:
   extraContainers: []
   initContainers: []
   network: vector-testnet
-  networkMagic: 1
+  networkMagic: null
   socketPath: /ipc/node.socket
   blockProducer:
     enabled: false
+    debug: false
+    poolId: ""
     mountPath: /block-producer
     kesKeyFile: kes.skey
     vrfKeyFile: vrf.skey

@@ -1,5 +1,6 @@
 node:
   blockProducer:
     enabled: true
+    debug: true
     vaultStaticSecret:
-      path: apex-fusion/example/block-producer
+      path: cardano-node/example/block-producer

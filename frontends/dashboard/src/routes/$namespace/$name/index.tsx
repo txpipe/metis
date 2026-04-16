@@ -1,23 +1,33 @@
-import AnsiToHtml from 'ansi-to-html';
-import { type ReactNode, MouseEventHandler, useEffect, useRef, useState } from 'react';
-import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute, Link, redirect } from '@tanstack/react-router';
-import clsx from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import toast from 'react-hot-toast';
+import AnsiToHtml from "ansi-to-html";
+import {
+  type ReactNode,
+  MouseEventHandler,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import clsx from "clsx";
+import { twMerge } from "tailwind-merge";
+import toast from "react-hot-toast";
 
 // Components
-import { CaretRightIcon } from '~/components/icons/CaretRightIcon';
-import { GraphIcon } from '~/components/icons/GraphIcon';
-import { Card, CardTitle } from '~/components/Card';
-import { Button } from '~/components/ui/Button';
-import { InfoTooltip } from '~/components/ui/InfoTooltip';
-import { TrashIcon } from '~/components/icons/TrashIcon';
-import { Toast } from '~/components/ui/Toast';
+import { CaretRightIcon } from "~/components/icons/CaretRightIcon";
+import { GraphIcon } from "~/components/icons/GraphIcon";
+import { Card, CardTitle } from "~/components/Card";
+import { Button } from "~/components/ui/Button";
+import { InfoTooltip } from "~/components/ui/InfoTooltip";
+import { TrashIcon } from "~/components/icons/TrashIcon";
+import { Toast } from "~/components/ui/Toast";
 
 // Data
-import { deleteWorkload, getServerWorkloadPods, streamWorkloadPodLogs } from '~/utils/home/calls';
-import { getGrafanaDashboardUrl } from '~/utils/details/calls';
+import {
+  deleteWorkload,
+  getServerWorkloadPods,
+  streamWorkloadPodLogs,
+} from "~/utils/home/calls";
+import { getGrafanaDashboardUrl } from "~/utils/details/calls";
 import {
   formatBooleanMetric,
   formatBytesToGiB,
@@ -34,49 +44,74 @@ import {
   formatRoleLabel,
   formatTimestamp,
   formatVersionRevision,
-} from '~/utils/metricsFormat';
-import { calculateUptimePercentage } from '~/utils/metrics';
-import { getStatusFromK8sStatus } from '~/utils/generic';
+} from "~/utils/metricsFormat";
+import { calculateUptimePercentage } from "~/utils/metrics";
+import { getStatusFromK8sStatus } from "~/utils/generic";
 
 const textDecoder = new TextDecoder();
 
 const metricDescriptions = {
-  status: 'Current workload state reported by Kubernetes.',
-  health: 'Percentage of the last 30 days this workload was healthy.',
-  blockHeight: 'Latest block number observed by the node.',
-  epoch: 'Current epoch observed by the node.',
-  slotInEpoch: 'Current slot within the active epoch observed by the node.',
-  epochProgress: 'Percentage of the current epoch completed from slot-in-epoch and Shelley genesis epoch length.',
-  epochTimeRemaining: 'Approximate time remaining in the current epoch derived from Shelley genesis timing.',
-  absoluteSlot: 'Absolute slot number observed by the node across the chain timeline.',
-  tipRefSlot: 'Reference chain tip computed from the Shelley genesis system start and slot length.',
-  tipDiffSlots: 'Difference between the computed reference tip and the node tip.',
-  syncPercent: 'Estimated sync percentage against the computed reference tip.',
-  density: 'Recent chain density reported by the node, expressed as a percentage.',
-  forks: 'Number of chain forks the node has observed since startup.',
-  nodeVersion: 'Cardano node build version and revision reported by the metrics endpoint.',
-  forgingEnabled: 'Whether this node currently has forging enabled.',
-  pendingTx: 'Transactions currently in the mempool, plus buffered size when available.',
-  txProcessed: 'Total transactions processed by the node since startup.',
-  peersInOut: 'Active inbound and outbound node connections.',
-  connectionDirections: 'Current connection counts split by unidirectional, bidirectional, and full duplex.',
-  inboundStates: 'Inbound governor connection states reported by the node.',
-  outboundStates: 'Peer selection states for outbound connections.',
-  lastBlockDelay: 'Latest observed block propagation delay.',
-  blocksServed: 'Blocks served to peers by this node since startup.',
-  blocksLate: 'Blocks observed later than five seconds by the block fetch client.',
-  propagationCdf: 'Percentage of observed blocks arriving within 1, 3, and 5 seconds.',
-  memLive: 'Live RTS memory currently retained by the node process.',
-  memHeap: 'Heap memory currently reserved by the node RTS.',
-  gcMinor: 'Number of minor garbage collections since startup.',
-  gcMajor: 'Number of major garbage collections since startup.',
-  blocksAdopted: 'Blocks successfully adopted by this producer since startup.',
-  kesSummary: 'Current KES period and how many periods remain before rotation is required.',
-  kesExpiration: 'Approximate KES expiration time derived from remaining KES periods and Shelley genesis timing.',
-  kesExpirationRemaining: 'Approximate time remaining before KES rotation is required.',
-  leaderAdopted: 'Leadership slots assigned to this producer versus blocks adopted.',
-  forgedAboutToLead: 'Forged blocks versus slots the node reports as about to lead.',
-  invalidMissed: 'Forged but not adopted blocks, and scheduled slots the node missed.',
+  status: "Current workload state reported by Kubernetes.",
+  health: "Percentage of the last 30 days this workload was healthy.",
+  blockHeight: "Latest block number observed by the node.",
+  epoch: "Current epoch observed by the node.",
+  slotInEpoch: "Current slot within the active epoch observed by the node.",
+  epochProgress:
+    "Percentage of the current epoch completed from slot-in-epoch and Shelley genesis epoch length.",
+  epochTimeRemaining:
+    "Approximate time remaining in the current epoch derived from Shelley genesis timing.",
+  absoluteSlot:
+    "Absolute slot number observed by the node across the chain timeline.",
+  tipRefSlot:
+    "Reference chain tip computed from the Shelley genesis system start and slot length.",
+  tipDiffSlots:
+    "Difference between the computed reference tip and the node tip.",
+  syncPercent: "Estimated sync percentage against the computed reference tip.",
+  density:
+    "Recent chain density reported by the node, expressed as a percentage.",
+  forks: "Number of chain forks the node has observed since startup.",
+  nodeVersion:
+    "Cardano node build version and revision reported by the metrics endpoint.",
+  forgingEnabled: "Whether this node currently has forging enabled.",
+  pendingTx:
+    "Transactions currently in the mempool, plus buffered size when available.",
+  txProcessed: "Total transactions processed by the node since startup.",
+  peersInOut: "Active inbound and outbound node connections.",
+  connectionDirections:
+    "Current connection counts split by unidirectional, bidirectional, and full duplex.",
+  inboundStates: "Inbound governor connection states reported by the node.",
+  outboundStates: "Peer selection states for outbound connections.",
+  lastBlockDelay: "Latest observed block propagation delay.",
+  blocksServed: "Blocks served to peers by this node since startup.",
+  blocksLate:
+    "Blocks observed later than five seconds by the block fetch client.",
+  propagationCdf:
+    "Percentage of observed blocks arriving within 1, 3, and 5 seconds.",
+  memLive: "Live RTS memory currently retained by the node process.",
+  memHeap: "Heap memory currently reserved by the node RTS.",
+  gcMinor: "Number of minor garbage collections since startup.",
+  gcMajor: "Number of major garbage collections since startup.",
+  blocksAdopted: "Blocks successfully adopted by this producer since startup.",
+  scheduledLeader:
+    "Scheduled leadership slots for the current epoch derived from cardano-cli leadership schedule.",
+  scheduledIdeal:
+    "Ideal expected block count for the current epoch derived from the current stake snapshot, active slots coefficient, and epoch length.",
+  scheduledLuck:
+    "Current epoch leader schedule luck, computed as scheduled leadership slots divided by the ideal expected slot count.",
+  nextBlock:
+    "Time remaining until the next scheduled leadership slot in the current epoch.",
+  kesSummary:
+    "Current KES period and how many periods remain before rotation is required.",
+  kesExpiration:
+    "Approximate KES expiration time derived from remaining KES periods and Shelley genesis timing.",
+  kesExpirationRemaining:
+    "Approximate time remaining before KES rotation is required.",
+  leaderAdopted:
+    "Leadership slots assigned to this producer versus blocks adopted.",
+  forgedAboutToLead:
+    "Forged blocks versus slots the node reports as about to lead.",
+  invalidMissed:
+    "Forged but not adopted blocks, and scheduled slots the node missed.",
 } as const;
 
 async function getWorkloadDetails(namespace: string, name: string) {
@@ -84,11 +119,13 @@ async function getWorkloadDetails(namespace: string, name: string) {
 
   if (data.error || !data.items?.length) {
     throw redirect({
-      to: '/',
+      to: "/",
     });
   }
 
-  const dashboardUrl = await getGrafanaDashboardUrl({ data: { namespace } }).catch(err => {
+  const dashboardUrl = await getGrafanaDashboardUrl({
+    data: { namespace },
+  }).catch((err) => {
     // eslint-disable-next-line no-console
     console.log(err);
     return null;
@@ -100,16 +137,19 @@ async function getWorkloadDetails(namespace: string, name: string) {
   };
 }
 
-const workloadDetailsQueryOptions = (namespace: string, name: string) => queryOptions({
-  queryKey: ['workloadDetails', namespace, name],
-  queryFn: () => getWorkloadDetails(namespace, name),
-  refetchInterval: 30000,
-  refetchIntervalInBackground: true,
-});
+const workloadDetailsQueryOptions = (namespace: string, name: string) =>
+  queryOptions({
+    queryKey: ["workloadDetails", namespace, name],
+    queryFn: () => getWorkloadDetails(namespace, name),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
+  });
 
-export const Route = createFileRoute('/$namespace/$name/')({
+export const Route = createFileRoute("/$namespace/$name/")({
   loader: async ({ context, params }) => {
-    await context.queryClient.ensureQueryData(workloadDetailsQueryOptions(params.namespace, params.name));
+    await context.queryClient.ensureQueryData(
+      workloadDetailsQueryOptions(params.namespace, params.name),
+    );
   },
   component: WorkloadIdInfo,
 });
@@ -131,7 +171,9 @@ function InfoCard({
         {label}
         {description && <InfoTooltip content={description} />}
       </div>
-      <div className={twMerge('text-sm text-[#2B2B2B]/80', valueClassName)}>{value}</div>
+      <div className={twMerge("text-sm text-[#2B2B2B]/80", valueClassName)}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -148,12 +190,16 @@ function MetricsSection({
   aside?: ReactNode;
 }) {
   return (
-    <div className={clsx(withDivider && 'border-t border-zinc-200 pt-6')}>
+    <div className={clsx(withDivider && "border-t border-zinc-200 pt-6")}>
       <div className="mb-4 flex items-center justify-between gap-4">
-        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#64748B]">{title}</div>
+        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#64748B]">
+          {title}
+        </div>
         {aside}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">{children}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+        {children}
+      </div>
     </div>
   );
 }
@@ -170,24 +216,22 @@ function DeleteAction() {
 
   const [deleting, setDeleting] = useState(false);
 
-  const handleDelete: MouseEventHandler<HTMLButtonElement> = async e => {
+  const handleDelete: MouseEventHandler<HTMLButtonElement> = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
     setDeleting(true);
     try {
       await deleteWorkload({ data: { name, namespace } });
-      navigate({ to: '/' });
-      toast.custom(
-        t => (
-          <Toast
-            toastId={t.id}
-            title="Workload Deleted"
-            message="Your workload was deleted successfully."
-            style="success"
-          />
-        ),
-      );
+      navigate({ to: "/" });
+      toast.custom((t) => (
+        <Toast
+          toastId={t.id}
+          title="Workload Deleted"
+          message="Your workload was deleted successfully."
+          style="success"
+        />
+      ));
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(err);
@@ -214,23 +258,36 @@ function DeleteAction() {
 
 function WorkloadIdInfo() {
   const { namespace, name } = Route.useParams();
-  const workloadDetailsQuery = useSuspenseQuery(workloadDetailsQueryOptions(namespace, name));
+  const workloadDetailsQuery = useSuspenseQuery(
+    workloadDetailsQueryOptions(namespace, name),
+  );
   const { items, dashboardUrl } = workloadDetailsQuery.data;
   const logsContainerRef = useRef<HTMLDivElement>(null);
-  const readableStreamRef = useRef<ReadableStreamDefaultReader<any> | null>(null);
+  const readableStreamRef = useRef<ReadableStreamDefaultReader<any> | null>(
+    null,
+  );
   const activePod = items[0];
   const activePodNamespace = activePod?.namespace;
   const activePodContainerName = activePod?.containerName;
-  const activePodKey = [activePod?.name, activePodNamespace, activePodContainerName].filter(Boolean).join('/');
+  const activePodKey = [
+    activePod?.name,
+    activePodNamespace,
+    activePodContainerName,
+  ]
+    .filter(Boolean)
+    .join("/");
   const [logState, setLogState] = useState(() => ({
     podKey: activePodKey,
-    value: '',
+    value: "",
   }));
-  const logs = logState.podKey === activePodKey ? logState.value : '';
+  const logs = logState.podKey === activePodKey ? logState.value : "";
 
   useEffect(() => {
     if (logsContainerRef.current) {
-      logsContainerRef.current.scroll({ top: logsContainerRef.current.scrollHeight, behavior: 'smooth' });
+      logsContainerRef.current.scroll({
+        top: logsContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
     }
   }, [logs]);
 
@@ -275,9 +332,11 @@ function WorkloadIdInfo() {
             continue;
           }
 
-          setLogState(prev => ({
+          setLogState((prev) => ({
             podKey: activePodKey,
-            value: ((prev.podKey === activePodKey ? prev.value : '') + text).slice(-10000),
+            value: (
+              (prev.podKey === activePodKey ? prev.value : "") + text
+            ).slice(-10000),
           }));
         }
       } finally {
@@ -293,7 +352,12 @@ function WorkloadIdInfo() {
       cancelled = true;
       readableStreamRef.current?.cancel();
     };
-  }, [activePod?.name, activePodContainerName, activePodKey, activePodNamespace]);
+  }, [
+    activePod?.name,
+    activePodContainerName,
+    activePodKey,
+    activePodNamespace,
+  ]);
 
   if (!activePod) {
     return null;
@@ -301,8 +365,8 @@ function WorkloadIdInfo() {
 
   const status = getStatusFromK8sStatus(activePod.statusPhase);
   const metrics = activePod.metrics;
-  const cardanoNodeMetrics = metrics?.type === 'cardano-node' ? metrics : null;
-  const isBlockProducer = cardanoNodeMetrics?.role === 'block-producer';
+  const cardanoNodeMetrics = metrics?.type === "cardano-node" ? metrics : null;
+  const isBlockProducer = cardanoNodeMetrics?.role === "block-producer";
 
   return (
     <div className="mx-16 py-8 grid gap-10">
@@ -310,14 +374,24 @@ function WorkloadIdInfo() {
         <div className="flex items-center gap-2 text-[#64748B]">
           <Link to="/">Overview</Link>
           <CaretRightIcon className="w-4 h-4" />
-          <span className="font-semibold text-[#2B2B2B]">{activePod.annotations?.displayName ?? activePod.containerName}</span>
+          <span className="font-semibold text-[#2B2B2B]">
+            {activePod.annotations?.displayName ?? activePod.containerName}
+          </span>
         </div>
 
         <div className="flex flex-row items-start gap-4 mt-4">
-          <img src={activePod.annotations?.icon} alt={`${activePod.annotations?.displayName ?? activePod.containerName} logo`} className="w-15.5 h-15.5" />
+          <img
+            src={activePod.annotations?.icon}
+            alt={`${activePod.annotations?.displayName ?? activePod.containerName} logo`}
+            className="w-15.5 h-15.5"
+          />
           <div className="grow">
-            <h1 className="text-[32px] font-semibold text-[#2B2B2B]">{activePod.annotations?.displayName ?? activePod.containerName}</h1>
-            <span className="mt-1 text-[#969FAB] leading-none">{activePod.annotations?.network}</span>
+            <h1 className="text-[32px] font-semibold text-[#2B2B2B]">
+              {activePod.annotations?.displayName ?? activePod.containerName}
+            </h1>
+            <span className="mt-1 text-[#969FAB] leading-none">
+              {activePod.annotations?.network}
+            </span>
           </div>
           {dashboardUrl && (
             <a
@@ -336,21 +410,23 @@ function WorkloadIdInfo() {
         <div className="space-y-6">
           <MetricsSection
             title="Node"
-            aside={cardanoNodeMetrics && (
-              <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-[#64748B]">
-                {formatRoleLabel(cardanoNodeMetrics.role)}
-              </span>
-            )}
+            aside={
+              cardanoNodeMetrics && (
+                <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-[#64748B]">
+                  {formatRoleLabel(cardanoNodeMetrics.role)}
+                </span>
+              )
+            }
           >
             <InfoCard
               label="Status"
               value={status}
               description={metricDescriptions.status}
-              valueClassName={clsx('capitalize', {
-                'text-[#69C876]': status === 'connected',
-                'text-[#FF7474]': status === 'error',
-                'text-[#2B2B2B]': status === 'paused',
-                'text-[#0000FF]': status === 'pending',
+              valueClassName={clsx("capitalize", {
+                "text-[#69C876]": status === "connected",
+                "text-[#FF7474]": status === "error",
+                "text-[#2B2B2B]": status === "paused",
+                "text-[#0000FF]": status === "pending",
               })}
             />
             <InfoCard
@@ -382,7 +458,9 @@ function WorkloadIdInfo() {
                 />
                 <InfoCard
                   label="Epoch remaining"
-                  value={formatDurationSeconds(cardanoNodeMetrics.epochTimeRemainingSeconds)}
+                  value={formatDurationSeconds(
+                    cardanoNodeMetrics.epochTimeRemainingSeconds,
+                  )}
                   description={metricDescriptions.epochTimeRemaining}
                 />
                 <InfoCard
@@ -428,8 +506,10 @@ function WorkloadIdInfo() {
                   value={formatBooleanMetric(cardanoNodeMetrics.forgingEnabled)}
                   description={metricDescriptions.forgingEnabled}
                   valueClassName={clsx({
-                    'text-[#69C876]': cardanoNodeMetrics.forgingEnabled === true,
-                    'text-[#FF7474]': cardanoNodeMetrics.forgingEnabled === false,
+                    "text-[#69C876]":
+                      cardanoNodeMetrics.forgingEnabled === true,
+                    "text-[#FF7474]":
+                      cardanoNodeMetrics.forgingEnabled === false,
                   })}
                 />
               </>
@@ -441,7 +521,10 @@ function WorkloadIdInfo() {
               <MetricsSection title="Mempool" withDivider>
                 <InfoCard
                   label="Pending tx"
-                  value={formatPendingTx(cardanoNodeMetrics.pendingTx, cardanoNodeMetrics.pendingTxBytes)}
+                  value={formatPendingTx(
+                    cardanoNodeMetrics.pendingTx,
+                    cardanoNodeMetrics.pendingTxBytes,
+                  )}
                   description={metricDescriptions.pendingTx}
                 />
                 <InfoCard
@@ -454,7 +537,10 @@ function WorkloadIdInfo() {
               <MetricsSection title="Connections" withDivider>
                 <InfoCard
                   label="Peers in / out"
-                  value={formatPeerCounts(cardanoNodeMetrics.peersIncoming, cardanoNodeMetrics.peersOutgoing)}
+                  value={formatPeerCounts(
+                    cardanoNodeMetrics.peersIncoming,
+                    cardanoNodeMetrics.peersOutgoing,
+                  )}
                   description={metricDescriptions.peersInOut}
                 />
                 <InfoCard
@@ -468,7 +554,10 @@ function WorkloadIdInfo() {
                 />
                 <InfoCard
                   label="Inbound warm / hot"
-                  value={formatCountPair(cardanoNodeMetrics.inboundGovernorWarm, cardanoNodeMetrics.inboundGovernorHot)}
+                  value={formatCountPair(
+                    cardanoNodeMetrics.inboundGovernorWarm,
+                    cardanoNodeMetrics.inboundGovernorHot,
+                  )}
                   description={metricDescriptions.inboundStates}
                 />
                 <InfoCard
@@ -485,7 +574,9 @@ function WorkloadIdInfo() {
               <MetricsSection title="Block propagation" withDivider>
                 <InfoCard
                   label="Last block delay"
-                  value={formatDelaySeconds(cardanoNodeMetrics.lastBlockDelaySeconds)}
+                  value={formatDelaySeconds(
+                    cardanoNodeMetrics.lastBlockDelaySeconds,
+                  )}
                   description={metricDescriptions.lastBlockDelay}
                 />
                 <InfoCard
@@ -535,39 +626,55 @@ function WorkloadIdInfo() {
               {isBlockProducer && (
                 <MetricsSection title="Producer" withDivider>
                   <InfoCard
-                    label="Blocks adopted"
-                    value={formatMetricValue(cardanoNodeMetrics.adoptedCount)}
-                    description={metricDescriptions.blocksAdopted}
+                    label="Leader"
+                    value={formatMetricValue(
+                      cardanoNodeMetrics.scheduledLeaderCount,
+                    )}
+                    description={metricDescriptions.scheduledLeader}
+                  />
+                  <InfoCard
+                    label="Ideal"
+                    value={formatMetricValue(
+                      cardanoNodeMetrics.scheduledIdealCount,
+                      { maximumFractionDigits: 2 },
+                    )}
+                    description={metricDescriptions.scheduledIdeal}
+                  />
+                  <InfoCard
+                    label="Luck"
+                    value={formatPercent(
+                      cardanoNodeMetrics.scheduledLuckPercent,
+                    )}
+                    description={metricDescriptions.scheduledLuck}
+                  />
+                  <InfoCard
+                    label="Next Block in"
+                    value={formatDurationSeconds(
+                      cardanoNodeMetrics.nextLeaderTimeRemainingSeconds,
+                    )}
+                    description={metricDescriptions.nextBlock}
                   />
                   <InfoCard
                     label="KES current / remaining"
-                    value={formatKesSummary(cardanoNodeMetrics.kesPeriod, cardanoNodeMetrics.kesRemaining)}
+                    value={formatKesSummary(
+                      cardanoNodeMetrics.kesPeriod,
+                      cardanoNodeMetrics.kesRemaining,
+                    )}
                     description={metricDescriptions.kesSummary}
                   />
                   <InfoCard
                     label="KES expiration"
-                    value={formatTimestamp(cardanoNodeMetrics.kesExpirationTime)}
+                    value={formatTimestamp(
+                      cardanoNodeMetrics.kesExpirationTime,
+                    )}
                     description={metricDescriptions.kesExpiration}
                   />
                   <InfoCard
                     label="KES expires in"
-                    value={formatDurationSeconds(cardanoNodeMetrics.kesExpirationSeconds)}
+                    value={formatDurationSeconds(
+                      cardanoNodeMetrics.kesExpirationSeconds,
+                    )}
                     description={metricDescriptions.kesExpirationRemaining}
-                  />
-                  <InfoCard
-                    label="Leader / adopted"
-                    value={formatCountPair(cardanoNodeMetrics.leaderCount, cardanoNodeMetrics.adoptedCount)}
-                    description={metricDescriptions.leaderAdopted}
-                  />
-                  <InfoCard
-                    label="Forged / about to lead"
-                    value={formatCountPair(cardanoNodeMetrics.forgedCount, cardanoNodeMetrics.aboutToLeadCount)}
-                    description={metricDescriptions.forgedAboutToLead}
-                  />
-                  <InfoCard
-                    label="Invalid / missed"
-                    value={formatCountPair(cardanoNodeMetrics.invalidCount, cardanoNodeMetrics.missedSlots)}
-                    description={metricDescriptions.invalidMissed}
                   />
                 </MetricsSection>
               )}
@@ -583,7 +690,9 @@ function WorkloadIdInfo() {
             <div
               className="overflow-y-auto whitespace-pre-wrap h-full font-mono"
               ref={logsContainerRef}
-              dangerouslySetInnerHTML={{ __html: converter.toHtml(logs || 'No logs available').trim() }}
+              dangerouslySetInnerHTML={{
+                __html: converter.toHtml(logs || "No logs available").trim(),
+              }}
             />
           </div>
         </Card>
@@ -592,7 +701,10 @@ function WorkloadIdInfo() {
       <Card className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Delete workload</CardTitle>
-          <p className="mt-3 text-[13px]/none text-[#2B2B2B]">Once you delete a workload, there is no going back. Please be certain.</p>
+          <p className="mt-3 text-[13px]/none text-[#2B2B2B]">
+            Once you delete a workload, there is no going back. Please be
+            certain.
+          </p>
         </div>
 
         <DeleteAction />

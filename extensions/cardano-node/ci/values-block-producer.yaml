@@ -1,6 +1,3 @@
-vaultAuth:
-  ref: control-plane/default
-
 node:
   blockProducer:
     enabled: true

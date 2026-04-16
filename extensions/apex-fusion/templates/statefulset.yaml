@@ -7,6 +7,13 @@
 {{- $blockProducerSecretName := include "apex-fusion.blockProducerSecretName" . -}}
 {{- $blockProducer := .Values.node.blockProducer | default dict -}}
 {{- $blockProducerEnabled := default false $blockProducer.enabled -}}
+{{- $blockProducerDebug := and $blockProducerEnabled (default false $blockProducer.debug) -}}
+{{- $blockProducerRuntimeEnabled := and $blockProducerEnabled (not $blockProducerDebug) -}}
+{{- $networkMagicByNetwork := dict "vector-testnet" 1 "prime-testnet" 3311 -}}
+{{- $effectiveNetworkMagic := .Values.node.networkMagic -}}
+{{- if eq $effectiveNetworkMagic nil }}
+{{- $effectiveNetworkMagic = get $networkMagicByNetwork .Values.node.network -}}
+{{- end }}
 {{- $proxyChecksum := "" -}}
 {{- if and .Values.proxy.enabled .Values.proxy.config.create }}
 {{- $proxyChecksum = include (print $.Template.BasePath "/configmap-proxy.yaml") . | sha256sum -}}
@@ -73,7 +80,7 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- $args := dict "all" (list "run" "--database-path" "/data/db" "--socket-path" "/ipc/node.socket" "--port" "3000" "--config" (printf "/opt/cardano/config/%s/configuration.yaml" .Values.node.network)) }}
-          {{- if $blockProducerEnabled }}
+          {{- if $blockProducerRuntimeEnabled }}
           {{- $mountPath := default "/block-producer" $blockProducer.mountPath }}
           {{- $kesKeyFile := default "kes.skey" $blockProducer.kesKeyFile }}
           {{- $vrfKeyFile := default "vrf.skey" $blockProducer.vrfKeyFile }}
@@ -91,10 +98,22 @@ spec:
               value: {{ .Values.node.network | quote }}
             - name: CARDANO_NODE_SOCKET_PATH
               value: {{ .Values.node.socketPath | quote }}
+            - name: METIS_NODE_ROLE
+              value: {{ ternary "block-producer" "relay" $blockProducerEnabled | quote }}
+            - name: METIS_POOL_ID
+              value: {{ default "" $blockProducer.poolId | quote }}
+            - name: METIS_VRF_SKEY_PATH
+              value: {{ printf "%s/%s" (default "/block-producer" $blockProducer.mountPath) (default "vrf.skey" $blockProducer.vrfKeyFile) | quote }}
+            - name: METIS_OP_CERT_PATH
+              value: {{ printf "%s/%s" (default "/block-producer" $blockProducer.mountPath) (default "op.cert" $blockProducer.operationalCertificateFile) | quote }}
             # {{- with .Values.node.networkMagic }}
             # - name: CARDANO_NODE_NETWORK_ID
             #   value: {{ printf "%v" . | quote }}
             # {{- end }}
+            {{- with $effectiveNetworkMagic }}
+            - name: METIS_CARDANO_NETWORK_MAGIC
+              value: {{ printf "%v" . | quote }}
+            {{- end }}
             - name: RESTORE_SNAPSHOT
               value: "false"
             - name: METIS_SHELLEY_GENESIS_PATH
