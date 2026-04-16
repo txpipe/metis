@@ -78,6 +78,8 @@ declare interface CardanoNodeMetrics {
   gcMajorCount: number | null;
   kesPeriod: number | null;
   kesRemaining: number | null;
+  opCertOnDisk: number | null;
+  opCertOnChain: number | null;
   leaderCount: number | null;
   adoptedCount: number | null;
   forgedCount: number | null;

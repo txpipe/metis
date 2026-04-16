@@ -89,6 +89,8 @@ data:
     kes_remaining="$(metric_value "$metrics" cardano_node_metrics_remainingKESPeriods_int || true)"
     kes_expiration_time=""
     kes_expiration_seconds=""
+    op_cert_on_disk=""
+    op_cert_on_chain=""
     leader_count="$(metric_value "$metrics" cardano_node_metrics_Forge_node_is_leader_int cardano_node_metrics_Forge_node_is_leader_counter || true)"
     adopted_count="$(metric_value "$metrics" cardano_node_metrics_Forge_adopted_int cardano_node_metrics_Forge_adopted_counter || true)"
     forged_count="$(metric_value "$metrics" cardano_node_metrics_Forge_forged_int cardano_node_metrics_Forge_forged_counter || true)"
@@ -271,28 +273,28 @@ data:
           next_leader_time_remaining_seconds="$(jq -nr --arg value "$next_leader_time" --arg now "$now_epoch" '($value | fromdateiso8601?) as $timestamp | ($now | tonumber?) as $now | if $timestamp == null or $now == null then empty else (($timestamp - $now) | if . < 0 then 0 else . end) end' 2>/dev/null || true)"
         fi
 
-        if [ -z "$kes_period" ] || [ -z "$kes_remaining" ]; then
-          if [ -n "$op_cert_path" ] && [ -r "$op_cert_path" ]; then
-            kes_info_file="${cache_dir}/kes-info-$(sanitize_cache_key "$pool_id").json"
-            if command_exists timeout; then
-              if [ -n "$network_arg_value" ]; then
-                timeout 30 cardano-cli query kes-period-info "$network_arg_name" "$network_arg_value" --op-cert-file "$op_cert_path" --out-file "$kes_info_file" >/dev/null 2>/dev/null || true
-              else
-                timeout 30 cardano-cli query kes-period-info "$network_arg_name" --op-cert-file "$op_cert_path" --out-file "$kes_info_file" >/dev/null 2>/dev/null || true
-              fi
-            elif [ -n "$network_arg_value" ]; then
-              cardano-cli query kes-period-info "$network_arg_name" "$network_arg_value" --op-cert-file "$op_cert_path" --out-file "$kes_info_file" >/dev/null 2>/dev/null || true
+        if [ -n "$op_cert_path" ] && [ -r "$op_cert_path" ]; then
+          kes_info_file="${cache_dir}/kes-info-$(sanitize_cache_key "$pool_id").json"
+          if command_exists timeout; then
+            if [ -n "$network_arg_value" ]; then
+              timeout 30 cardano-cli query kes-period-info "$network_arg_name" "$network_arg_value" --op-cert-file "$op_cert_path" --out-file "$kes_info_file" >/dev/null 2>/dev/null || true
             else
-              cardano-cli query kes-period-info "$network_arg_name" --op-cert-file "$op_cert_path" --out-file "$kes_info_file" >/dev/null 2>/dev/null || true
+              timeout 30 cardano-cli query kes-period-info "$network_arg_name" --op-cert-file "$op_cert_path" --out-file "$kes_info_file" >/dev/null 2>/dev/null || true
             fi
+          elif [ -n "$network_arg_value" ]; then
+            cardano-cli query kes-period-info "$network_arg_name" "$network_arg_value" --op-cert-file "$op_cert_path" --out-file "$kes_info_file" >/dev/null 2>/dev/null || true
+          else
+            cardano-cli query kes-period-info "$network_arg_name" --op-cert-file "$op_cert_path" --out-file "$kes_info_file" >/dev/null 2>/dev/null || true
+          fi
 
-            if [ -r "$kes_info_file" ]; then
-              kes_period="$(jq -r '.qKesCurrentKesPeriod // empty' "$kes_info_file" 2>/dev/null || printf '%s' "$kes_period")"
-              kes_remaining="$(jq -r 'if .qKesEndKesInterval != null and .qKesCurrentKesPeriod != null then ((.qKesEndKesInterval - .qKesCurrentKesPeriod) | tostring) else empty end' "$kes_info_file" 2>/dev/null || printf '%s' "$kes_remaining")"
-              kes_expiration_time="$(jq -r '.qKesKesKeyExpiry // empty' "$kes_info_file" 2>/dev/null || true)"
-              if [ -n "$kes_expiration_time" ]; then
-                kes_expiration_seconds="$(jq -nr --arg value "$kes_expiration_time" --arg now "$now_epoch" '($value | fromdateiso8601?) as $timestamp | ($now | tonumber?) as $now | if $timestamp == null or $now == null then empty else (($timestamp - $now) | if . < 0 then 0 else . end) end' 2>/dev/null || true)"
-              fi
+          if [ -r "$kes_info_file" ]; then
+            kes_period="$(jq -r '.qKesCurrentKesPeriod // empty' "$kes_info_file" 2>/dev/null || printf '%s' "$kes_period")"
+            kes_remaining="$(jq -r 'if .qKesEndKesInterval != null and .qKesCurrentKesPeriod != null then ((.qKesEndKesInterval - .qKesCurrentKesPeriod) | tostring) else empty end' "$kes_info_file" 2>/dev/null || printf '%s' "$kes_remaining")"
+            kes_expiration_time="$(jq -r '.qKesKesKeyExpiry // empty' "$kes_info_file" 2>/dev/null || true)"
+            op_cert_on_disk="$(jq -r '.qKesOnDiskOperationalCertificateNumber // empty' "$kes_info_file" 2>/dev/null || true)"
+            op_cert_on_chain="$(jq -r '.qKesNodeStateOperationalCertificateNumber // empty' "$kes_info_file" 2>/dev/null || true)"
+            if [ -n "$kes_expiration_time" ]; then
+              kes_expiration_seconds="$(jq -nr --arg value "$kes_expiration_time" --arg now "$now_epoch" '($value | fromdateiso8601?) as $timestamp | ($now | tonumber?) as $now | if $timestamp == null or $now == null then empty else (($timestamp - $now) | if . < 0 then 0 else . end) end' 2>/dev/null || true)"
             fi
           fi
         fi
@@ -339,6 +341,8 @@ data:
       --arg gcMajorCount "$gc_major_count" \
       --arg kesPeriod "$kes_period" \
       --arg kesRemaining "$kes_remaining" \
+      --arg opCertOnDisk "$op_cert_on_disk" \
+      --arg opCertOnChain "$op_cert_on_chain" \
       --arg leaderCount "$leader_count" \
       --arg adoptedCount "$adopted_count" \
       --arg forgedCount "$forged_count" \
@@ -424,6 +428,8 @@ data:
           gcMajorCount: nullable_number($gcMajorCount),
           kesPeriod: nullable_number($kesPeriod),
           kesRemaining: $kesRemainingValue,
+          opCertOnDisk: nullable_number($opCertOnDisk),
+          opCertOnChain: nullable_number($opCertOnChain),
           leaderCount: nullable_number($leaderCount),
           adoptedCount: nullable_number($adoptedCount),
           forgedCount: nullable_number($forgedCount),

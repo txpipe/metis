@@ -102,6 +102,8 @@ const metricDescriptions = {
     "Time remaining until the next scheduled leadership slot in the current epoch.",
   kesSummary:
     "Current KES period and how many periods remain before rotation is required.",
+  opCertSummary:
+    "Operational certificate counters seen on disk and in the node chain state.",
   kesExpiration:
     "Approximate KES expiration time derived from remaining KES periods and Shelley genesis timing.",
   kesExpirationRemaining:
@@ -661,6 +663,14 @@ function WorkloadIdInfo() {
                       cardanoNodeMetrics.kesRemaining,
                     )}
                     description={metricDescriptions.kesSummary}
+                  />
+                  <InfoCard
+                    label="OP Cert disk | chain"
+                    value={formatCountPair(
+                      cardanoNodeMetrics.opCertOnDisk,
+                      cardanoNodeMetrics.opCertOnChain,
+                    )}
+                    description={metricDescriptions.opCertSummary}
                   />
                   <InfoCard
                     label="KES expiration"
