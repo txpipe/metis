@@ -9,5 +9,5 @@ metadata:
     {{- include "apex-fusion.labels" . | nindent 4 }}
 data:
   {{ $filename }}: |-
-{{ $configData | nindent 4 }}
+{{ tpl $configData . | nindent 4 }}
 {{- end }}

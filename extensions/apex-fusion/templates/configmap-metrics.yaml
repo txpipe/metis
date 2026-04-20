@@ -41,7 +41,7 @@ data:
       printf '%s' "$1" | tr -c '[:alnum:]._-' '_'
     }
 
-    metrics="$(curl -s --fail "http://127.0.0.1:{{ .Values.service.metricsPort }}/metrics" || wget -qO- "http://127.0.0.1:{{ .Values.service.metricsPort }}/metrics" || true)"
+    metrics="$(curl -s --fail "http://127.0.0.1:{{ .Values.node.metricsPort }}/metrics" || wget -qO- "http://127.0.0.1:{{ .Values.node.metricsPort }}/metrics" || true)"
     if [ -z "$metrics" ]; then
       append_error "failed to read node metrics"
     fi

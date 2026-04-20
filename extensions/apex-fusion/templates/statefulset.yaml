@@ -14,6 +14,7 @@
 {{- if eq $effectiveNetworkMagic nil }}
 {{- $effectiveNetworkMagic = get $networkMagicByNetwork .Values.node.network -}}
 {{- end }}
+{{- $topologyConfigMapName := include "apex-fusion.topologyConfigMapName" . -}}
 {{- $proxyChecksum := "" -}}
 {{- if and .Values.proxy.enabled .Values.proxy.config.create }}
 {{- $proxyChecksum = include (print $.Template.BasePath "/configmap-proxy.yaml") . | sha256sum -}}
@@ -21,6 +22,10 @@
 {{- $configurationChecksum := "" -}}
 {{- if and .Values.configuration.create .Values.configuration.files }}
 {{- $configurationChecksum = include (print $.Template.BasePath "/configmap-configuration.yaml") . | sha256sum -}}
+{{- end }}
+{{- $topologyChecksum := "" -}}
+{{- if $topologyConfigMapName }}
+{{- $topologyChecksum = include (print $.Template.BasePath "/configmap-topology.yaml") . | sha256sum -}}
 {{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
@@ -38,7 +43,7 @@ spec:
     metadata:
       labels:
 {{- $selectorLabels | nindent 8 }}
-      {{- $hasAnnotations := or .Values.podAnnotations (or $proxyChecksum $configurationChecksum) -}}
+      {{- $hasAnnotations := or .Values.podAnnotations (or $proxyChecksum (or $configurationChecksum $topologyChecksum)) -}}
       {{- if $hasAnnotations }}
       annotations:
         {{- if $proxyChecksum }}
@@ -46,6 +51,9 @@ spec:
         {{- end }}
         {{- if $configurationChecksum }}
         checksum/configuration: {{ $configurationChecksum }}
+        {{- end }}
+        {{- if $topologyChecksum }}
+        checksum/topology: {{ $topologyChecksum }}
         {{- end }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
@@ -79,7 +87,7 @@ spec:
           command:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- $args := dict "all" (list "run" "--database-path" "/data/db" "--socket-path" "/ipc/node.socket" "--port" "3000" "--config" (printf "/opt/cardano/config/%s/configuration.yaml" .Values.node.network)) }}
+          {{- $args := dict "all" (list "run" "--database-path" "/data/db" "--socket-path" "/ipc/node.socket" "--port" (printf "%v" .Values.node.n2nPort) "--config" (printf "/opt/cardano/config/%s/configuration.yaml" .Values.node.network)) }}
           {{- if $blockProducerRuntimeEnabled }}
           {{- $mountPath := default "/block-producer" $blockProducer.mountPath }}
           {{- $kesKeyFile := default "kes.skey" $blockProducer.kesKeyFile }}
@@ -98,6 +106,10 @@ spec:
               value: {{ .Values.node.network | quote }}
             - name: CARDANO_NODE_SOCKET_PATH
               value: {{ .Values.node.socketPath | quote }}
+            {{- if $blockProducerRuntimeEnabled }}
+            - name: CARDANO_BLOCK_PRODUCER
+              value: "true"
+            {{- end }}
             - name: METIS_NODE_ROLE
               value: {{ ternary "block-producer" "relay" $blockProducerEnabled | quote }}
             - name: METIS_POOL_ID
@@ -127,10 +139,10 @@ spec:
           {{- end }}
           ports:
             - name: n2n
-              containerPort: {{ .Values.service.n2nPort }}
+              containerPort: {{ .Values.node.n2nPort }}
               protocol: TCP
             - name: metrics
-              containerPort: {{ .Values.service.metricsPort }}
+              containerPort: {{ .Values.node.metricsPort }}
               protocol: TCP
           volumeMounts:
             - name: chain-data
@@ -145,6 +157,12 @@ spec:
             {{- if $configurationConfigMapName }}
             - name: configuration
               mountPath: {{ default "/configuration" .Values.configuration.mountPath }}
+            {{- end }}
+            {{- if $topologyConfigMapName }}
+            - name: topology
+              mountPath: {{ printf "/opt/cardano/config/%s/topology.json" .Values.node.network }}
+              subPath: topology.json
+              readOnly: true
             {{- end }}
             - name: metrics-scripts
               mountPath: /opt/metis/bin/metrics.sh
@@ -183,7 +201,7 @@ spec:
           {{- end }}
           ports:
             - name: n2c
-              containerPort: {{ .Values.service.n2cPort }}
+              containerPort: {{ .Values.proxy.n2cPort }}
               protocol: TCP
           volumeMounts:
             - name: ipc
@@ -236,6 +254,11 @@ spec:
           configMap:
             name: {{ $configurationConfigMapName }}
         {{- end }}
+        {{- if $topologyConfigMapName }}
+        - name: topology
+          configMap:
+            name: {{ $topologyConfigMapName }}
+        {{- end }}
         - name: metrics-scripts
           configMap:
             name: {{ $metricsConfigMapName }}
@@ -243,6 +266,7 @@ spec:
         {{- if $blockProducerEnabled }}
         - name: block-producer-keys
           secret:
+            defaultMode: 0400
             secretName: {{ $blockProducerSecretName }}
         {{- end }}
         {{- if and .Values.persistence.enabled .Values.persistence.existingClaim }}
