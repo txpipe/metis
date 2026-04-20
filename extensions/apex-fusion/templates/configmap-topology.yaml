@@ -1,0 +1,26 @@
+{{- $mode := default "image-default" .Values.node.topology.mode -}}
+{{- if ne $mode "image-default" }}
+{{- $configMapName := include "apex-fusion.topologyConfigMapName" . -}}
+{{- $localRoots := list -}}
+{{- if eq $mode "relay-service" }}
+{{- range $target := .Values.node.topology.relayTargets }}
+{{- $chartName := default $.Chart.Name $target.chart -}}
+{{- $targetNamespace := default $.Release.Namespace $target.namespace -}}
+{{- $serviceName := include "apex-fusion.releaseFullnameFor" (dict "releaseName" $target.releaseName "chartName" $chartName) -}}
+{{- $accessPoint := dict "address" (printf "%s.%s.svc.cluster.local" $serviceName $targetNamespace) "port" (default 3000 $target.port) -}}
+{{- $localRoots = append $localRoots (dict "accessPoints" (list $accessPoint) "advertise" false "valency" (default 1 $target.valency)) -}}
+{{- end }}
+{{- else }}
+{{- $localRoots = default (list) .Values.node.topology.localRoots -}}
+{{- end }}
+{{- $topology := dict "localRoots" $localRoots "publicRoots" (default (list) .Values.node.topology.publicRoots) "useLedgerAfterSlot" (default 0 .Values.node.topology.useLedgerAfterSlot) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configMapName }}
+  labels:
+    {{- include "apex-fusion.labels" . | nindent 4 }}
+data:
+  topology.json: |
+{{ toPrettyJson $topology | indent 4 }}
+{{- end }}

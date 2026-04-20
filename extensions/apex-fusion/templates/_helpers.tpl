@@ -111,3 +111,27 @@ Resolve the Secret name that holds block producer runtime artifacts.
 {{- define "apex-fusion.blockProducerSecretName" -}}
 {{- printf "%s-block-producer" (include "apex-fusion.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
+
+{{/*
+Resolve the ConfigMap name for managed topology.json.
+*/}}
+{{- define "apex-fusion.topologyConfigMapName" -}}
+{{- if ne (default "image-default" .Values.node.topology.mode) "image-default" }}
+{{- printf "%s-topology" (include "apex-fusion.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- "" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Resolve a service fullname for another release/chart pair.
+*/}}
+{{- define "apex-fusion.releaseFullnameFor" -}}
+{{- $releaseName := required "releaseName is required" .releaseName -}}
+{{- $chartName := required "chartName is required" .chartName -}}
+{{- if contains $chartName $releaseName -}}
+{{- $releaseName | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-%s" $releaseName $chartName | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end }}

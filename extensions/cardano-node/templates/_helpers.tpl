@@ -111,3 +111,27 @@ Resolve the Secret name that holds block producer runtime artifacts.
 {{- define "cardano-node.blockProducerSecretName" -}}
 {{- printf "%s-block-producer" (include "cardano-node.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
+
+{{/*
+Resolve the ConfigMap name for managed topology.json.
+*/}}
+{{- define "cardano-node.topologyConfigMapName" -}}
+{{- if ne (default "image-default" .Values.node.topology.mode) "image-default" }}
+{{- printf "%s-topology" (include "cardano-node.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- "" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Resolve a service fullname for another release/chart pair.
+*/}}
+{{- define "cardano-node.releaseFullnameFor" -}}
+{{- $releaseName := required "releaseName is required" .releaseName -}}
+{{- $chartName := required "chartName is required" .chartName -}}
+{{- if contains $chartName $releaseName -}}
+{{- $releaseName | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-%s" $releaseName $chartName | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end }}

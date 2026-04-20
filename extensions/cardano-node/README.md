@@ -6,8 +6,9 @@ Metis extensions.
 ## Features
 
 - StatefulSet with persistent storage for the node database directory.
-- Optional ConfigMap for shipping custom `config.json` / `topology.json`
-  content to the container.
+- First-class managed `topology.json` support for relay-service and custom
+  producer connectivity.
+- Optional ConfigMap for shipping custom configuration files to the container.
 - Sidecar `nginx` TCP proxy that exposes the node socket on the n2c port.
 - Services for headless pod identity and traffic access (n2n, n2c, metrics).
 - PodMonitor opt-in for Prometheus Operator installations.
@@ -44,6 +45,25 @@ tolerations:
 
 Apply the overrides with `helm install cardano-node ./cardano-node -f my-values.yaml`.
 
+## Service Ports
+
+`service.n2nPort`, `service.n2cPort`, and `service.metricsPort` control the
+Service-facing ports only. Internal container ports stay on the fixed defaults
+unless you explicitly override them with `node.n2nPort`, `node.metricsPort`, or
+`proxy.n2cPort`.
+
+Example using custom Service ports while keeping the default internal ports:
+
+```yaml
+service:
+  n2nPort: 4000
+  n2cPort: 4307
+  metricsPort: 42798
+```
+
+If you also need to change the internal proxy listener, set `proxy.n2cPort`.
+The default generated nginx config follows that value automatically.
+
 ## Block Producer Runtime Material
 
 Block producer mode now assumes Vault and Vault Secrets Operator are already
@@ -69,17 +89,18 @@ Example values:
 
 ```yaml
 node:
+  topology:
+    mode: relay-service
+    relayTargets:
+      - releaseName: preview-relay
+        namespace: preview-relay
+        chart: cardano-node
   blockProducer:
     enabled: true
     debug: false
-    mountPath: /block-producer
-    kesKeyFile: kes.skey
-    vrfKeyFile: vrf.skey
-    operationalCertificateFile: op.cert
+    poolId: pool1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     vaultStaticSecret:
-      mount: kv
       path: cardano-node/mainnet-bp/block-producer
-      refreshAfter: 1m
 ```
 
 Write the artifacts to Vault before installing or upgrading the chart:
@@ -111,6 +132,52 @@ If the Vault path is missing or incomplete, the synced Kubernetes secret will
 not be ready and the block producer will not start correctly. This is expected:
 the runtime material must exist in Vault first.
 
+## Producer Topology
+
+For block producers, prefer explicit relay connectivity instead of relying on
+the image-default public topology.
+
+Supported modes:
+
+- `image-default`: use the image-provided `topology.json`
+- `relay-service`: generate `topology.json` from one or more relay releases
+- `custom`: supply explicit `localRoots` and `publicRoots`
+
+If you leave `node.topology.mode` at `image-default`, the chart does not mount a
+managed `topology.json` and the workload keeps using the image default exactly
+as before.
+
+Recommended producer example using a relay release:
+
+```yaml
+node:
+  topology:
+    mode: relay-service
+    relayTargets:
+      - releaseName: preview-relay
+        namespace: preview-relay
+        chart: cardano-node
+```
+
+Custom topology example:
+
+```yaml
+node:
+  topology:
+    mode: custom
+    localRoots:
+      - accessPoints:
+          - address: 54.209.123.202
+            port: 6000
+        advertise: false
+        valency: 1
+    publicRoots: []
+    useLedgerAfterSlot: 0
+```
+
+When `node.blockProducer.enabled=true`, the chart requires `node.topology.mode`
+to be `relay-service` or `custom`.
+
 ## Upgrade A Relay To Block Producer
 
 Recommended sequence:
@@ -133,6 +200,12 @@ Example upgrade values for debug mode:
 
 ```yaml
 node:
+  topology:
+    mode: relay-service
+    relayTargets:
+      - releaseName: preview-relay
+        namespace: preview-relay
+        chart: cardano-node
   blockProducer:
     enabled: true
     debug: true
@@ -148,7 +221,7 @@ helm upgrade cardano-node ./cardano-node -f my-values.yaml
 ```
 
 In this mode the StatefulSet still mounts `kes.skey`, `vrf.skey`, and `op.cert`,
-and the dashboard can compute `Leader`, `Ideal`, `Luck`, and `Next block`, but
+and the dashboard can compute `Leader`, `Ideal`, `Luck`, and `Next Block in`, but
 the chart does not add the runtime flags below:
 
 - `--shelley-kes-key`

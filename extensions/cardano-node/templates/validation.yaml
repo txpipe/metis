@@ -2,6 +2,9 @@
 {{- if .Values.node.blockProducer.existingSecret }}
 {{- fail "node.blockProducer.existingSecret is no longer supported; write the runtime artifacts to Vault and configure node.blockProducer.vaultStaticSecret.path instead" }}
 {{- end }}
+{{- if eq (default "image-default" .Values.node.topology.mode) "image-default" }}
+{{- fail "node.topology.mode must be set to relay-service or custom when node.blockProducer.enabled=true" }}
+{{- end }}
 {{- if not .Values.vaultAuth.ref }}
 {{- fail "effective vaultAuth.ref is empty; the chart defaults to control-plane/default, so only override this if your cluster uses a different shared VaultAuth resource" }}
 {{- end }}
@@ -10,5 +13,15 @@
 {{- end }}
 {{- if not .Values.node.blockProducer.vaultStaticSecret.path }}
 {{- fail "node.blockProducer.vaultStaticSecret.path is required when node.blockProducer.enabled=true" }}
+{{- end }}
+{{- if eq (default "image-default" .Values.node.topology.mode) "relay-service" }}
+{{- if not .Values.node.topology.relayTargets }}
+{{- fail "node.topology.relayTargets is required when node.topology.mode=relay-service" }}
+{{- end }}
+{{- end }}
+{{- if eq (default "image-default" .Values.node.topology.mode) "custom" }}
+{{- if and (not .Values.node.topology.localRoots) (not .Values.node.topology.publicRoots) }}
+{{- fail "node.topology.localRoots or node.topology.publicRoots is required when node.topology.mode=custom" }}
+{{- end }}
 {{- end }}
 {{- end }}
