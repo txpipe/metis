@@ -32,6 +32,14 @@ In debug mode these come from `cardano-cli query kes-period-info` against the mo
 - runtime material is mounted into the pod
 - producer pod is healthy enough to expose metrics
 
+### Connectivity And Forging Checks
+
+- peer counts are non-zero
+- producer topology points only to the intended relay or custom local root
+- producer `publicRoots` are empty
+- producer `useLedgerAfterSlot` is `-1`
+- `forging enabled` is true after final producer activation
+
 ## What Cannot Be Verified Natively Yet
 
 The current dashboard does not yet provide authoritative end-to-end production outcome confirmation.
@@ -41,6 +49,9 @@ Not yet covered natively:
 - adopted/confirmed/lost semantics
 - blocklog-style production outcome tracking
 - final proof that the node actually minted and the network accepted the block
+
+Topology and peer connectivity are necessary for production, but they are not by
+themselves proof that a block was minted and accepted on-chain.
 
 ## Current Operational Rule
 
@@ -56,11 +67,17 @@ Agents should communicate this clearly and avoid overstating what the current me
 - debug-mode producer metrics are visible
 - KES and op-cert metrics look sane
 - `Next Block in` shows enough time for a safe switch
+- producer topology is configured explicitly (`relay-service` or `custom`)
+- producer topology references only operator-controlled relays
+- producer `publicRoots` are empty
+- producer `useLedgerAfterSlot` is `-1`
+- peer counts are non-zero
 
 ### Immediately After Cutover
 
 - producer pod restarted correctly
 - forging enabled is true
+- peer counts are still non-zero
 - `OP Cert disk | chain` remains aligned
 - KES metrics still render
 
@@ -75,3 +92,4 @@ Agents should communicate this clearly and avoid overstating what the current me
 - separate readiness from actual production success
 - keep external confirmation in place until native outcome verification exists
 - use debug mode to validate everything possible before enabling forging
+- remember that relay topology may stay on `image-default`, but producer topology should be explicit and private

@@ -29,6 +29,30 @@ Install and validate a Cardano relay workload first. Relay-first is the base pat
 - Use hardened SSH and avoid password-based logins on underlying hosts.
 - Validate storage classes before installation.
 
+## Relay Topology Guidance
+
+Relay topology is operationally important, but it is less restrictive than block
+producer topology.
+
+Recommended stance for Metis:
+
+- using `node.topology.mode=image-default` for a relay is a reasonable starting point
+- move to an explicit relay topology later only if you want tighter peer control or propagation tuning
+- the block producer is the node that must have explicit private topology
+
+For a relay:
+
+- `image-default` is acceptable initially
+- explicit topology is optional tuning
+- the relay can face the broader Cardano network
+
+For a producer later:
+
+- do not use `image-default`
+- connect only to your own relays or relays you explicitly trust
+- keep `publicRoots` empty
+- disable ledger peers with `useLedgerAfterSlot: -1`
+
 ## Preflight Checks
 
 ### Discover Installed Extensions
@@ -74,6 +98,9 @@ helm install <release> ./extensions/cardano-node \
   --set persistence.storageClass=<storage-class>
 ```
 
+If you want the simple default relay networking path, leave topology at the
+chart default `image-default`.
+
 ### Apex Fusion
 
 The chart derives built-in testnet network magic automatically for supported networks.
@@ -113,6 +140,12 @@ Healthy relay expectations:
 - node metrics are exposed
 - sync is progressing
 - transaction processing is not stuck at zero for long periods on a healthy synced node
+
+Topology interpretation:
+
+- a healthy relay can run on `image-default`
+- relay topology can be tightened later for peer diversity or propagation tuning
+- do not copy relay networking assumptions onto the producer; the producer should be explicit and private
 
 If the dashboard is available, validate:
 

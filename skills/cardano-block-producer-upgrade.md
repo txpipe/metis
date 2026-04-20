@@ -20,6 +20,28 @@ Upgrade an existing healthy relay to block-producer mode for an existing pool, u
 
 `debug=true` only changes behavior when `enabled=true`.
 
+## Producer Topology Rules
+
+For a real Cardano block producer, topology is part of the security model, not
+just a connectivity convenience.
+
+Recommended producer behavior:
+
+- the producer should only connect to its own relays, or relays you explicitly trust
+- `localRoots` should contain only those relays
+- `publicRoots` should be empty
+- `useLedgerAfterSlot` should be `-1` so ledger peers stay disabled on the producer
+- do not rely on image-default topology for a producer
+
+Operational interpretation for Metis:
+
+- `relay-service` is the preferred managed mode when the relays are other Metis releases
+- `custom` is appropriate when you need to set explicit `localRoots`
+- `image-default` is acceptable for relays, but not recommended for producers
+
+This matches both current Cardano documentation and the typical
+`guild-operators` block producer pattern.
+
 ## Required Inputs
 
 - target release name
@@ -82,6 +104,13 @@ Prepare values like:
 
 ```yaml
 node:
+  topology:
+    mode: relay-service
+    useLedgerAfterSlot: -1
+    relayTargets:
+      - releaseName: <relay-release>
+        namespace: <relay-namespace>
+        chart: <relay-chart-name>
   blockProducer:
     enabled: true
     debug: true
@@ -89,6 +118,33 @@ node:
     vaultStaticSecret:
       path: <vault-kv-path>
 ```
+
+If you need a fully explicit topology instead of generated relay service
+targets, use `custom` and keep the producer private:
+
+```yaml
+node:
+  topology:
+    mode: custom
+    localRoots:
+      - accessPoints:
+          - address: relay-a.<namespace>.svc.cluster.local
+            port: 3000
+          - address: relay-b.<namespace>.svc.cluster.local
+            port: 3000
+        advertise: false
+        trustable: true
+        hotValency: 2
+    publicRoots: []
+    useLedgerAfterSlot: -1
+```
+
+Notes for the custom form:
+
+- only put your relays in `localRoots`
+- set `hotValency` to the number of relay connections you want the producer to keep active
+- omit public internet peers from producer topology entirely
+- if you operate raw Cardano config outside these charts, keep `PeerSharing=false` on the producer
 
 Apply with:
 
@@ -133,10 +189,23 @@ Confirm these producer metrics are visible:
 - `KES expiration`
 - `OP Cert disk | chain`
 
+Also confirm:
+
+- peer counts are non-zero
+- the producer topology points only at the intended relay or custom local root
+- producer `publicRoots` are empty
+- producer `useLedgerAfterSlot` is `-1`
+
 ### Important Notes Learned From Implementation
 
 - `prime-testnet` must use network magic `3311`
 - Apex Fusion derives built-in testnet magic automatically for supported networks
+- block producers should not rely on image-default public topology; set `node.topology.mode` explicitly
+- `relay-service` is the easiest managed mode for developers
+- `custom` can be used for explicit local roots, but producers should point only at their relays
+- for producers, `publicRoots` should be empty and `useLedgerAfterSlot` should be `-1`
+- using `image-default` for a relay is fine as a starting point, but producers should always be explicit
+- guild-operators follows the same producer pattern: relay-only `localRoots`, empty `publicRoots`, ledger peers disabled
 - `leadership-schedule` may be slow on first run
 - schedule metrics use cached/background refresh, so the first refresh may need warm-up time
 - in debug mode, KES metrics come from `cardano-cli query kes-period-info`, not from node metrics
@@ -155,6 +224,7 @@ Recommended sequence:
 3. Wait for a comfortable window before the next scheduled slot.
 4. Shut down or retire the currently active producer according to your operational process.
 5. Switch the current release from debug mode to full producer mode.
+6. Confirm the producer still has peers and `forging enabled` becomes true.
 
 ## Final Producer Activation
 
@@ -185,6 +255,7 @@ Validate:
 
 - pod restarted cleanly
 - forging is enabled
+- peer counts are still non-zero
 - `OP Cert disk | chain` is aligned
 - KES metrics still look healthy
 - schedule metrics still render
@@ -211,4 +282,5 @@ node:
 - only runtime material enters the cluster
 - keep system time accurate
 - avoid switching close to an assigned slot
+- keep producer topology private and minimal
 - do not treat dashboard readiness as proof of produced blocks; external confirmation is still required for now
