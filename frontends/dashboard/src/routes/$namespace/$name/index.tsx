@@ -100,6 +100,8 @@ const metricDescriptions = {
     'Current epoch leader schedule luck, computed as scheduled leadership slots divided by the ideal expected slot count.',
   nextBlock:
     'Time remaining until the next scheduled leadership slot in the current epoch.',
+  forgedAdoptedLocal:
+    'Local node counters for blocks forged and adopted since startup. Useful for debugging, but not proof of canonical chain inclusion.',
   kesSummary:
     'Current KES period and how many periods remain before rotation is required.',
   opCertSummary:
@@ -655,6 +657,14 @@ function WorkloadIdInfo() {
                       cardanoNodeMetrics.nextLeaderTimeRemainingSeconds,
                     )}
                     description={metricDescriptions.nextBlock}
+                  />
+                  <InfoCard
+                    label="Forged / adopted (local)"
+                    value={formatCountPair(
+                      cardanoNodeMetrics.forgedCount,
+                      cardanoNodeMetrics.adoptedCount,
+                    )}
+                    description={metricDescriptions.forgedAdoptedLocal}
                   />
                   <InfoCard
                     label="KES current / remaining"

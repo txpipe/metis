@@ -89,13 +89,48 @@ Confirm:
 
 Use the chart-specific path pattern you manage operationally.
 
+### Local Vault Upload Workflow
+
+If Vault is only reachable inside the cluster, use the local `vault` CLI with a
+`kubectl port-forward`.
+
+1. Make sure the `vault` CLI is installed on your machine.
+2. Discover the Vault service if needed:
+
+```bash
+kubectl get svc -n control-plane
+```
+
+3. Port-forward the Vault HTTP port locally. In this cluster the service is
+   `control-plane-vault`:
+
+```bash
+kubectl -n control-plane port-forward service/control-plane-vault 8200:8200
+```
+
+4. Point the local CLI at the forwarded address:
+
+```bash
+export VAULT_ADDR=http://localhost:8200
+```
+
+5. Log in locally using your normal operator authentication flow.
+6. Upload only the runtime block-producer material from local files.
+
+Rules:
+
+- upload only `kes.skey`, `vrf.skey`, and `op.cert`
+- keep cold keys offline
+- keep the operational certificate counter outside the cluster
+- prefer absolute local file paths to avoid ambiguity
+
 Example shape:
 
 ```bash
 vault kv put kv/<path> \
-  kes.skey=@kes.skey \
-  vrf.skey=@vrf.skey \
-  op.cert=@op.cert
+  kes.skey=@/absolute/path/to/kes.skey \
+  vrf.skey=@/absolute/path/to/vrf.skey \
+  op.cert=@/absolute/path/to/op.cert
 ```
 
 ## Debug-First Upgrade

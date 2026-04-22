@@ -59,6 +59,9 @@ For now, actual successful block production is still confirmed using a third-par
 
 Agents should communicate this clearly and avoid overstating what the current metrics prove.
 
+For the specific case where local producer metrics look healthy but recent pool
+blocks are missing externally, use `cardano-block-producer-troubleshooting.md`.
+
 ## Verification Checklist
 
 ### Before Cutover

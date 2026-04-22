@@ -156,6 +156,9 @@ data:
 
     node_role="${METIS_NODE_ROLE:-relay}"
     if [ "$node_role" = "block-producer" ]; then
+      leader_count="${leader_count:-0}"
+      adopted_count="${adopted_count:-0}"
+      forged_count="${forged_count:-0}"
       pool_id="${METIS_POOL_ID:-}"
       vrf_skey_path="${METIS_VRF_SKEY_PATH:-}"
       op_cert_path="${METIS_OP_CERT_PATH:-}"

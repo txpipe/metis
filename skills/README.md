@@ -11,6 +11,7 @@ Use these skills as follows:
 - `cardano-relay-setup.md`: install and validate a Cardano relay workload first.
 - `cardano-block-producer-upgrade.md`: upgrade an existing relay to block-producer mode from an existing pool, using debug mode first, with explicit producer topology guidance.
 - `cardano-block-producer-verification.md`: explain what can be verified today from the dashboard and what still requires external confirmation.
+- `cardano-block-producer-troubleshooting.md`: diagnose cases where a producer looks healthy locally but recent pool blocks are missing from the canonical external chain view.
 - `cardano-node-metrics-access.md`: read raw node metrics and the derived Metis metrics payload directly from a running pod via `kubectl exec`.
 - `supernode-dashboard-port-forward.md`: expose the user-facing `supernode-dashboard` locally with `kubectl port-forward`, with Grafana and Prometheus as supporting debug paths.
 
