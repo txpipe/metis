@@ -20,7 +20,7 @@ spec:
       automountServiceAccountToken: true
       containers:
       - name: supernode-dashboard
-        image: ghcr.io/txpipe/metis-dashboard:79028f11184bcde5e950a46b335718e17dc56386
+        image: ghcr.io/txpipe/metis-dashboard:29f4b0819d63c0b319d0bcbb7083796ab1138cbb
         ports:
         - name: http
           containerPort: 3000
