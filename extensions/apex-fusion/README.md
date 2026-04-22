@@ -110,12 +110,27 @@ node:
 
 Write the artifacts to Vault before installing or upgrading the chart:
 
+If Vault is only reachable inside the cluster, use the local `vault` CLI with a
+port-forward first:
+
+```shell
+kubectl get svc -n control-plane
+kubectl -n control-plane port-forward service/control-plane-vault 8200:8200
+export VAULT_ADDR=http://localhost:8200
+```
+
+Then log in locally using your normal operator auth flow and upload the runtime
+artifacts from local files:
+
 ```shell
 vault kv put kv/apex-fusion/prime-mainnet-bp/block-producer \
-  kes.skey=@kes.skey \
-  vrf.skey=@vrf.skey \
-  op.cert=@op.cert
+  kes.skey=@/absolute/path/to/kes.skey \
+  vrf.skey=@/absolute/path/to/vrf.skey \
+  op.cert=@/absolute/path/to/op.cert
 ```
+
+Only `kes.skey`, `vrf.skey`, and `op.cert` belong in Vault for this workflow.
+Keep cold keys and the operational certificate counter outside the cluster.
 
 When `node.blockProducer.enabled=true` the chart creates a namespace-local
 `vault-auth` service account and a `VaultStaticSecret` that references the
