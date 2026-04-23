@@ -38,6 +38,9 @@ In debug mode these come from `cardano-cli query kes-period-info` against the mo
 - producer topology points only to the intended relay or custom local root
 - producer `publicRoots` are empty
 - producer `useLedgerAfterSlot` is `-1`
+- relay topology is explicit when paired with a producer
+- relay `localRoots` include the producer path
+- relay `publicRoots` remain populated for network connectivity
 - `forging enabled` is true after final producer activation
 
 ## What Cannot Be Verified Natively Yet
@@ -59,6 +62,9 @@ For now, actual successful block production is still confirmed using a third-par
 
 Agents should communicate this clearly and avoid overstating what the current metrics prove.
 
+If Dolos is deployed for the same network, it is the preferred external chain
+view to use for this confirmation flow.
+
 For the specific case where local producer metrics look healthy but recent pool
 blocks are missing externally, use `cardano-block-producer-troubleshooting.md`.
 
@@ -67,6 +73,7 @@ blocks are missing externally, use `cardano-block-producer-troubleshooting.md`.
 ### Before Cutover
 
 - relay is healthy
+- relay topology is explicit, with the producer in `localRoots` and public relays in `publicRoots`
 - debug-mode producer metrics are visible
 - KES and op-cert metrics look sane
 - `Next Block in` shows enough time for a safe switch
@@ -81,6 +88,7 @@ blocks are missing externally, use `cardano-block-producer-troubleshooting.md`.
 - producer pod restarted correctly
 - forging enabled is true
 - peer counts are still non-zero
+- relay still has both the producer path and public peer paths
 - `OP Cert disk | chain` remains aligned
 - KES metrics still render
 
@@ -89,6 +97,7 @@ blocks are missing externally, use `cardano-block-producer-troubleshooting.md`.
 - confirm schedule still looks sane
 - confirm no obvious producer-side errors
 - use the external confirmation process to verify actual production success
+- prefer Dolos for this check when it is available on the supernode cluster
 
 ## Best Practices
 

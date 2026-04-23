@@ -10,10 +10,12 @@
 {{- $blockProducerDebug := and $blockProducerEnabled (default false $blockProducer.debug) -}}
 {{- $blockProducerRuntimeEnabled := and $blockProducerEnabled (not $blockProducerDebug) -}}
 {{- $networkMagicByNetwork := dict "vector-testnet" 1 "prime-testnet" 3311 -}}
+{{- $shelleyTransitionEpochByNetwork := dict "vector-testnet" 0 "prime-testnet" 0 "prime-mainnet" 2 -}}
 {{- $effectiveNetworkMagic := .Values.node.networkMagic -}}
 {{- if eq $effectiveNetworkMagic nil }}
 {{- $effectiveNetworkMagic = get $networkMagicByNetwork .Values.node.network -}}
 {{- end }}
+{{- $effectiveShelleyTransitionEpoch := get $shelleyTransitionEpochByNetwork .Values.node.network -}}
 {{- $topologyConfigMapName := include "apex-fusion.topologyConfigMapName" . -}}
 {{- $proxyChecksum := "" -}}
 {{- if and .Values.proxy.enabled .Values.proxy.config.create }}
@@ -130,6 +132,12 @@ spec:
               value: "false"
             - name: METIS_SHELLEY_GENESIS_PATH
               value: {{ printf "/opt/cardano/config/%s/genesis/shelley/genesis.json" .Values.node.network | quote }}
+            - name: METIS_BYRON_GENESIS_PATH
+              value: {{ printf "/opt/cardano/config/%s/genesis/byron/genesis.json" .Values.node.network | quote }}
+            {{- with $effectiveShelleyTransitionEpoch }}
+            - name: METIS_SHELLEY_TRANSITION_EPOCH
+              value: {{ printf "%v" . | quote }}
+            {{- end }}
             {{- with .Values.node.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

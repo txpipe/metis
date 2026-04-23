@@ -9,6 +9,8 @@
 {{- $blockProducerEnabled := default false $blockProducer.enabled -}}
 {{- $blockProducerDebug := and $blockProducerEnabled (default false $blockProducer.debug) -}}
 {{- $blockProducerRuntimeEnabled := and $blockProducerEnabled (not $blockProducerDebug) -}}
+{{- $shelleyTransitionEpochByNetwork := dict "preview" 0 "preprod" 0 "mainnet" 208 -}}
+{{- $effectiveShelleyTransitionEpoch := get $shelleyTransitionEpochByNetwork .Values.node.network -}}
 {{- $topologyConfigMapName := include "cardano-node.topologyConfigMapName" . -}}
 {{- $proxyChecksum := "" -}}
 {{- if and .Values.proxy.enabled .Values.proxy.config.create }}
@@ -124,6 +126,12 @@ spec:
               value: "true"
             - name: METIS_SHELLEY_GENESIS_PATH
               value: {{ printf "/opt/cardano/config/%s/shelley-genesis.json" .Values.node.network | quote }}
+            - name: METIS_BYRON_GENESIS_PATH
+              value: {{ printf "/opt/cardano/config/%s/byron-genesis.json" .Values.node.network | quote }}
+            {{- with $effectiveShelleyTransitionEpoch }}
+            - name: METIS_SHELLEY_TRANSITION_EPOCH
+              value: {{ printf "%v" . | quote }}
+            {{- end }}
             {{- with .Values.node.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

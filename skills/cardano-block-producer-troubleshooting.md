@@ -135,10 +135,19 @@ Confirm the producer is connected to the intended relay path.
 Confirm the relay:
 
 - is in sync
+- has explicit topology when paired with a producer
+- includes the producer in `localRoots`
 - has healthy external peers
+- keeps trusted public relay targets in `publicRoots`
 - is actually receiving the producer connection
 
 If the relay is unhealthy, the producer may still look locally healthy while blocks fail to propagate well.
+
+Recommended relay pattern during producer troubleshooting:
+
+- `localRoots`: producer only
+- `publicRoots`: trusted public relays
+- `useLedgerAfterSlot = 0`
 
 ### 8. Compare Against External Canonical Chain View
 
@@ -187,6 +196,7 @@ Probable causes to investigate next:
 - propagation path / topology design
 - producer favoring the wrong local root
 - relay path not being the intended one
+- relay still using image-default topology instead of explicit producer + public roots
 - non-canonical outcomes such as ghosted/stolen behavior
 
 Without native block outcome tracking, this cannot be classified exactly from local metrics alone.
@@ -203,6 +213,13 @@ Preferred producer topology:
 - keep `useLedgerAfterSlot = -1`
 
 If using Metis managed topology, prefer `relay-service` mode.
+
+Preferred relay topology:
+
+- explicit topology, not image-default, once a producer is attached
+- producer in `localRoots`
+- trusted public relays in `publicRoots`
+- `useLedgerAfterSlot = 0`
 
 ## What This Skill Does Not Replace
 

@@ -98,12 +98,17 @@ data:
     missed_slots="$(metric_value "$metrics" cardano_node_metrics_slotsMissedNum_int cardano_node_metrics_slotsMissed_int || true)"
 
     shelley_genesis_path="${METIS_SHELLEY_GENESIS_PATH:-}"
+    byron_genesis_path="${METIS_BYRON_GENESIS_PATH:-}"
     epoch_length=""
     slot_length=""
     slots_per_kes_period=""
     active_slots_coeff=""
     system_start_raw=""
     system_start_unix=""
+    byron_start_unix=""
+    byron_epoch_length=""
+    byron_slot_length=""
+    shelley_transition_epoch="${METIS_SHELLEY_TRANSITION_EPOCH:-}"
 
     if [ -n "$shelley_genesis_path" ]; then
       if [ -r "$shelley_genesis_path" ]; then
@@ -144,9 +149,62 @@ data:
       append_error "METIS_SHELLEY_GENESIS_PATH is not set"
     fi
 
+    if [ -n "$byron_genesis_path" ]; then
+      if [ -r "$byron_genesis_path" ]; then
+        byron_start_unix="$(jq -r '.startTime // empty' "$byron_genesis_path" 2>/dev/null || true)"
+        byron_k="$(jq -r '.protocolConsts.k // empty' "$byron_genesis_path" 2>/dev/null || true)"
+        byron_slot_length_ms="$(jq -r '.blockVersionData.slotDuration // empty' "$byron_genesis_path" 2>/dev/null || true)"
+
+        if [ -n "$byron_k" ]; then
+          byron_epoch_length="$((10 * byron_k))"
+        fi
+
+        if [ -n "$byron_slot_length_ms" ]; then
+          byron_slot_length="$(jq -nr --arg value "$byron_slot_length_ms" '($value | tonumber?) / 1000' 2>/dev/null || true)"
+        fi
+      else
+        append_error "byron genesis file is not readable: $byron_genesis_path"
+      fi
+    fi
+
     now_epoch="$(date +%s 2>/dev/null || true)"
     cache_dir="/tmp/metis-metrics"
     mkdir -p "$cache_dir" 2>/dev/null || true
+    tip_ref_slot=""
+
+    if [ -n "$slot_length" ] && [ -n "$system_start_unix" ] && [ -n "$now_epoch" ]; then
+      if [ -n "$byron_start_unix" ] && [ -n "$byron_epoch_length" ] && [ -n "$byron_slot_length" ]; then
+        tip_ref_slot="$(jq -nr \
+          --arg now "$now_epoch" \
+          --arg shelleyStart "$system_start_unix" \
+          --arg slotLength "$slot_length" \
+          --arg byronStart "$byron_start_unix" \
+          --arg byronEpochLength "$byron_epoch_length" \
+          --arg byronSlotLength "$byron_slot_length" \
+          --arg transitionEpoch "$shelley_transition_epoch" '
+            ($now | tonumber?) as $now |
+            ($shelleyStart | tonumber?) as $shelleyStart |
+            ($slotLength | tonumber?) as $slotLength |
+            ($byronStart | tonumber?) as $byronStart |
+            ($byronEpochLength | tonumber?) as $byronEpochLength |
+            ($byronSlotLength | tonumber?) as $byronSlotLength |
+            ($transitionEpoch | tonumber?) as $transitionEpoch |
+            if $now == null or $shelleyStart == null or $slotLength == null or $slotLength <= 0 or $byronStart == null or $byronEpochLength == null or $byronEpochLength < 0 or $byronSlotLength == null or $byronSlotLength <= 0 then empty
+            else
+              (($transitionEpoch // ((($shelleyStart - $byronStart) / ($byronEpochLength * $byronSlotLength)) | floor))) as $effectiveTransitionEpoch |
+              ($effectiveTransitionEpoch * $byronEpochLength) as $byronSlots |
+              ($byronStart + ($byronSlots * $byronSlotLength)) as $byronEnd |
+              if $now < $byronEnd then (((($now - $byronStart) / $byronSlotLength) | floor) | if . < 0 then 0 else . end)
+              else ($byronSlots + ((($now - $byronEnd) / $slotLength) | floor))
+              end
+            end' 2>/dev/null || true)"
+      fi
+
+      if [ -z "$tip_ref_slot" ]; then
+        tip_ref_slot="$(jq -nr --arg now "$now_epoch" --arg systemStart "$system_start_unix" --arg slotLength "$slot_length" '($now | tonumber?) as $now | ($systemStart | tonumber?) as $systemStart | ($slotLength | tonumber?) as $slotLength | if $now == null or $systemStart == null or $slotLength == null or $slotLength <= 0 then empty else (((($now - $systemStart) / $slotLength) | floor) | if . < 0 then 0 else . end) end' 2>/dev/null || true)"
+      fi
+    fi
+
     scheduled_leader_count=""
     scheduled_ideal_count=""
     scheduled_luck_percent=""
@@ -357,6 +415,7 @@ data:
       --arg activeSlotsCoeff "$active_slots_coeff" \
       --arg systemStartUnix "$system_start_unix" \
       --arg nowEpoch "$now_epoch" \
+      --arg tipRefSlot "$tip_ref_slot" \
       --arg kesExpirationTime "$kes_expiration_time" \
       --arg kesExpirationSeconds "$kes_expiration_seconds" \
       --arg scheduledLeaderCount "$scheduled_leader_count" \
@@ -391,7 +450,7 @@ data:
         (nullable_number($nowEpoch)) as $nowEpochValue |
         (nullable_number($kesRemaining)) as $kesRemainingValue |
         (nullable_number($slotsPerKESPeriod)) as $slotsPerKESPeriodValue |
-        (if $slotLengthValue != null and $slotLengthValue > 0 and $systemStartUnixValue != null and $nowEpochValue != null then (((($nowEpochValue - $systemStartUnixValue) / $slotLengthValue) | floor) | if . < 0 then 0 else . end) else null end) as $tipRefSlot |
+        (nullable_number($tipRefSlot)) as $tipRefSlotValue |
         (nullable_number($kesExpirationSeconds)) as $kesExpirationSecondsValue |
         (nullable_string($kesExpirationTime)) as $kesExpirationTimeValue |
         (if $kesExpirationSecondsValue != null then $kesExpirationSecondsValue elif $kesRemainingValue != null and $slotsPerKESPeriodValue != null and $slotLengthValue != null then (($kesRemainingValue * $slotsPerKESPeriodValue * $slotLengthValue) | floor) else null end) as $resolvedKesExpirationSeconds |
@@ -429,6 +488,9 @@ data:
           memHeapBytes: nullable_number($memHeapBytes),
           gcMinorCount: nullable_number($gcMinorCount),
           gcMajorCount: nullable_number($gcMajorCount),
+          epochLength: $epochLengthValue,
+          slotLength: $slotLengthValue,
+          systemStartUnix: $systemStartUnixValue,
           kesPeriod: nullable_number($kesPeriod),
           kesRemaining: $kesRemainingValue,
           opCertOnDisk: nullable_number($opCertOnDisk),
@@ -447,9 +509,9 @@ data:
           nextLeaderTimeRemainingSeconds: nullable_number($nextLeaderTimeRemainingSeconds),
           epochProgressPercent: (if $slotInEpochValue != null and $epochLengthValue != null and $epochLengthValue > 0 then (($slotInEpochValue / $epochLengthValue) * 100) else null end),
           epochTimeRemainingSeconds: (if $slotInEpochValue != null and $epochLengthValue != null and $slotLengthValue != null then ((($epochLengthValue - $slotInEpochValue) * $slotLengthValue) | if . < 0 then 0 else . end) else null end),
-          tipRefSlot: $tipRefSlot,
-          tipDiffSlots: (if $tipRefSlot != null and $slotNumValue != null then ($tipRefSlot - $slotNumValue) else null end),
-          syncPercent: (if $tipRefSlot != null and $tipRefSlot > 0 and $slotNumValue != null then clamp((($slotNumValue / $tipRefSlot) * 100); 0; 100) else null end),
+          tipRefSlot: $tipRefSlotValue,
+          tipDiffSlots: (if $tipRefSlotValue != null and $slotNumValue != null then ($tipRefSlotValue - $slotNumValue) else null end),
+          syncPercent: (if $tipRefSlotValue != null and $tipRefSlotValue > 0 and $slotNumValue != null then clamp((($slotNumValue / $tipRefSlotValue) * 100); 0; 100) else null end),
           kesExpirationSeconds: $resolvedKesExpirationSeconds,
           kesExpirationTime: (if $kesExpirationTimeValue != null then $kesExpirationTimeValue elif $resolvedKesExpirationSeconds != null and $nowEpochValue != null then (($nowEpochValue + $resolvedKesExpirationSeconds) | todateiso8601) else null end),
           errors: $errors

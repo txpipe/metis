@@ -31,20 +31,21 @@ Install and validate a Cardano relay workload first. Relay-first is the base pat
 
 ## Relay Topology Guidance
 
-Relay topology is operationally important, but it is less restrictive than block
-producer topology.
+Relay topology is operationally important and should be explicit once a producer
+is attached to it.
 
 Recommended stance for Metis:
 
-- using `node.topology.mode=image-default` for a relay is a reasonable starting point
-- move to an explicit relay topology later only if you want tighter peer control or propagation tuning
-- the block producer is the node that must have explicit private topology
+- if the relay has no producer attached yet, `node.topology.mode=image-default` is a reasonable starting point
+- once the relay is paired with a producer, the relay should also use explicit topology
+- the relay should keep a private `localRoots` path to its producer and public network roots at the same time
 
 For a relay:
 
-- `image-default` is acceptable initially
-- explicit topology is optional tuning
-- the relay can face the broader Cardano network
+- if paired to a producer, `localRoots` should contain the producer path
+- `publicRoots` should contain the trusted public relay set used for network connectivity
+- `useLedgerAfterSlot` should remain `0`
+- the relay can and should face the broader Cardano network
 
 For a producer later:
 
@@ -99,7 +100,7 @@ helm install <release> ./extensions/cardano-node \
 ```
 
 If you want the simple default relay networking path, leave topology at the
-chart default `image-default`.
+chart default `image-default` until a producer is attached.
 
 ### Apex Fusion
 
@@ -122,6 +123,40 @@ helm install <release> ./extensions/apex-fusion \
 
 Only override `node.networkMagic` when the network is non-standard or the chart default does not apply.
 
+### Relay Topology After A Producer Exists
+
+Once a producer is paired with the relay, prefer explicit topology instead of
+`image-default`.
+
+Recommended shape:
+
+```yaml
+node:
+  topology:
+    mode: custom
+    localRoots:
+      - accessPoints:
+          - address: <producer-service-dns>
+            port: 3000
+        advertise: false
+        valency: 1
+    publicRoots:
+      - accessPoints:
+          - address: <public-relay-a>
+            port: <public-relay-port>
+          - address: <public-relay-b>
+            port: <public-relay-port>
+        advertise: true
+        valency: 1
+    useLedgerAfterSlot: 0
+```
+
+Operational intent:
+
+- private producer path through `localRoots`
+- public network path through `publicRoots`
+- explicit relay behavior instead of image defaults
+
 ## Post-Install Validation
 
 Check the namespace:
@@ -143,8 +178,10 @@ Healthy relay expectations:
 
 Topology interpretation:
 
-- a healthy relay can run on `image-default`
-- relay topology can be tightened later for peer diversity or propagation tuning
+- a healthy relay can start on `image-default` before a producer is attached
+- once a producer exists, relay topology should become explicit
+- relay `localRoots` should include the producer path
+- relay `publicRoots` should remain populated for wider network connectivity
 - do not copy relay networking assumptions onto the producer; the producer should be explicit and private
 
 If the dashboard is available, validate:

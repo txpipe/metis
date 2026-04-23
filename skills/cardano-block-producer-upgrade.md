@@ -42,6 +42,24 @@ Operational interpretation for Metis:
 This matches both current Cardano documentation and the typical
 `guild-operators` block producer pattern.
 
+## Relay Topology Rules
+
+Once a producer is paired with a relay, the relay should also move to explicit
+topology.
+
+Recommended relay behavior:
+
+- `localRoots` should include the producer path
+- `publicRoots` should remain populated with trusted public relay targets
+- `useLedgerAfterSlot` should remain `0`
+- do not leave the relay on image-default topology once you are debugging real producer propagation issues
+
+Operational interpretation for Metis:
+
+- if the producer is explicit and private, the relay should be explicit too
+- the relay should trust and maintain a private path to the producer
+- the relay should still maintain public network connectivity through `publicRoots`
+
 ## Required Inputs
 
 - target release name
@@ -81,6 +99,7 @@ kubectl get vaultstaticsecret -n <namespace>
 Confirm:
 
 - the relay is healthy
+- the relay topology is known and intentional
 - the namespace is correct
 - the chart is the expected one
 - control-plane shared Vault resources exist
@@ -230,6 +249,7 @@ Also confirm:
 - the producer topology points only at the intended relay or custom local root
 - producer `publicRoots` are empty
 - producer `useLedgerAfterSlot` is `-1`
+- if Dolos is available for the same network, use it as the preferred external chain view during later validation
 
 ### Important Notes Learned From Implementation
 
@@ -256,6 +276,7 @@ Recommended sequence:
 
 1. Run in debug mode first.
 2. Confirm producer metrics are healthy.
+3. Confirm the relay has explicit topology: producer in `localRoots`, public relays in `publicRoots`.
 3. Wait for a comfortable window before the next scheduled slot.
 4. Shut down or retire the currently active producer according to your operational process.
 5. Switch the current release from debug mode to full producer mode.
@@ -294,6 +315,7 @@ Validate:
 - `OP Cert disk | chain` is aligned
 - KES metrics still look healthy
 - schedule metrics still render
+- if Dolos is deployed for this network, use its minibf endpoint as the preferred external source when checking whether canonical pool blocks appear
 
 ## Rollback Guidance
 
