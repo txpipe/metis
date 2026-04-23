@@ -34,19 +34,26 @@ spec:
       {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) .Values.service.grpcNodePort }}
       nodePort: {{ .Values.service.grpcNodePort }}
       {{- end }}
-    - name: ouroboros
-      port: {{ .Values.service.ouroborosPort }}
-      targetPort: ouroboros
-      protocol: TCP
-      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) .Values.service.ouroborosNodePort }}
-      nodePort: {{ .Values.service.ouroborosNodePort }}
-      {{- end }}
     - name: minibf
       port: {{ .Values.service.minibfPort }}
       targetPort: minibf
       protocol: TCP
       {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) .Values.service.minibfNodePort }}
       nodePort: {{ .Values.service.minibfNodePort }}
+      {{- end }}
+    - name: minikupo
+      port: {{ .Values.service.minikupoPort }}
+      targetPort: minikupo
+      protocol: TCP
+      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) .Values.service.minikupoNodePort }}
+      nodePort: {{ .Values.service.minikupoNodePort }}
+      {{- end }}
+    - name: trp
+      port: {{ .Values.service.trpPort }}
+      targetPort: trp
+      protocol: TCP
+      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) .Values.service.trpNodePort }}
+      nodePort: {{ .Values.service.trpNodePort }}
       {{- end }}
     {{- with .Values.service.extraPorts }}
     {{- toYaml . | nindent 4 }}

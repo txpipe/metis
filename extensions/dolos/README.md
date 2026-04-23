@@ -6,24 +6,29 @@ This chart deploys [Dolos](https://github.com/txpipe/dolos).
 
 - StatefulSet with persistent storage for the Dolos data directory.
 - ConfigMap based configuration with presets for Cardano `cardano-mainnet`,
-  `cardano-preprod`, and `cardano-preview`.
+  `cardano-preprod`, `cardano-preview`, `prime-testnet`, and `prime-mainnet`.
 - Override support for supplying custom Dolos configuration content or an
   existing ConfigMap.
 - Tunable resources, tolerations, topology constraints, and probe configuration.
+- Service exposure for `grpc`, `minibf`, `minikupo`, and `trp`.
+  `ouroboros` remains internal-only.
 
 ## Configuration
 
-By default the chart renders the preset for `cardano-preview` and writes it to
-`/etc/config/dolos.toml`. You **must** provide `config.upstreamAddress` with the
-address of a trusted Cardano relay for Dolos to sync against; the chart fails to
-render until a value is supplied. Adjust as needed:
+By default the chart resolves the preset from `dolos.network` and writes it to
+`/etc/config/dolos.toml`. For the existing Cardano presets, you still need to
+provide `config.upstreamAddress` with the address of a trusted Cardano relay.
+Adjust as needed:
 
 ```yaml
 dolos:
   network: cardano-mainnet
+```
 
+Override the trusted upstream relay if needed:
+
+```yaml
 config:
-  preset: cardano-mainnet
   upstreamAddress: "trusted-relay.example.org:3000"
 ```
 

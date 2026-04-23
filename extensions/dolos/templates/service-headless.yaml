@@ -15,11 +15,15 @@ spec:
       port: {{ .Values.service.grpcPort }}
       targetPort: grpc
       protocol: TCP
-    - name: ouroboros
-      port: {{ .Values.service.ouroborosPort }}
-      targetPort: ouroboros
-      protocol: TCP
     - name: minibf
       port: {{ .Values.service.minibfPort }}
       targetPort: minibf
+      protocol: TCP
+    - name: minikupo
+      port: {{ .Values.service.minikupoPort }}
+      targetPort: minikupo
+      protocol: TCP
+    - name: trp
+      port: {{ .Values.service.trpPort }}
+      targetPort: trp
       protocol: TCP

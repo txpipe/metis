@@ -8,8 +8,13 @@
 {{- end }}
 {{- $configDir := default "/etc/config" .Values.config.mountPath -}}
 {{- $configPath := printf "%s/%s" (trimSuffix "/" $configDir) .Values.config.filename -}}
+{{- $effectivePreset := include "dolos.effectivePreset" . -}}
 {{- $dolosArgs := default (list "-c" $configPath "daemon") .Values.dolos.args -}}
-{{- $bootstrapArgs := default (list "-c" $configPath "bootstrap" "snapshot" "--variant" "full") .Values.dolos.bootstrap.args -}}
+{{- $defaultBootstrapArgs := list "-c" $configPath "bootstrap" "snapshot" "--variant" "full" -}}
+{{- if or (eq $effectivePreset "prime-testnet") (eq $effectivePreset "prime-mainnet") }}
+{{- $defaultBootstrapArgs = list "-c" $configPath "bootstrap" "relay" -}}
+{{- end }}
+{{- $bootstrapArgs := default $defaultBootstrapArgs .Values.dolos.bootstrap.args -}}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -120,6 +125,12 @@ spec:
               protocol: TCP
             - name: minibf
               containerPort: {{ .Values.service.minibfPort }}
+              protocol: TCP
+            - name: minikupo
+              containerPort: {{ .Values.service.minikupoPort }}
+              protocol: TCP
+            - name: trp
+              containerPort: {{ .Values.service.trpPort }}
               protocol: TCP
           volumeMounts:
             - name: data

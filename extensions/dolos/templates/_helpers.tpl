@@ -80,3 +80,33 @@ Resolve the ConfigMap name for Dolos configuration.
 {{- .Values.config.existingConfigMap | default "" }}
 {{- end }}
 {{- end }}
+
+{{/*
+Resolve the effective config preset.
+*/}}
+{{- define "dolos.effectivePreset" -}}
+{{- default .Values.dolos.network .Values.config.preset -}}
+{{- end }}
+
+{{/*
+Whether the selected network uses bundled genesis files.
+*/}}
+{{- define "dolos.usesBundledGenesis" -}}
+{{- if or (eq (include "dolos.effectivePreset" .) "prime-testnet") (eq (include "dolos.effectivePreset" .) "prime-mainnet") -}}
+true
+{{- else -}}
+false
+{{- end -}}
+{{- end }}
+
+{{/*
+Resolve bundled genesis network directory.
+*/}}
+{{- define "dolos.bundledGenesisNetwork" -}}
+{{- $preset := include "dolos.effectivePreset" . -}}
+{{- if or (eq $preset "prime-testnet") (eq $preset "prime-mainnet") -}}
+{{- $preset -}}
+{{- else -}}
+{{- "" -}}
+{{- end -}}
+{{- end }}
