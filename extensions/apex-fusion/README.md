@@ -76,7 +76,7 @@ installed by the `control-plane` extension. Instead of creating a Kubernetes
 secret yourself, write the runtime block producer artifacts to Vault ahead of
 time and point the chart at that Vault KV path.
 
-The expected Vault fields are:
+The required Vault fields are:
 
 - `kes.skey`
 - `vrf.skey`
@@ -85,6 +85,26 @@ The expected Vault fields are:
 The cold key and the operational certificate counter should stay outside the
 cluster. Generate the KES key and operational certificate in your operator
 workflow, then write only the runtime artifacts that the node needs into Vault.
+
+You may also keep optional public or reference artifacts in the same Vault
+record for future operator and agent discovery, for example:
+
+- `kes.vkey`
+- `vrf.vkey`
+- `cold.vkey`
+- `payment.addr`
+- `reward.addr`
+- `pool.id`
+- `pool.id.bech32`
+- pool metadata JSON and hash
+- relay publication data
+
+Interpretation:
+
+- `kes.skey`, `vrf.skey`, and `op.cert` are the only fields the node needs to run
+- the optional convenience artifacts are not required by the chart
+- do not place online signing keys in this producer-mounted Vault path
+- if you want online signing keys in Vault, use a separate operator-only path
 
 This chart assumes the `control-plane` extension is already installed and has
 bootstrapped the shared Vault auth at `control-plane/default`. Normal block
@@ -129,8 +149,10 @@ vault kv put kv/apex-fusion/prime-mainnet-bp/block-producer \
   op.cert=@/absolute/path/to/op.cert
 ```
 
-Only `kes.skey`, `vrf.skey`, and `op.cert` belong in Vault for this workflow.
-Keep cold keys and the operational certificate counter outside the cluster.
+Only `kes.skey`, `vrf.skey`, and `op.cert` are required in this Vault path.
+Optional public or reference artifacts may live beside them, but cold keys,
+the operational certificate counter, and online signing keys should stay out of
+the producer-mounted path.
 
 When `node.blockProducer.enabled=true` the chart creates a namespace-local
 `vault-auth` service account and a `VaultStaticSecret` that references the
@@ -195,11 +217,19 @@ node:
         advertise: false
         valency: 1
     publicRoots: []
-    useLedgerAfterSlot: 0
+    useLedgerAfterSlot: -1
 ```
 
 When `node.blockProducer.enabled=true`, the chart requires `node.topology.mode`
 to be `relay-service` or `custom`.
+
+Bootstrap note:
+
+- for a future producer that is still being synced before it enters private
+  steady-state producer operation, temporarily using `useLedgerAfterSlot: 0`
+  can help it discover more peers and sync faster
+- once the node is operating as a real private producer behind relays, prefer
+  `useLedgerAfterSlot: -1`
 
 ## Upgrade A Relay To Block Producer
 

@@ -11,6 +11,12 @@ Upgrade an existing healthy relay to block-producer mode for an existing pool, u
 - The operator controls the pool's runtime artifacts outside the cluster.
 - `control-plane` and the shared Vault integration are already working.
 
+For post-cutover maintenance, use:
+
+- `cardano-spo-kes-rotation.md` for `KES` and `op.cert` lifecycle work
+- `cardano-spo-pool-update.md` for on-chain registration updates
+- `cardano-spo-pool-retirement.md` for pool retirement
+
 ## Block Producer Modes
 
 - `enabled=false, debug=false`: relay
@@ -29,6 +35,7 @@ Recommended producer behavior:
 
 - the producer should only connect to its own relays, or relays you explicitly trust
 - `localRoots` should contain only those relays
+- the producer should keep a private local connection to its relay through those `localRoots`
 - `publicRoots` should be empty
 - `useLedgerAfterSlot` should be `-1` so ledger peers stay disabled on the producer
 - do not rely on image-default topology for a producer
@@ -52,6 +59,7 @@ Recommended relay behavior:
 - `localRoots` should include the producer path
 - `publicRoots` should remain populated with trusted public relay targets
 - `useLedgerAfterSlot` should remain `0`
+- the relay should maintain a private local connection back to the producer
 - do not leave the relay on image-default topology once you are debugging real producer propagation issues
 
 Operational interpretation for Metis:
@@ -83,6 +91,21 @@ Best practices:
 - operational certificate counter handling stays outside the cluster
 - use offline workflow for sensitive operations
 - never put cold keys on online nodes
+
+Optional convenience artifacts may live in the same Vault record for future
+agent discovery, for example:
+
+- `cold.vkey`
+- `vrf.vkey`
+- `payment.addr`
+- `reward.addr`
+- pool metadata JSON and hash
+- relay publication data
+
+Those are not required by the node. They are only for operator convenience.
+
+Do not put online signing keys into the producer-mounted runtime path. If the
+operator wants them in Vault, use a separate operator-only path.
 
 ## Preflight Checks
 
@@ -133,8 +156,19 @@ kubectl -n control-plane port-forward service/control-plane-vault 8200:8200
 export VAULT_ADDR=http://localhost:8200
 ```
 
-5. Log in locally using your normal operator authentication flow.
-6. Upload only the runtime block-producer material from local files.
+5. Keep the port-forward running and have the human operator log in locally
+   using their normal Vault authentication flow. For example:
+
+```bash
+export VAULT_ADDR=http://localhost:8200
+vault login
+```
+
+   If the operator uses a token directly, they can run `vault login <token>`
+   instead.
+   `vault token lookup` is optional as a quick local sanity check, but it is
+   not required before the secret upload.
+6. Upload the required runtime block-producer material from local files.
 
 Rules:
 
@@ -142,6 +176,9 @@ Rules:
 - keep cold keys offline
 - keep the operational certificate counter outside the cluster
 - prefer absolute local file paths to avoid ambiguity
+
+Optional convenience fields may also exist in the same Vault record, but they
+are not required for the node to run and should be preserved intentionally.
 
 Example shape:
 
@@ -200,6 +237,14 @@ Notes for the custom form:
 - omit public internet peers from producer topology entirely
 - if you operate raw Cardano config outside these charts, keep `PeerSharing=false` on the producer
 
+Bootstrap note:
+
+- when this node is still only a future producer that needs to sync faster
+  before steady-state producer operation, temporarily using
+  `useLedgerAfterSlot: 0` is acceptable so it can discover more peers
+- once bootstrap sync is complete and the node is expected to behave as a
+  private producer behind relays, switch back to `useLedgerAfterSlot: -1`
+
 Apply with:
 
 ```bash
@@ -248,7 +293,7 @@ Also confirm:
 - peer counts are non-zero
 - the producer topology points only at the intended relay or custom local root
 - producer `publicRoots` are empty
-- producer `useLedgerAfterSlot` is `-1`
+- `useLedgerAfterSlot` should be `-1` so ledger peers stay disabled on the producer
 - if Dolos is available for the same network, use it as the preferred external chain view during later validation
 
 ### Important Notes Learned From Implementation

@@ -199,6 +199,16 @@ Probable causes to investigate next:
 - relay still using image-default topology instead of explicit producer + public roots
 - non-canonical outcomes such as ghosted/stolen behavior
 
+Useful topology diagnostic:
+
+- if the producer is forging and locally adopting blocks but those blocks do not
+  survive onto the canonical chain, temporarily set the producer
+  `useLedgerAfterSlot` back to `0`
+- this allows the producer to discover more relays and peers than the strict
+  steady-state private topology
+- if that improves the outcome, the likely issue is relay topology or relay
+  propagation quality rather than KES, op-cert, or basic forging state
+
 Without native block outcome tracking, this cannot be classified exactly from local metrics alone.
 
 ## Recommended Fix Pattern
@@ -214,10 +224,19 @@ Preferred producer topology:
 
 If using Metis managed topology, prefer `relay-service` mode.
 
+Bootstrap exception:
+
+- if the node is not yet acting as a true producer and is only being bootstrapped
+  or synced before cutover, temporarily using `useLedgerAfterSlot = 0` can help
+  it discover more peers and sync faster
+- once bootstrap is complete, return the steady-state producer topology to
+  `useLedgerAfterSlot = -1`
+
 Preferred relay topology:
 
 - explicit topology, not image-default, once a producer is attached
 - producer in `localRoots`
+- relay keeps a stable private path back to the producer in `localRoots`
 - trusted public relays in `publicRoots`
 - `useLedgerAfterSlot = 0`
 

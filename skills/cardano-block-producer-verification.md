@@ -36,10 +36,12 @@ In debug mode these come from `cardano-cli query kes-period-info` against the mo
 
 - peer counts are non-zero
 - producer topology points only to the intended relay or custom local root
+- producer maintains a local private connection to the relay
 - producer `publicRoots` are empty
-- producer `useLedgerAfterSlot` is `-1`
+- producer `useLedgerAfterSlot` is `0`
 - relay topology is explicit when paired with a producer
 - relay `localRoots` include the producer path
+- relay maintains a local private connection to the producer
 - relay `publicRoots` remain populated for network connectivity
 - `forging enabled` is true after final producer activation
 
@@ -80,7 +82,7 @@ blocks are missing externally, use `cardano-block-producer-troubleshooting.md`.
 - producer topology is configured explicitly (`relay-service` or `custom`)
 - producer topology references only operator-controlled relays
 - producer `publicRoots` are empty
-- producer `useLedgerAfterSlot` is `-1`
+- producer `useLedgerAfterSlot` is `0`
 - peer counts are non-zero
 
 ### Immediately After Cutover

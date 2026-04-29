@@ -157,6 +157,11 @@ Operational intent:
 - public network path through `publicRoots`
 - explicit relay behavior instead of image defaults
 
+When moving an existing relay off `image-default`, do not drop the public
+connectivity it already has. Capture the current bootstrap peers or current
+public peer set and carry them into `publicRoots`, then add the producer as the
+private path in `localRoots`.
+
 ## Post-Install Validation
 
 Check the namespace:
