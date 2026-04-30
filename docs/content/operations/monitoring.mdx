@@ -1,0 +1,56 @@
+---
+title: Monitoring
+sidebar:
+  order: 9
+---
+
+Supernode includes a canonical monitoring stack as part of the control-plane.
+
+Operators should treat Prometheus and Grafana as mandatory parts of the platform, not optional add-ons.
+
+## Monitoring layers
+
+The intended monitoring workflow has three layers:
+
+1. the dashboard for fast workload health and logs
+2. Prometheus for metric collection and queryability
+3. Grafana for visualization and operator dashboards
+
+## Prometheus
+
+Prometheus is the standard collection layer for Supernode.
+
+Workloads that expose PodMonitor or related scrape targets are expected to integrate into this stack automatically once the control-plane is in place.
+
+Use Prometheus when you need to:
+
+- confirm scrape targets
+- inspect raw time-series data
+- validate whether metrics are present before building dashboards
+
+```sh
+kubectl -n control-plane port-forward pod/prometheus-prometheus-0 9090:9090
+```
+
+## Grafana
+
+Grafana is the standard operator visualization layer.
+
+Use Grafana when you want to:
+
+- inspect workload health over time
+- correlate sync, peer, and resource behavior
+- analyze producer-specific metrics
+- hand off dashboards to operators who do not need direct Prometheus queries
+
+```sh
+kubectl -n control-plane port-forward service/grafana 3000:3000
+```
+
+## Dashboard fit
+
+The Supernode dashboard should be your first stop.
+
+Grafana should be the second stop when you need history, richer charts, or deeper workload context.
+
+That is the intended operating rhythm for the platform.

@@ -1,0 +1,53 @@
+---
+title: Extensions
+sidebar:
+  order: 4
+---
+
+Extensions are the supported workloads that run on top of the Supernode control-plane.
+
+In the Supernode model, extensions are:
+
+- packaged as Helm charts
+- installed into their own namespaces
+- expected to integrate with the shared control-plane
+- expected to follow the Supernode secret and monitoring model where applicable
+
+## Canonical extension categories
+
+The current repo includes workloads for:
+
+- Cardano node operation
+- Apex Fusion node operation
+- Midnight node operation
+- Dolos data serving
+- Hydra experimentation
+
+## Installation model
+
+You can install workloads in two canonical ways:
+
+- directly with Helm from the repo or OCI package
+- through the Supernode dashboard
+
+The preferred way to manage those installs is through an agent loaded with the Supernode skills. The dashboard is the main UI entrypoint, and Helm remains the clearest way to understand the values model.
+
+## Canonical operator sequence
+
+The preferred Supernode sequence is:
+
+1. bootstrap the cluster and control-plane
+2. load the relevant Supernode skills into your agent
+3. complete Vault post-install
+4. install a relay-style workload first
+5. add producer-specific runtime material under `kv/runtime/...` when needed
+6. use the dashboard, Prometheus, and Grafana to monitor the workload
+
+## Which page to read first
+
+- read [Cardano Node](./cardano-node) if your primary concern is Cardano relay or block producer operation
+- read [Apex Fusion](./apex-fusion) if you are running Prime or Vector workloads
+- read [Midnight](./midnight) if you are onboarding into the Midnight flow
+- read [Dolos](./dolos) if you need a chain data service
+- read [Hydra Node](./hydra-node) for Hydra experiments and side deployments
+- read [Skills](../skills) if you want the preferred agent-first operating path

@@ -1,0 +1,38 @@
+---
+title: Cardano Pool Lifecycle
+sidebar:
+  order: 5
+---
+
+This is the most important Supernode skill family for SPOs.
+
+It covers the full relay-first lifecycle from initial deployment to producer activation.
+
+## Preferred prompts
+
+- "I would like to bootstrap a new pool from scratch"
+- "I would like to migrate my Cardano Preview pool into the Supernode"
+- "I already have a relay. Please guide me through enabling a producer safely"
+
+## Core skills
+
+- `cardano-relay-setup.md`
+  - install and validate a relay workload first
+  - keep topology and storage prerequisites explicit
+- `cardano-stake-pool-from-scratch.md`
+  - guide a human through new pool creation end to end
+  - keep network selection, metadata, custody boundaries, and Vault runtime upload explicit
+- `cardano-block-producer-upgrade.md`
+  - convert an existing relay path into a producer workflow
+  - use a debug-first rollout and explicit producer topology
+
+## Why this matters
+
+These skills encode the operational boundaries that should not be improvised:
+
+- cold keys stay offline
+- runtime producer material goes through Vault
+- relays come first
+- irreversible ledger mutations require operator confirmation
+
+Use the [Cardano Node](../extensions/cardano-node) page when you want the underlying chart model and inline values examples.

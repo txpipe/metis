@@ -1,0 +1,155 @@
+---
+title: Cardano Node
+sidebar:
+  order: 4
+---
+
+The `cardano-node` extension is the canonical Supernode workload for Cardano relay and block producer operation.
+
+The preferred way to manage this lifecycle is through the skills in `skills/`, with this page serving as the chart and values reference.
+
+## What it provides
+
+- persistent node storage
+- managed `topology.json` generation
+- an nginx sidecar that exposes the node socket on n2c
+- service endpoints for n2n, n2c, and metrics
+- PodMonitor support for Prometheus Operator
+- Vault-backed runtime material for block producer mode
+
+## Canonical relay install
+
+For most operators, the correct first deployment is a relay.
+
+```sh
+helm install preview-relay ./extensions/cardano-node \
+  --namespace preview-relay \
+  --create-namespace \
+  --set displayName="Preview Relay" \
+  --set node.network=preview \
+  --set node.networkMagic=2 \
+  --set extraLabels.supernode/status=ready
+```
+
+Inline values form:
+
+```yaml
+displayName: Preview Relay
+
+node:
+  network: preview
+  networkMagic: 2
+  topology:
+    mode: image-default
+
+extraLabels:
+  supernode/status: ready
+```
+
+## Canonical block producer pattern
+
+In Supernode, block producers are expected to consume runtime material from Vault.
+
+The shared `control-plane/default` auth can read `kv/runtime/...` only. Use
+`kv/operator/...` for operator-only material that should remain unavailable to
+pods.
+
+The required Vault fields are:
+
+- `kes.skey`
+- `vrf.skey`
+- `op.cert`
+
+The cold key and operational certificate counter should remain outside the
+cluster.
+
+### Write the runtime material into Vault
+
+```sh
+vault kv put kv/runtime/cardano-node/mainnet-bp/block-producer \
+  kes.skey=@kes.skey \
+  vrf.skey=@vrf.skey \
+  op.cert=@op.cert
+```
+
+If you deliberately want semi-cold operator storage in Vault, use a salted path
+such as `kv/operator/cardano-node/mainnet-mypool-7f3c9d2a8e4b1f6c/...`. That is
+safer than leaving sensitive files on an unprotected workstation filesystem,
+but cold keys are still best kept on separate offline or air-gapped devices.
+
+### Install the producer
+
+```sh
+helm install mainnet-producer ./extensions/cardano-node \
+  --namespace mainnet-producer \
+  --create-namespace \
+  --set displayName="Mainnet Producer" \
+  --set node.network=mainnet \
+   --set node.blockProducer.enabled=true \
+   --set node.blockProducer.poolId=pool1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
+   --set node.blockProducer.vaultStaticSecret.path=runtime/cardano-node/mainnet-bp/block-producer \
+   --set node.topology.mode=relay-service \
+  --set node.topology.relayTargets[0].releaseName=mainnet-relay \
+  --set node.topology.relayTargets[0].namespace=mainnet-relay \
+  --set node.topology.relayTargets[0].chart=cardano-node \
+  --set extraLabels.supernode/status=ready
+```
+
+Inline values form:
+
+```yaml
+displayName: Mainnet Producer
+
+node:
+  network: mainnet
+  topology:
+    mode: relay-service
+    relayTargets:
+      - releaseName: mainnet-relay
+        namespace: mainnet-relay
+        chart: cardano-node
+  blockProducer:
+    enabled: true
+    poolId: pool1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    vaultStaticSecret:
+      path: runtime/cardano-node/mainnet-bp/block-producer
+
+extraLabels:
+  supernode/status: ready
+```
+
+## Producer debug mode
+
+Use `debug` mode when you want the producer material mounted and visible to the monitoring path without enabling real forging yet.
+
+```yaml
+node:
+  blockProducer:
+    enabled: true
+    debug: true
+    vaultStaticSecret:
+      path: runtime/cardano-node/mainnet-bp/block-producer
+```
+
+This is the preferred rehearsal path before switching a private producer into normal operation.
+
+## Monitoring
+
+This extension has the richest Supernode metric support today. Operators should expect to monitor:
+
+- sync position and tip distance
+- epoch and slot progression
+- peer counts and connection states
+- block propagation quality
+- memory and GC behavior
+- forging state
+- KES, operational certificate, and schedule metrics in producer mode
+
+Use the dashboard for quick inspection and Grafana for deeper analysis.
+
+## Preferred skills for this workflow
+
+- `cardano-relay-setup.md`
+- `cardano-stake-pool-from-scratch.md`
+- `cardano-block-producer-upgrade.md`
+- `cardano-spo-maintenance-overview.md`

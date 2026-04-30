@@ -1,0 +1,66 @@
+---
+title: Dashboard
+sidebar:
+  order: 5
+---
+
+The Supernode dashboard is the intended operator entrypoint for workload lifecycle and monitoring.
+
+The preferred overall management experience is still agent-first: load the Supernode skills into your agent, then use the dashboard as the main visual and operational surface.
+
+It is meant to make the Supernode operating model visible:
+
+- discover supported workloads
+- install them into isolated namespaces
+- guide onboarding flows
+- inspect workload health and logs
+- jump into Grafana for deeper analysis
+
+## What the dashboard depends on
+
+The dashboard is part of the control-plane and expects the rest of the platform to exist.
+
+At minimum, the dashboard environment depends on:
+
+- `PROMETHEUS_ENDPOINT`
+- `REGISTRY_ENDPOINT`
+- `OCI_ENDPOINT`
+- `GRAFANA_API_ENDPOINT`
+- `GRAFANA_PUBLIC_URL`
+
+These are the canonical integrations that let the dashboard query workload health, search OCI-packaged extensions, install them, and resolve Grafana dashboards.
+
+## Operator workflow
+
+The intended operator experience is:
+
+1. open the dashboard after bootstrap
+2. review currently installed workloads
+3. add a new workload from the available catalog
+4. complete any workload-specific onboarding flow
+5. inspect health, logs, and linked dashboards
+
+For local dashboard access through an agent-guided workflow, use `supernode-dashboard-port-forward.md`.
+
+## Catalog and installation model
+
+The dashboard discovers supported workloads from the configured OCI registry.
+
+When an operator adds a workload, the platform is expected to:
+
+- create a namespace for that workload
+- install the corresponding Helm chart
+- apply the Supernode status model to the workload
+- expose it in the dashboard overview
+
+## Workload detail view
+
+Each workload detail page is intended to give operators a single place to inspect:
+
+- current status
+- historical health
+- live logs
+- workload-specific telemetry
+- linked Grafana dashboards
+
+For Cardano-style node workloads, the detail page is also expected to surface chain, peer, propagation, and producer metrics.

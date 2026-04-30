@@ -1,0 +1,102 @@
+---
+title: Dolos
+sidebar:
+  order: 7
+---
+
+The `dolos` extension packages Dolos as a Supernode data-service workload.
+
+Use it when you want a lightweight chain data service inside the same Supernode environment that already hosts your node workloads.
+
+The preferred operator path is to let an agent drive the deployment through `dolos-supernode-deployment.md`, with this page acting as the values and topology reference.
+
+## What it provides
+
+- persistent storage for Dolos data
+- preset-based configuration for Cardano and Apex-related networks
+- configurable or externally managed Dolos configuration
+- service exposure for gRPC, Mini-Blockfrost, Mini-Kupo, and TRP
+
+## Canonical install
+
+For Cardano Preview, point Dolos at a trusted relay:
+
+```sh
+helm install dolos-preview ./extensions/dolos \
+  --namespace dolos-preview \
+  --create-namespace \
+  --set displayName="Dolos Preview" \
+  --set dolos.network=cardano-preview \
+  --set config.upstreamAddress=trusted-relay.example.org:3000 \
+  --set extraLabels.supernode/status=ready
+```
+
+Inline values form:
+
+```yaml
+displayName: Dolos Preview
+
+dolos:
+  network: cardano-preview
+
+config:
+  upstreamAddress: trusted-relay.example.org:3000
+
+extraLabels:
+  supernode/status: ready
+```
+
+## Custom configuration pattern
+
+When the built-in presets are not enough, provide the full config inline:
+
+```yaml
+displayName: Dolos Custom
+
+config:
+  preset: ""
+  customConfig: |-
+    [upstream]
+    peer_address = "trusted-relay.example.org:3000"
+    network_magic = 2
+    is_testnet = true
+
+    [storage]
+    version = "v3"
+    path = "/var/data/custom"
+
+    [serve.grpc]
+    listen_address = "[::]:50051"
+
+    [serve.minibf]
+    listen_address = "[::]:3001"
+
+    [serve.minikupo]
+    listen_address = "[::]:1442"
+
+    [serve.trp]
+    listen_address = "[::]:8164"
+
+extraLabels:
+  supernode/status: ready
+```
+
+## Operational role in Supernode
+
+Dolos is a data-serving workload, not a producer workload.
+
+The canonical reason to run it in Supernode is to keep chain access, monitoring, and lifecycle management within the same opinionated operator platform.
+
+## Monitoring
+
+Dolos should still be monitored through the standard Supernode path:
+
+- workload health in the dashboard
+- pod logs
+- cluster-level Prometheus and Grafana visibility
+
+Even when the workload is not producer-oriented, it still belongs in the same control-plane and operational workflow.
+
+## Preferred skill for this workflow
+
+- `dolos-supernode-deployment.md`

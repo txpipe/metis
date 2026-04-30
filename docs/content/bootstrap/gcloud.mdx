@@ -1,0 +1,95 @@
+---
+title: Google Cloud
+sidebar:
+  order: 5
+---
+
+Google Cloud is the canonical managed-cloud path when you want to run Supernode on GKE.
+
+## Prerequisites
+
+- a Google Cloud project with billing enabled
+- GKE APIs available in the target project
+- permissions to create clusters and related network resources
+- permission to install CLIs locally
+
+Authenticate and select the project before you start:
+
+```sh
+gcloud auth login
+gcloud config set project <PROJECT_ID>
+gcloud auth list --filter="status:ACTIVE"
+```
+
+The provider flow installs missing dependencies including `gcloud`, `kubectl`, `helm`, and `gke-gcloud-auth-plugin`.
+
+## Canonical flow
+
+```sh
+cd bootstrap
+./bootstrap.sh \
+  --provider gcloud \
+  --version 0.2.1
+```
+
+The default GKE mode is Autopilot.
+
+## Standard mode
+
+If you need direct control over node pools, switch the provider into Standard mode through the supported environment variables or provider-specific flags described in `bootstrap/gcloud/README.md`.
+
+The intended Supernode guidance is:
+
+- use Autopilot by default
+- use Standard mode only when you have a concrete node-pool requirement
+
+## Canonical production pattern for Vault
+
+On GKE, the preferred Supernode operating model is:
+
+- run the control-plane with the GCP values example
+- use `gcpckms` for Vault auto-unseal
+- use Workload Identity instead of static service-account keys
+
+Bootstrap with the GCP example values:
+
+```sh
+cd bootstrap
+./bootstrap.sh \
+  --provider gcloud \
+  --version 0.2.1 \
+  --values ../extensions/control-plane/examples/gcp-values.yaml
+```
+
+Then run the helper that wires Cloud KMS access for Vault:
+
+```sh
+cd ../extensions/control-plane
+PROJECT_ID=<project-id> \
+CLUSTER_NAME=supernode \
+LOCATION=<region> \
+./scripts/setup-gke-autopilot-vault.sh
+```
+
+After that:
+
+1. wait for Vault to become ready
+2. initialize Vault once if you are not using dev mode
+3. run `VAULT_TOKEN=<vault-admin-token> ./scripts/post_install.sh`
+
+## Validate the environment
+
+```sh
+kubectl config current-context
+kubectl -n control-plane get pods
+kubectl get storageclass
+```
+
+## When to use Google Cloud
+
+Choose Google Cloud when you want:
+
+- a managed Kubernetes platform on GKE
+- Autopilot as a simplified cluster operating model
+- a strong Workload Identity and Cloud KMS path for Vault
+- a production target for Supernode workloads

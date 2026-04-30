@@ -1,0 +1,90 @@
+---
+title: Troubleshooting
+sidebar:
+  order: 10
+---
+
+This page collects the canonical first checks for common Supernode issues.
+
+## Bootstrap problems
+
+If bootstrap fails, start by checking the cluster and control-plane:
+
+```sh
+kubectl config current-context
+kubectl -n control-plane get pods
+kubectl -n control-plane get events
+```
+
+Then confirm the provider prerequisites:
+
+- working cloud credentials for AWS or GCP
+- local container runtime for Kind
+- working `kubectl` access to the target cluster
+
+## Vault not ready
+
+If Vault-backed workloads are not coming up, verify the control-plane first:
+
+```sh
+kubectl -n control-plane get pods
+kubectl -n control-plane exec -it control-plane-vault-0 -- vault status
+kubectl -n control-plane get vaultauths.secrets.hashicorp.com
+kubectl -n control-plane get vaultconnections.secrets.hashicorp.com
+```
+
+Then confirm that you completed the post-install step:
+
+```sh
+cd extensions/control-plane
+VAULT_TOKEN=<vault-admin-token> ./scripts/post_install.sh
+```
+
+## Producer workload not starting
+
+For Cardano or Apex Fusion producer workloads, check the Vault path first.
+
+The chart expects:
+
+- `kes.skey`
+- `vrf.skey`
+- `op.cert`
+
+If the path is missing or incomplete, the synced Kubernetes secret will not become ready.
+
+## Workload not showing healthy
+
+Use the standard sequence:
+
+1. inspect the workload in the dashboard
+2. read the workload logs
+3. inspect pods and events in the workload namespace
+4. confirm metrics are present in Prometheus
+5. inspect the Grafana dashboard if available
+
+Namespace-level checks:
+
+```sh
+kubectl -n <namespace> get pods
+kubectl -n <namespace> describe pod <pod-name>
+kubectl -n <namespace> logs <pod-name>
+```
+
+## Dashboard cannot install workloads
+
+If the dashboard cannot discover or install workloads, validate its environment dependencies:
+
+- `REGISTRY_ENDPOINT`
+- `OCI_ENDPOINT`
+- `PROMETHEUS_ENDPOINT`
+- `GRAFANA_API_ENDPOINT`
+- `GRAFANA_PUBLIC_URL`
+
+These integrations are required for the intended catalog, install, and monitoring experience.
+
+For agent-guided diagnostics, the most relevant skills are:
+
+- `cardano-block-producer-troubleshooting.md`
+- `cardano-block-producer-verification.md`
+- `cardano-node-metrics-access.md`
+- `supernode-dashboard-port-forward.md`

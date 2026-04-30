@@ -1,0 +1,171 @@
+---
+title: Control Plane
+sidebar:
+  order: 7
+---
+
+In Supernode, the control-plane is mandatory.
+
+It is not treated as an optional extension. It is part of bootstrap, and everything else builds on top of it.
+
+## What the control-plane includes
+
+The Supernode control-plane installs:
+
+- Prometheus Operator and its CRDs
+- Prometheus
+- Grafana
+- Vault OSS
+- Vault Secrets Operator
+- shared `VaultConnection` and `VaultAuth` resources used by workloads
+
+This is the standard operating substrate for the entire platform.
+
+## Why Vault is required
+
+Supernode uses Vault and Vault Secrets Operator as the canonical secret-delivery path.
+
+That matters most for block producer-style workloads, where runtime material must be made available in-cluster without normalizing around hand-managed Kubernetes secrets.
+
+The intended model is:
+
+- operators write runtime material into Vault
+- workloads reference the shared `control-plane/default` auth configuration
+- Vault Secrets Operator syncs namespace-local Kubernetes secrets on demand
+
+By default, the shared auth can read only `kv/runtime/...`. Operator-only
+material belongs under `kv/operator/...` and is intentionally unavailable to
+supernode pods.
+
+## Canonical install
+
+The control-plane is installed through bootstrap:
+
+```sh
+cd bootstrap
+./bootstrap.sh \
+  --provider kind \
+  --version 0.2.1
+```
+
+You can also install the chart directly when you need to iterate locally:
+
+```sh
+cd extensions/control-plane
+helm dependency build .
+helm install control-plane . \
+  --namespace control-plane \
+  --create-namespace
+```
+
+## Vault server modes
+
+The chart supports three modes:
+
+- HA Raft: the production default
+- standalone: persistent single-node Vault
+- dev: disposable local-only mode
+
+Exactly one mode should be enabled at a time.
+
+## Canonical local pattern
+
+For local evaluation, use dev mode:
+
+```yaml
+storageClass: standard
+
+vault:
+  server:
+    dev:
+      enabled: true
+      devRootToken: root
+    standalone:
+      enabled: false
+    ha:
+      enabled: false
+```
+
+## Canonical cloud pattern
+
+For managed cloud clusters, the preferred pattern is:
+
+- keep Vault persistent
+- use provider-native KMS auto-unseal
+- use workload identity instead of static credentials
+
+Examples already ship in the repo:
+
+- `extensions/control-plane/examples/aws-values.yaml`
+- `extensions/control-plane/examples/gcp-values.yaml`
+- `extensions/control-plane/examples/azure-values.yaml`
+- `extensions/control-plane/examples/oci-values.yaml`
+
+## Required post-install steps
+
+Bootstrap intentionally does not finish these steps for you.
+
+### 1. Check the control-plane pods
+
+```sh
+kubectl -n control-plane get pods
+```
+
+### 2. Initialize Vault if you are not using dev mode
+
+HA Raft example:
+
+```sh
+kubectl -n control-plane exec -it control-plane-vault-0 -- vault status
+kubectl -n control-plane exec -it control-plane-vault-0 -- vault operator init
+kubectl -n control-plane exec -it control-plane-vault-0 -- vault operator unseal
+kubectl -n control-plane exec -it control-plane-vault-1 -- vault operator unseal
+kubectl -n control-plane exec -it control-plane-vault-2 -- vault operator unseal
+```
+
+Standalone example:
+
+```sh
+kubectl -n control-plane exec -it control-plane-vault-0 -- vault status
+kubectl -n control-plane exec -it control-plane-vault-0 -- vault operator init
+kubectl -n control-plane exec -it control-plane-vault-0 -- vault operator unseal
+```
+
+### 3. Run the Supernode post-install helper
+
+```sh
+cd extensions/control-plane
+VAULT_TOKEN=<vault-admin-token> ./scripts/post_install.sh
+```
+
+That helper configures the shared Kubernetes auth mount, KV v2 mount, policy, and role expected by Supernode workloads.
+
+The default policy is read-only and limited to `kv/runtime/...`. Keep
+operator-only material under salted paths such as
+`kv/operator/cardano-node/mainnet-mypool-7f3c9d2a8e4b1f6c/...`.
+
+### 4. Verify the shared Vault auth objects
+
+```sh
+kubectl -n control-plane get vaultconnections.secrets.hashicorp.com
+kubectl -n control-plane get vaultauths.secrets.hashicorp.com
+kubectl -n control-plane exec -it control-plane-vault-0 -- vault auth list
+```
+
+## Grafana and Prometheus
+
+The control-plane also gives you the canonical monitoring path.
+
+Access Grafana:
+
+```sh
+kubectl -n control-plane port-forward service/grafana 3000:3000
+```
+
+Access Prometheus:
+
+```sh
+kubectl -n control-plane port-forward pod/prometheus-prometheus-0 9090:9090
+```
+
+Supernode expects these components to exist. Operators should treat them as part of the base platform, not add-ons.

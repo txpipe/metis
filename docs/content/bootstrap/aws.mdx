@@ -1,0 +1,84 @@
+---
+title: AWS
+sidebar:
+  order: 4
+---
+
+AWS is the canonical managed-cloud path when you want to run Supernode on EKS.
+
+## Prerequisites
+
+- an AWS account with permissions for EKS, IAM, VPC resources, and node groups
+- working AWS credentials on the machine running bootstrap
+- permission to install CLIs locally
+
+Validate credentials before you start:
+
+```sh
+aws sts get-caller-identity
+```
+
+The provider flow installs missing dependencies including `aws`, `eksctl`, `kubectl`, and `helm`.
+
+## Canonical flow
+
+```sh
+cd bootstrap
+./bootstrap.sh \
+  --provider aws \
+  --version 0.2.1
+```
+
+If you do not provide `--values`, the bootstrap flow uses `bootstrap/aws/values.yml`.
+
+## What the AWS provider does
+
+The AWS bootstrap path:
+
+- creates or reuses an EKS cluster
+- updates local kubeconfig
+- enables the EBS CSI driver add-on
+- creates an EBS-backed `StorageClass`
+- installs the Supernode control-plane
+
+## Canonical production pattern for Vault
+
+On AWS, the preferred Supernode operating model is:
+
+- keep the shared control-plane enabled
+- run Vault with `awskms` auto-unseal
+- use IAM-backed pod identity such as IRSA instead of static credentials
+
+Start from the control-plane AWS example values:
+
+```sh
+cd bootstrap
+./bootstrap.sh \
+  --provider aws \
+  --version 0.2.1 \
+  --values ../extensions/control-plane/examples/aws-values.yaml
+```
+
+After bootstrap, finish the IAM and Vault steps:
+
+1. bind the Vault service account to IAM that can use the chosen KMS key
+2. wait for the Vault StatefulSet to come up
+3. initialize Vault once if you are not using dev mode
+4. run `extensions/control-plane/scripts/post_install.sh`
+
+## Validate the environment
+
+```sh
+kubectl config current-context
+kubectl -n control-plane get pods
+kubectl get storageclass
+```
+
+## When to use AWS
+
+Choose AWS when you want:
+
+- a managed Kubernetes control-plane
+- EBS-backed persistence for Supernode workloads
+- an opinionated Vault-on-KMS operating model
+- a production-oriented deployment target for Cardano or partner-chain workloads

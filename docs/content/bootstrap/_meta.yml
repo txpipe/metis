@@ -1,0 +1,6 @@
+index: Overview
+kind: Kind
+aws: AWS
+gcloud: Google Cloud
+azure: Azure
+control-plane: Control Plane

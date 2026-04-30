@@ -1,0 +1,26 @@
+---
+title: Dolos And Dashboard
+sidebar:
+  order: 7
+---
+
+Use these skills when the operator wants guided access to the dashboard or a structured Dolos deployment workflow.
+
+## Preferred prompts
+
+- "I would like to deploy Dolos on my Supernode"
+- "Please expose the Supernode dashboard locally"
+- "Please help me choose the right relay upstream for Dolos"
+
+## Core skills
+
+- `dolos-supernode-deployment.md`
+  - select the network, storage class, size, display name, and upstream relay deliberately
+  - prefer an internal relay when the cluster already has one
+- `supernode-dashboard-port-forward.md`
+  - expose the dashboard locally through `kubectl port-forward`
+  - treat Grafana and Prometheus as supporting debug paths
+
+## Manual reference layer
+
+Use [Dolos](../extensions/dolos) for chart-level examples and [Dashboard](../dashboard) for the user-facing control-plane model.

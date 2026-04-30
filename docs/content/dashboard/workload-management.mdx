@@ -1,0 +1,46 @@
+---
+title: Workload Management
+sidebar:
+  order: 6
+---
+
+The dashboard is intended to give operators a standard way to manage the lifecycle of supported workloads.
+
+## Add a workload
+
+From the overview page, operators open the workload catalog and select a supported workload to install.
+
+The canonical install flow is expected to:
+
+- create a dedicated namespace
+- install the workload Helm chart from OCI
+- register the workload in the Supernode status model
+
+This gives operators a clean boundary per workload while preserving a single control-plane.
+
+## Inspect a workload
+
+The overview page is intended to summarize:
+
+- workload display name
+- network
+- status
+- recent health trend
+
+From there, the operator drills into the workload detail view for logs and deeper telemetry.
+
+## Delete a workload
+
+The dashboard also gives operators a canonical delete path.
+
+That delete path should be treated as lifecycle cleanup for the entire workload namespace, not just a visual removal.
+
+## Namespace model
+
+Supernode installs workloads into dedicated namespaces. This is the expected operating pattern because it keeps:
+
+- release ownership clear
+- secrets local to the workload boundary
+- monitoring and troubleshooting easier to reason about
+
+Operators should expect one namespace per installed workload unless a documented use case says otherwise.

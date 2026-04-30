@@ -1,0 +1,51 @@
+---
+title: Dashboard Monitoring
+sidebar:
+  order: 7
+---
+
+The dashboard is part of the Supernode monitoring story, but it is not the whole story.
+
+Its role is to give operators a fast operational view:
+
+- workload health
+- status
+- logs
+- quick metrics
+- Grafana links
+
+## Health model
+
+At the overview level, operators should be able to see:
+
+- whether a workload is connected, pending, paused, or errored
+- how healthy it has been over time
+- whether it is still onboarding or fully active
+
+## Logs
+
+Every workload detail page is expected to provide live or near-live pod logs as the first troubleshooting surface.
+
+The log view is the fastest way to confirm whether a workload is starting correctly, failing readiness, or waiting on dependencies.
+
+## Workload metrics
+
+For Cardano-style node workloads, the dashboard is expected to surface operator-relevant metrics such as:
+
+- chain sync position
+- epoch and slot context
+- peer and connection counts
+- propagation behavior
+- resource consumption
+- producer health and KES-related data
+
+The dashboard should be treated as the fast path. Grafana remains the deeper path.
+
+## Grafana handoff
+
+The intended operator workflow is:
+
+1. use the dashboard for health and first response
+2. open Grafana when you need historical or richer visualization
+
+This preserves the Supernode principle that the operator should not need to assemble separate monitoring systems by hand.

@@ -1,0 +1,103 @@
+---
+title: Midnight
+sidebar:
+  order: 6
+---
+
+The `midnight` extension packages a Midnight node for the Supernode operating model.
+
+It is also the workload currently associated with the dashboard onboarding wizard.
+
+## What it provides
+
+- persistent storage for the Midnight chain data
+- configurable chain preset and bootnodes
+- node key delivery through secret, inline value, or Vault-backed sync
+- optional managed Postgres and Cardano DB Sync workloads
+- service endpoints for RPC, P2P, and metrics
+- PodMonitor support for Prometheus Operator
+
+## Canonical node install
+
+First create the node key secret:
+
+```sh
+kubectl create namespace midnight
+kubectl -n midnight create secret generic midnight-node-key \
+  --from-file=node.key=/path/to/midnight-node.privatekey
+```
+
+Then install the chart:
+
+```sh
+helm install midnight ./extensions/midnight \
+  --namespace midnight \
+  --set displayName="Midnight Node" \
+  --set nodeKey.existingSecret.name=midnight-node-key \
+  --set nodeKey.existingSecret.key=node.key \
+  --set extraLabels.supernode/status=ready
+```
+
+Inline values form:
+
+```yaml
+displayName: Midnight Node
+
+nodeKey:
+  existingSecret:
+    name: midnight-node-key
+    key: node.key
+
+extraLabels:
+  supernode/status: ready
+```
+
+## Dashboard onboarding pattern
+
+The intended Supernode operator journey for Midnight is:
+
+1. install the workload from the dashboard
+2. connect a Cardano wallet in the onboarding wizard
+3. choose the registration UTxO
+4. sign the registration payload with the SPO key material
+5. submit the registration and complete onboarding
+6. move into normal health monitoring from the dashboard and Grafana
+
+This is the canonical user experience to document for Midnight inside Supernode.
+
+## Managed DB Sync pattern
+
+When you want the chart to host Postgres and Cardano DB Sync alongside the Midnight node, enable the managed mode:
+
+```yaml
+displayName: Midnight Node
+
+nodeKey:
+  existingSecret:
+    name: midnight-node-key
+    key: node.key
+
+dbSync:
+  managed:
+    enabled: true
+    dbSync:
+      network: preview
+    nodeConnection:
+      value: /ipc/node.socket
+
+extraLabels:
+  supernode/status: ready
+```
+
+If the Cardano node connection is remote and TLS-backed, turn on the `nodeSocat` bridge.
+
+## Monitoring
+
+Operators should monitor Midnight through the standard Supernode path:
+
+- dashboard workload health
+- pod logs
+- Prometheus metrics
+- Grafana dashboards
+
+Midnight is expected to fit the same control-plane-first operating model as the rest of the platform.

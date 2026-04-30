@@ -1,0 +1,124 @@
+---
+title: What Is Supernode
+sidebar:
+  order: 1
+---
+
+Supernode is an opinionated infrastructure platform for Cardano Stake Pool Operators.
+
+It gives SPOs a canonical way to do four things well:
+
+- bootstrap a Kubernetes-based operating environment
+- install supported workloads as reusable extensions
+- manage runtime secrets through Vault and Vault Secrets Operator
+- monitor workload health, logs, and metrics through a built-in control-plane
+
+## Opinionated by design
+
+Supernode is not trying to be a generic Kubernetes application launcher. The product value is the opinionated operating model:
+
+- the control-plane is mandatory
+- the preferred management surface is an agent loaded with the shipped Supernode skills
+- Vault is the canonical secret-distribution mechanism
+- supported workloads are packaged as Helm-based extensions
+- the dashboard is the operator entrypoint for day-1 and day-2 workflows
+- Prometheus and Grafana are part of the standard monitoring path
+
+For Vault, the default split is deliberate: workloads read `kv/runtime/...`,
+while operator-only material belongs in `kv/operator/...`.
+
+This is deliberate. The extensions are open source, but the operating model is what turns them into a coherent SPO platform.
+
+## The Supernode stack
+
+Every Supernode deployment starts with the same foundation:
+
+- a Kubernetes cluster provisioned or reused through `bootstrap/`
+- the Supernode control-plane installed into the `control-plane` namespace
+- Vault and Vault Secrets Operator configured for shared secret distribution
+- Prometheus and Grafana available for monitoring and dashboarding
+
+On top of that foundation, operators install supported workloads such as:
+
+- Cardano relays and block producers
+- Apex Fusion relays and block producers
+- Midnight nodes
+- Dolos data services
+- Hydra nodes
+
+## Agent-first operations
+
+Supernode includes agent-ready operational skills in `skills/`.
+
+These skills are a first-class part of the product. They encode the intended operational model for:
+
+- cluster discovery and prerequisite validation
+- relay and producer deployment
+- new pool creation from scratch
+- SPO maintenance workflows such as `KES` rotation and pool updates
+- Dolos deployment
+- dashboard and metrics access
+
+The preferred Supernode experience is:
+
+1. open your agent of choice
+2. load the Supernode skills from this repository
+3. ask for the goal you want to achieve
+
+Examples:
+
+- "I would like to bootstrap a new Supernode"
+- "I would like to bootstrap a new pool from scratch"
+- "I would like to migrate my Cardano Preview pool into the Supernode"
+- "I would like to rotate `KES` keys for my producer"
+
+The manual docs remain the reference layer. The skills are the preferred execution and guidance layer.
+
+## Who it is for
+
+Supernode is written for SPOs who want repeatability more than maximum flexibility.
+
+It fits especially well when you want to:
+
+- standardize how nodes and supporting workloads are deployed
+- manage block producer runtime material without hand-curated Kubernetes secrets
+- monitor workloads through a single Prometheus and Grafana stack
+- give operators a UI for installation, health, logs, and dashboards
+
+## What the dashboard does
+
+The Supernode dashboard is not just a visualizer. It is intended to be the operator surface for:
+
+- discovering supported OCI-packaged workloads
+- installing them into isolated namespaces
+- guiding onboarding flows such as Midnight registration
+- surfacing workload health and logs
+- linking operators into Grafana for deeper analysis
+
+## What “control-plane” means in Supernode
+
+In Supernode, the control-plane is part of bootstrap, not an optional extension.
+
+It includes:
+
+- Prometheus Operator and Prometheus
+- Grafana
+- Vault OSS
+- Vault Secrets Operator
+- shared `VaultConnection` and `VaultAuth` resources used by workloads
+
+This is the required substrate that makes the rest of the platform coherent.
+
+## The canonical SPO workflow
+
+The intended Supernode journey is:
+
+1. Load the Supernode skills into your preferred agent.
+2. Bootstrap a cluster.
+3. Install the control-plane.
+4. Complete the Vault post-install sequence.
+5. Install supported workloads.
+6. Use the dashboard, Prometheus, and Grafana to monitor them.
+7. Use Vault-backed secret delivery for workloads that need runtime material.
+
+The rest of these docs are organized around that operator workflow.

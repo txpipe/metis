@@ -1,0 +1,41 @@
+---
+title: Operations And Maintenance
+sidebar:
+  order: 6
+---
+
+Use these skills when the pool already exists and the operator needs structured maintenance guidance.
+
+## Preferred prompts
+
+- "I would like to rotate `KES` keys for my producer"
+- "I need to update my pool registration"
+- "I want to retire this pool"
+- "My producer looks healthy locally but I am not seeing expected blocks"
+
+## Core skills
+
+- `cardano-spo-maintenance-overview.md`
+  - choose the right maintenance workflow before touching a live system
+- `cardano-spo-kes-rotation.md`
+  - rotate `KES` and issue a new `op.cert`
+- `cardano-spo-pool-update.md`
+  - update registration parameters such as metadata, relays, pledge, cost, and margin
+- `cardano-spo-pool-retirement.md`
+  - retire a pool deliberately and with explicit epoch choice
+- `cardano-block-producer-verification.md`
+  - distinguish what Supernode can verify directly versus what still needs external confirmation
+- `cardano-block-producer-troubleshooting.md`
+  - diagnose propagation or visibility problems when the cluster looks healthy locally
+- `cardano-node-metrics-access.md`
+  - inspect raw and derived node metrics directly from pods
+
+## Operational stance
+
+This skill family is where Supernode makes its operating model safest:
+
+- custody boundaries stay explicit
+- dry runs stop before live mutation unless the operator explicitly asks otherwise
+- Vault, Helm, and ledger changes are treated as checkpointed steps
+
+Use [Secrets And Vault](../operations/secrets-and-vault) and [Troubleshooting](../operations/troubleshooting) for the manual reference layer.

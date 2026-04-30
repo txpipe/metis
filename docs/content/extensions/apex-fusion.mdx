@@ -1,0 +1,125 @@
+---
+title: Apex Fusion
+sidebar:
+  order: 5
+---
+
+The `apex-fusion` extension applies the same Supernode operating model to Apex Fusion node workloads.
+
+## What it provides
+
+- persistent node storage
+- managed topology generation
+- an nginx sidecar for n2c access
+- service endpoints for n2n, n2c, and metrics
+- PodMonitor support for Prometheus Operator
+- Vault-backed block producer runtime material
+
+## Supported networks
+
+The chart currently exposes:
+
+- `vector-testnet`
+- `prime-testnet`
+- `prime-mainnet`
+
+## Canonical relay install
+
+```sh
+helm install prime-testnet-relay ./extensions/apex-fusion \
+  --namespace prime-testnet-relay \
+  --create-namespace \
+  --set displayName="Prime Testnet Relay" \
+  --set node.network=prime-testnet \
+  --set extraLabels.supernode/status=ready
+```
+
+Inline values form:
+
+```yaml
+displayName: Prime Testnet Relay
+
+node:
+  network: prime-testnet
+  topology:
+    mode: image-default
+
+extraLabels:
+  supernode/status: ready
+```
+
+## Canonical block producer pattern
+
+Just like `cardano-node`, the producer path is Vault-first.
+
+The shared `control-plane/default` auth can read `kv/runtime/...` only. Use
+`kv/operator/...` for operator-only material that should remain unavailable to
+pods.
+
+Write the runtime material into Vault:
+
+```sh
+vault kv put kv/runtime/apex-fusion/prime-mainnet-bp/block-producer \
+  kes.skey=@kes.skey \
+  vrf.skey=@vrf.skey \
+  op.cert=@op.cert
+```
+
+If you deliberately want semi-cold operator storage in Vault, use a salted path
+such as `kv/operator/apex-fusion/prime-mainnet-mypool-7f3c9d2a8e4b1f6c/...`.
+That is safer than leaving sensitive files on an unprotected workstation
+filesystem, but cold keys are still best kept on separate offline or air-gapped
+devices.
+
+Install the producer:
+
+```sh
+helm install prime-mainnet-producer ./extensions/apex-fusion \
+  --namespace prime-mainnet-producer \
+  --create-namespace \
+  --set displayName="Prime Mainnet Producer" \
+  --set node.network=prime-mainnet \
+   --set node.blockProducer.enabled=true \
+   --set node.blockProducer.poolId=pool1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
+   --set node.blockProducer.vaultStaticSecret.path=runtime/apex-fusion/prime-mainnet-bp/block-producer \
+   --set node.topology.mode=relay-service \
+  --set node.topology.relayTargets[0].releaseName=prime-mainnet-relay \
+  --set node.topology.relayTargets[0].namespace=prime-mainnet-relay \
+  --set node.topology.relayTargets[0].chart=apex-fusion \
+  --set extraLabels.supernode/status=ready
+```
+
+Inline values form:
+
+```yaml
+displayName: Prime Mainnet Producer
+
+node:
+  network: prime-mainnet
+  topology:
+    mode: relay-service
+    relayTargets:
+      - releaseName: prime-mainnet-relay
+        namespace: prime-mainnet-relay
+        chart: apex-fusion
+  blockProducer:
+    enabled: true
+    poolId: pool1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    vaultStaticSecret:
+      path: runtime/apex-fusion/prime-mainnet-bp/block-producer
+
+extraLabels:
+  supernode/status: ready
+```
+
+## Monitoring
+
+Apex Fusion uses the same high-value Supernode metrics pattern as Cardano node workloads:
+
+- sync and tip progress
+- connection health
+- block propagation quality
+- resource consumption
+- producer schedule and KES-related metrics where applicable
+
+Operators should treat it as a first-class monitored workload in the dashboard, Prometheus, and Grafana.

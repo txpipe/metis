@@ -1,0 +1,110 @@
+---
+title: Hydra Node
+sidebar:
+  order: 8
+---
+
+The `hydra-node` extension brings Hydra into the Supernode operating model.
+
+Use it when you want to run Hydra experiments alongside the rest of your Supernode workloads.
+
+## What it provides
+
+- persistent Hydra state
+- offline-mode defaults for fast experimentation
+- flexible integration points for Hydra and Cardano key material
+- optional Vault-backed secret sync
+- service exposure for API, P2P, and monitoring ports
+
+## Canonical offline install
+
+Create the required key objects first:
+
+```sh
+kubectl create namespace hydra
+kubectl -n hydra create secret generic hydra-signing \
+  --from-file=hydra.sk=/path/to/hydra.sk
+kubectl -n hydra create configmap hydra-verification \
+  --from-file=hydra.vk=/path/to/hydra.vk
+```
+
+Then install the chart:
+
+```sh
+helm install hydra ./extensions/hydra-node \
+  --namespace hydra \
+  --set displayName="Hydra Node" \
+  --set keys.hydraSigning.existingSecret.name=hydra-signing \
+  --set keys.hydraSigning.existingSecret.key=hydra.sk \
+  --set keys.hydraVerification.existingConfigMap.name=hydra-verification \
+  --set keys.hydraVerification.items[0].filename=hydra.vk \
+  --set extraLabels.supernode/status=ready
+```
+
+Inline values form:
+
+```yaml
+displayName: Hydra Node
+
+keys:
+  hydraSigning:
+    existingSecret:
+      name: hydra-signing
+      key: hydra.sk
+  hydraVerification:
+    existingConfigMap:
+      name: hydra-verification
+    items:
+      - filename: hydra.vk
+
+extraLabels:
+  supernode/status: ready
+```
+
+## Online mode pattern
+
+When you want the Hydra node to talk to a Cardano node, switch out of offline mode and provide Cardano connectivity:
+
+```yaml
+displayName: Hydra Node
+
+node:
+  offlineMode: false
+  hydraScriptsTxId: abcd1234...
+  cardanoSocketProxy:
+    enabled: true
+    targetHost: relay.cardano.example.com
+    targetPort: 3001
+
+keys:
+  hydraSigning:
+    existingSecret:
+      name: hydra-signing
+      key: hydra.sk
+  hydraVerification:
+    existingConfigMap:
+      name: hydra-verification
+    items:
+      - filename: hydra.vk
+  cardano:
+    enabled: true
+    signing:
+      existingSecret:
+        name: cardano-admin
+        key: cardano.sk
+    verification:
+      existingConfigMap:
+        name: cardano-admin
+
+extraLabels:
+  supernode/status: ready
+```
+
+## Operational role in Supernode
+
+Hydra is not part of the baseline Cardano producer story, but it still benefits from the same Supernode primitives:
+
+- consistent Helm packaging
+- shared control-plane
+- optional Vault-backed secret delivery
+- standard monitoring and logging paths

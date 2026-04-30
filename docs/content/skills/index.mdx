@@ -1,0 +1,50 @@
+---
+title: Skills
+sidebar:
+  order: 3
+---
+
+The preferred way to manage Supernode is through the skills shipped in this repository.
+
+These skills are designed to be loaded into an agent so the operator can work from goals instead of memorizing procedures.
+
+## Preferred operator experience
+
+Open your agent of choice, load the skills from `skills/`, and ask for the outcome you want.
+
+Examples:
+
+- "I would like to bootstrap a new Supernode"
+- "I would like to bootstrap a new pool from scratch"
+- "I would like to migrate my Cardano Preview pool into the Supernode"
+- "I would like to deploy Dolos on my Supernode"
+- "I would like to rotate `KES` keys for my producer"
+
+The manual docs in this repo remain the canonical reference, but the skills are the preferred execution and guidance layer.
+
+## Why the skills matter
+
+The skills do more than summarize commands. They encode the Supernode operating model:
+
+- which questions the agent should ask before acting
+- which defaults are safe to propose
+- where custody boundaries must remain explicit
+- where dry runs must stop before live mutations
+- which validation checks should happen before and after changes
+
+This is part of the Supernode value proposition. The platform is not only a set of charts and dashboards. It is also a structured agent-operable workflow layer.
+
+## How to use them
+
+1. Open your agent.
+2. Load the relevant Supernode skills from this repository.
+3. Describe the goal you want to achieve.
+4. Let the agent ask for missing inputs and guide the workflow.
+5. Use the manual docs when you want the underlying reference commands and values.
+
+## Skill families
+
+- [Bootstrap And Discovery](./bootstrap-and-discovery): cluster discovery, prerequisites, and extension inventory
+- [Cardano Pool Lifecycle](./cardano-pool-lifecycle): relay-first setup, pool creation, and producer activation
+- [Operations And Maintenance](./operations-and-maintenance): `KES`, pool updates, retirement, verification, troubleshooting, and metrics access
+- [Dolos And Dashboard](./dolos-and-dashboard): Dolos deployment and dashboard access

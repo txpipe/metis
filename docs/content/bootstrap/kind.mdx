@@ -1,0 +1,77 @@
+---
+title: Kind
+sidebar:
+  order: 3
+---
+
+`kind` is the canonical way to evaluate Supernode locally.
+
+Use it when you want the shortest path from zero to a working Supernode environment on a laptop.
+
+## Prerequisites
+
+- Docker Desktop, Rancher Desktop, or another local container runtime
+- ability to install CLI tools into `/usr/local/bin`
+
+The bootstrap flow installs missing local dependencies such as `kind`, `kubectl`, and `helm`.
+
+## Canonical flow
+
+```sh
+cd bootstrap
+./bootstrap.sh \
+  --provider kind \
+  --version 0.2.1 \
+  --config ./kind/config.yml
+```
+
+If you do not provide `--values`, the bootstrap flow uses `bootstrap/kind/values.yml`.
+
+Those defaults are opinionated for local evaluation and expose the dashboard and Grafana through `NodePort` so they can be reached through the port mappings defined in the Kind cluster config.
+
+## Local Vault dev mode
+
+The shortest Vault path on Kind is dev mode:
+
+```sh
+cd bootstrap
+./bootstrap.sh \
+  --provider kind \
+  --version 0.2.1 \
+  --values ../extensions/control-plane/examples/dev-values.yaml
+```
+
+That keeps Vault Secrets Operator enabled while avoiding the init and unseal flow.
+
+Then finish the shared VSO setup:
+
+```sh
+cd ../extensions/control-plane
+VAULT_TOKEN=root ./scripts/post_install.sh
+```
+
+## Validate the cluster
+
+```sh
+kubectl config current-context
+kubectl -n control-plane get pods
+kubectl -n control-plane get svc
+```
+
+## Access the local services
+
+By default the Kind values switch these services to `NodePort`:
+
+- Grafana
+- Supernode dashboard
+
+If you use the shipped Kind config, they are exposed through the host port mappings defined for the cluster.
+
+## When to use Kind
+
+Choose Kind when you want to:
+
+- validate control-plane installation logic
+- exercise the dashboard locally
+- test extension values before a cloud rollout
+- rehearse Vault and VSO flows without provisioning cloud infrastructure

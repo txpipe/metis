@@ -1,0 +1,78 @@
+---
+title: Bootstrap
+sidebar:
+  order: 2
+---
+
+Bootstrap is the first step of every Supernode deployment.
+
+The preferred bootstrap experience is to load the Supernode skills into your agent and ask for a bootstrap workflow. The manual commands in this section remain the canonical reference path.
+
+The shared `bootstrap/bootstrap.sh` flow does two things:
+
+1. provision or reuse a Kubernetes cluster for a supported provider
+2. install the Supernode control-plane into that cluster
+
+```sh
+cd bootstrap
+./bootstrap.sh --provider <provider> --version <control-plane-version>
+```
+
+## Supported providers
+
+- `kind`: the canonical local evaluation path
+- `aws`: the canonical AWS path for managed Kubernetes
+- `gcloud`: the canonical Google Cloud path for managed Kubernetes
+- `azure`: reserved placeholder for future AKS support
+
+## What bootstrap installs
+
+Bootstrap always targets the Supernode control-plane. That means:
+
+- Prometheus Operator and Prometheus
+- Grafana
+- Vault
+- Vault Secrets Operator
+- shared Vault auth objects consumed by workloads
+
+Before the Helm install, `bootstrap.sh` also pre-applies the Vault Secrets Operator CRDs so the first install succeeds on a fresh cluster.
+
+## Canonical command shape
+
+```sh
+cd bootstrap
+./bootstrap.sh \
+  --provider kind \
+  --version 0.2.1 \
+  --config ./kind/config.yml
+```
+
+Available flags:
+
+- `--provider`: `kind`, `aws`, `gcloud`, or `azure`
+- `--version`: chart version for `oci://oci.supernode.store/control-plane`
+- `--config`: provider-specific config file forwarded to the provider script
+- `--values`: explicit values file for the control-plane chart
+
+## Opinionated defaults
+
+Supernode prefers a small number of well-understood patterns:
+
+- use `kind` for local evaluation
+- prefer skill-guided bootstrap and discovery over ad hoc command assembly
+- use the shared control-plane everywhere
+- keep Vault and VSO enabled
+- use provider-specific values files when you need cloud-native Vault seal modes
+
+For the agent-first workflow, start with [Skills](../skills) and the bootstrap discovery skills.
+
+## What bootstrap does not finish for you
+
+Bootstrap intentionally stops short of full Vault day-1 completion. You still need to:
+
+- configure cloud KMS and workload identity when using auto-unseal
+- initialize Vault in standalone or HA modes
+- run `extensions/control-plane/scripts/post_install.sh`
+- validate Grafana and Prometheus access
+
+Those steps are covered in [Control Plane](./control-plane).

@@ -1,0 +1,124 @@
+---
+title: Quickstart
+sidebar:
+  order: 0
+---
+
+import { Steps, Tabs, TabItem } from "@astrojs/starlight/components"
+
+Supernode is an opinionated platform for Cardano Stake Pool Operators who need a repeatable way to bootstrap infrastructure, install supported workloads, manage secrets, and monitor production behavior from a single operating model.
+
+The preferred way to operate Supernode is to load the repository skills into your agent of choice and ask for the workflow you want.
+
+Typical prompts include:
+
+- "I would like to bootstrap a new Supernode"
+- "I would like to bootstrap a new pool from scratch"
+- "I would like to migrate my Cardano Preview pool into the Supernode"
+- "I would like to deploy Dolos on my Supernode"
+
+The manual guides in these docs remain the canonical reference, but the preferred operator experience is goal-oriented management through the skills shipped in `skills/`.
+
+Start with [Skills](./skills) if you want the agent-first workflow.
+
+This quickstart follows the canonical Supernode path:
+
+<Steps>
+1. ### Bootstrap a cluster and install the Supernode control-plane
+
+   If you are using an agent, load the Supernode skills first and ask for a bootstrap workflow. The manual commands below explain the underlying reference path.
+
+   <Tabs>
+     <TabItem label="kind">
+       Use `kind` when you want the fastest path to evaluate Supernode locally.
+
+       ```sh
+       cd bootstrap
+       ./bootstrap.sh \
+         --provider kind \
+         --version 0.2.1
+       ```
+     </TabItem>
+     <TabItem label="aws">
+       Use AWS when you want a managed Kubernetes environment for a real deployment.
+
+       ```sh
+       cd bootstrap
+       ./bootstrap.sh \
+         --provider aws \
+         --version 0.2.1
+       ```
+     </TabItem>
+     <TabItem label="gcloud">
+       Use Google Cloud when you want to run Supernode on GKE. Autopilot is the default mode.
+
+       ```sh
+       cd bootstrap
+       ./bootstrap.sh \
+         --provider gcloud \
+         --version 0.2.1
+       ```
+     </TabItem>
+   </Tabs>
+
+   This installs the required control-plane, including Prometheus, Grafana, Vault, and Vault Secrets Operator.
+
+   For the full provider-specific flows, see [Bootstrap](./bootstrap).
+
+2. ### Complete the control-plane post-install steps
+
+   After bootstrap, finish the Vault setup before expecting producer workloads or Vault-backed secrets to work correctly.
+
+   ```sh
+   kubectl -n control-plane get pods
+   kubectl -n control-plane exec -it control-plane-vault-0 -- vault status
+   ```
+
+   For standalone or HA Vault modes, initialize Vault once and then run:
+
+   ```sh
+   cd extensions/control-plane
+   VAULT_TOKEN=<vault-admin-token> ./scripts/post_install.sh
+   ```
+
+   For the full sequence, see [Control Plane](./bootstrap/control-plane).
+
+3. ### Install a workload
+
+   The canonical Supernode model is to install supported workloads on top of the control-plane. For example, a Cardano relay:
+
+   ```sh
+   helm install preview-relay ./extensions/cardano-node \
+     --namespace preview-relay \
+     --create-namespace \
+     --set displayName="Preview Relay" \
+     --set node.network=preview \
+     --set node.networkMagic=2 \
+     --set extraLabels.supernode/status=ready
+   ```
+
+   You can also install workloads through the dashboard once it is running in-cluster.
+
+   For an agent-guided install, use the relevant skill instead of manually stitching the workflow together. For example:
+
+   - `cardano-relay-setup.md`
+   - `cardano-stake-pool-from-scratch.md`
+   - `dolos-supernode-deployment.md`
+
+   For canonical workload patterns, see [Extensions](./extensions).
+
+4. ### Open the dashboard and monitor the workload
+
+   The Supernode dashboard is the operator entrypoint for installed workloads. It discovers OCI-packaged extensions, installs them into namespaces, shows workload health, and links to Grafana dashboards.
+
+   Start by checking that the dashboard and monitoring stack are up:
+
+   ```sh
+   kubectl -n control-plane get pods
+   kubectl -n control-plane port-forward service/grafana 3000:3000
+   ```
+
+   Then use the dashboard to inspect health, logs, and workload-specific telemetry.
+
+   For the full operator workflow, see [Dashboard](./dashboard) and [Monitoring](./operations/monitoring).
+</Steps>

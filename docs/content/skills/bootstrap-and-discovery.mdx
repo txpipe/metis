@@ -1,0 +1,26 @@
+---
+title: Bootstrap And Discovery
+sidebar:
+  order: 4
+---
+
+Use these skills when the operator is starting from cluster state and needs an agent to discover what already exists, what is missing, and whether the environment is ready for change.
+
+## Preferred prompts
+
+- "I would like to bootstrap a new Supernode"
+- "Please inspect this cluster and tell me whether it is ready for Supernode workloads"
+- "Please discover which extensions are already installed"
+
+## Core skills
+
+- `kubernetes-extension-discovery.md`
+  - discover which Supernode workloads are already installed
+  - verify whether the control-plane is present
+  - identify missing prerequisites before new installs
+- `kubernetes-storage-and-prereqs.md`
+  - validate storage classes, PVC behavior, node readiness, and scheduling prerequisites
+
+## When to use manual docs instead
+
+Use the [Bootstrap](../bootstrap) pages when you want the underlying provider-specific commands and values as a direct reference.
