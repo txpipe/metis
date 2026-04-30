@@ -158,7 +158,7 @@ metadata and needs `cloudkms.cryptoKeys.get` in addition to encrypt/decrypt.
    - `LOCATION`
 3. Wait for the Vault StatefulSet to become ready.
 4. Run `vault operator init` once.
-5. Run `extensions/control-plane/scripts/post_install.sh` with `VAULT_TOKEN` set to the Vault root token.
+5. Run `extensions/control-plane/scripts/post_install.sh` with `VAULT_TOKEN` set to the Vault root token so the shared policy is limited to read-only `kv/runtime/...` access.
 
 Autopilot-specific note:
 

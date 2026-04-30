@@ -99,11 +99,13 @@ Interpretation:
 - `kes.skey`, `vrf.skey`, and `op.cert` are the only fields the node needs to run
 - the optional convenience artifacts are not required by the chart
 - do not place online signing keys in this producer-mounted Vault path
-- if you want online signing keys in Vault, use a separate operator-only path
+- if you want operator-only material in Vault, use a salted `kv/operator/...`
+  path that is not mounted into the producer pod
 
 This chart assumes the `control-plane` extension is already installed and has
 bootstrapped the shared Vault auth at `control-plane/default`. Normal block
 producer configuration only needs the Vault KV path and block producer values.
+That shared auth can read `kv/runtime/...` but cannot read `kv/operator/...`.
 
 Example values:
 
@@ -120,13 +122,13 @@ node:
     debug: false
     poolId: pool1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     vaultStaticSecret:
-      path: cardano-node/mainnet-bp/block-producer
+      path: runtime/cardano-node/mainnet-bp/block-producer
 ```
 
 Write the artifacts to Vault before installing or upgrading the chart:
 
 ```shell
-vault kv put kv/cardano-node/mainnet-bp/block-producer \
+vault kv put kv/runtime/cardano-node/mainnet-bp/block-producer \
   kes.skey=@kes.skey \
   vrf.skey=@vrf.skey \
   op.cert=@op.cert
@@ -136,6 +138,13 @@ Only `kes.skey`, `vrf.skey`, and `op.cert` are required in this Vault path.
 Optional public or reference artifacts may live beside them, but cold keys,
 the operational certificate counter, and online signing keys should stay out of
 the producer-mounted path.
+
+If you want semi-cold operator storage in Vault, use a separate salted
+operator path, for example
+`kv/operator/cardano-node/mainnet-mypool-7f3c9d2a8e4b1f6c/...`. That is safer
+than leaving sensitive files on an unprotected workstation filesystem, but the
+ideal custody model for cold keys is still separate offline or air-gapped
+devices.
 
 When `node.blockProducer.enabled=true` the chart creates a namespace-local
 `vault-auth` service account and a `VaultStaticSecret` that references the
@@ -223,7 +232,7 @@ Recommended sequence:
 Example Vault upload:
 
 ```shell
-vault kv put kv/cardano-node/mainnet-bp/block-producer \
+vault kv put kv/runtime/cardano-node/mainnet-bp/block-producer \
   kes.skey=@kes.skey \
   vrf.skey=@vrf.skey \
   op.cert=@op.cert
@@ -244,7 +253,7 @@ node:
     debug: true
     poolId: pool1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     vaultStaticSecret:
-      path: cardano-node/mainnet-bp/block-producer
+      path: runtime/cardano-node/mainnet-bp/block-producer
 ```
 
 Upgrade the existing release with those values:

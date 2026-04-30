@@ -165,11 +165,11 @@ kubectl -n control-plane exec -it control-plane-vault-0 -- vault operator unseal
 For dev mode, skip initialization and unseal entirely.
 
 2. Run the local post-install helper from `extensions/control-plane`. It
-   requires the `vault` CLI to be installed on your machine, assumes
-   `vault operator init` has already been run for standalone or HA modes,
-   port-forwards to `service/control-plane-vault`, and configures the shared
-   Kubernetes auth mount, KV v2 mount, policy, and role using the local
-   `vault` CLI.
+    requires the `vault` CLI to be installed on your machine, assumes
+    `vault operator init` has already been run for standalone or HA modes,
+    port-forwards to `service/control-plane-vault`, and configures the shared
+    Kubernetes auth mount, KV v2 mount, policy, and role using the local
+    `vault` CLI. By default, the shared role can read only `kv/runtime/...`.
 
 ```shell
 VAULT_TOKEN=<vault-admin-token> ./scripts/post_install.sh
@@ -191,11 +191,40 @@ kubectl -n control-plane exec -it control-plane-vault-0 -- \
 The `post_install.sh` script is safe to rerun when you intentionally want to
 reconcile the Vault auth mount, policy, role, or KV mount.
 
-The default post-install policy is intentionally broad enough for cluster-wide VSO
-usage: it grants read/list access across the configured KV v2 mount. Workload
-charts that create `VaultStaticSecret` resources are expected to create a local
-`vault-auth` service account in their own namespace and reference the shared
-auth as `control-plane/default`.
+The default post-install policy is intentionally read-only and prefix-scoped.
+Workload charts that create `VaultStaticSecret` resources are expected to
+create a local `vault-auth` service account in their own namespace and
+reference the shared auth as `control-plane/default`.
+
+The default Vault layout is:
+
+- `kv/runtime/...`: shared runtime material readable by supernode workloads
+- `kv/operator/...`: operator-only material not reachable through the shared
+  Kubernetes auth
+
+Use `kv/runtime/...` for the runtime artifacts that pods actually need, for
+example:
+
+```shell
+vault kv put kv/runtime/cardano-node/mainnet-mypool/block-producer \
+  kes.skey=@kes.skey \
+  vrf.skey=@vrf.skey \
+  op.cert=@op.cert
+```
+
+If an operator deliberately wants semi-cold storage in Vault, keep it under a
+salted `kv/operator/...` path that is not guessable from pool naming alone. Use
+hex for the suffix, for example:
+
+```shell
+vault kv put kv/operator/cardano-node/mainnet-mypool-7f3c9d2a8e4b1f6c/cold \
+  cold.skey=@cold.skey
+```
+
+This operator-only Vault space is safer than leaving sensitive files on a
+normal filesystem without meaningful protections, but it is still not a
+replacement for proper offline custody. Cold keys are best kept on separate
+offline or air-gapped devices.
 
 > **Note:** The bundled `Prometheus` resource references an `alertmanager` Service
 > in the same namespace. Provide an Alertmanager deployment (either manually or

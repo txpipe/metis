@@ -37,7 +37,9 @@ The Vault runtime path only requires:
 - `op.cert`
 
 It may also include optional public or reference artifacts for operator and
-agent convenience, but should not include online signing keys.
+agent convenience, but should not include online signing keys. If the operator
+also keeps semi-cold material in Vault, use a separate salted
+`kv/operator/cardano-node/<network>-<pool-slug>-<hex-salt>/...` path.
 
 For live runs the operator must also provide the offline step that uses:
 
@@ -184,7 +186,7 @@ Local online workstation:
 kubectl -n control-plane port-forward service/control-plane-vault 8200:8200
 export VAULT_ADDR=http://localhost:8200
 vault login
-vault kv put kv/<vault-kv-path> \
+vault kv put kv/runtime/<workload>/<network>-<pool-slug>/block-producer \
   kes.skey=@keys-next/kes.skey \
   vrf.skey=@keys/vrf.skey \
   op.cert=@keys-next/op.cert

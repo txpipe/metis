@@ -72,8 +72,11 @@ default:
 - `stake.skey`
 
 If the operator wants online signing keys in Vault for operator convenience,
-keep them in a separate operator-only Vault path that is not mounted into the
-producer pod by the chart.
+keep them in a separate salted operator Vault path such as
+`kv/operator/cardano-node/<network>-<pool-slug>-<hex-salt>/...` that is not
+mounted into the producer pod by the chart. That is safer than leaving
+sensitive files on an unprotected workstation filesystem, but cold keys are
+still best kept on separate offline or air-gapped devices.
 
 Required producer runtime material for the normal Vault runtime path:
 

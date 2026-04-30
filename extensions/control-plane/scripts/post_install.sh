@@ -19,6 +19,8 @@ LOCAL_PORT="${LOCAL_PORT:-8200}"
 VAULT_AUTH_MOUNT="${VAULT_AUTH_MOUNT:-kubernetes}"
 VAULT_AUTH_PATH="${VAULT_AUTH_PATH:-auth/kubernetes}"
 VAULT_KV_PATH="${VAULT_KV_PATH:-kv}"
+VAULT_KV_RUNTIME_PREFIX="${VAULT_KV_RUNTIME_PREFIX:-runtime}"
+VAULT_KV_OPERATOR_PREFIX="${VAULT_KV_OPERATOR_PREFIX:-operator}"
 VAULT_POLICY_NAME="${VAULT_POLICY_NAME:-control-plane}"
 VAULT_ROLE_NAME="${VAULT_ROLE_NAME:-control-plane}"
 VAULT_ROLE_SERVICE_ACCOUNT_NAME="${VAULT_ROLE_SERVICE_ACCOUNT_NAME:-vault-auth}"
@@ -33,6 +35,19 @@ VAULT_ADDR="http://127.0.0.1:${LOCAL_PORT}"
 PORT_FORWARD_LOG="$(mktemp)"
 PORT_FORWARD_PID=""
 
+normalize_prefix() {
+  local prefix="$1"
+  prefix="${prefix#/}"
+  prefix="${prefix%/}"
+  printf '%s' "$prefix"
+}
+
+prefix_overlaps() {
+  local left="$1"
+  local right="$2"
+  [[ "$left" == "$right" || "$left" == "$right"/* || "$right" == "$left"/* ]]
+}
+
 cleanup() {
   if [[ -n "${PORT_FORWARD_PID}" ]] && kill -0 "${PORT_FORWARD_PID}" >/dev/null 2>&1; then
     kill "${PORT_FORWARD_PID}" >/dev/null 2>&1 || true
@@ -41,6 +56,24 @@ cleanup() {
   rm -f "${PORT_FORWARD_LOG}"
 }
 trap cleanup EXIT
+
+VAULT_KV_RUNTIME_PREFIX="$(normalize_prefix "$VAULT_KV_RUNTIME_PREFIX")"
+VAULT_KV_OPERATOR_PREFIX="$(normalize_prefix "$VAULT_KV_OPERATOR_PREFIX")"
+
+if [[ -z "$VAULT_KV_RUNTIME_PREFIX" ]]; then
+  printf 'VAULT_KV_RUNTIME_PREFIX must not be empty.\n' >&2
+  exit 1
+fi
+
+if [[ -z "$VAULT_KV_OPERATOR_PREFIX" ]]; then
+  printf 'VAULT_KV_OPERATOR_PREFIX must not be empty.\n' >&2
+  exit 1
+fi
+
+if prefix_overlaps "$VAULT_KV_RUNTIME_PREFIX" "$VAULT_KV_OPERATOR_PREFIX"; then
+  printf 'VAULT_KV_RUNTIME_PREFIX and VAULT_KV_OPERATOR_PREFIX must not overlap.\n' >&2
+  exit 1
+fi
 
 printf 'Starting kubectl port-forward to service/%s-vault in namespace %s...\n' "$RELEASE_NAME" "$NAMESPACE"
 kubectl -n "$NAMESPACE" port-forward "service/${RELEASE_NAME}-vault" "${LOCAL_PORT}:8200" >"${PORT_FORWARD_LOG}" 2>&1 &
@@ -96,11 +129,11 @@ fi
 
 printf 'Writing shared VSO policy %s...\n' "$VAULT_POLICY_NAME"
 vault policy write "$VAULT_POLICY_NAME" - <<EOF
-path "${VAULT_KV_PATH}/data/*" {
+path "${VAULT_KV_PATH}/data/${VAULT_KV_RUNTIME_PREFIX}/*" {
   capabilities = ["read"]
 }
 
-path "${VAULT_KV_PATH}/metadata/*" {
+path "${VAULT_KV_PATH}/metadata/${VAULT_KV_RUNTIME_PREFIX}/*" {
   capabilities = ["read", "list"]
 }
 EOF
@@ -122,6 +155,14 @@ vault write "$VAULT_AUTH_PATH/role/${VAULT_ROLE_NAME}" "${role_args[@]}"
 cat <<EOF
 
 Vault post-install configuration finished.
+
+Shared workload auth can read only:
+  ${VAULT_KV_PATH}/${VAULT_KV_RUNTIME_PREFIX}/...
+
+Operator-only space remains outside shared workload auth:
+  ${VAULT_KV_PATH}/${VAULT_KV_OPERATOR_PREFIX}/...
+
+The root token can still write anywhere in the mounted KV.
 
 Verify:
   kubectl -n ${NAMESPACE} exec -it ${RELEASE_NAME}-vault-0 -- vault auth list

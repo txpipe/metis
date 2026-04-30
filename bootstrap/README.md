@@ -42,7 +42,7 @@ What it does not do automatically:
 - configure cloud-provider KMS permissions for Vault auto-unseal
 - initialize Vault in standalone or HA modes
 - run the local Vault post-install script that configures Kubernetes auth and
-  the shared VSO role/policy
+  the shared VSO role/policy for read-only `kv/runtime/...` access
 
 Mode-specific follow-up:
 

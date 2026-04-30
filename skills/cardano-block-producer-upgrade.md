@@ -105,7 +105,10 @@ agent discovery, for example:
 Those are not required by the node. They are only for operator convenience.
 
 Do not put online signing keys into the producer-mounted runtime path. If the
-operator wants them in Vault, use a separate operator-only path.
+operator wants semi-cold operator storage in Vault, use a salted
+`kv/operator/cardano-node/<network>-<pool-slug>-<hex-salt>/...` path. That is
+safer than leaving sensitive files on an unprotected workstation filesystem,
+but cold keys are still best kept on separate offline or air-gapped devices.
 
 ## Preflight Checks
 
@@ -129,7 +132,7 @@ Confirm:
 
 ## Upload Runtime Material To Vault
 
-Use the chart-specific path pattern you manage operationally.
+Use the runtime path convention `kv/runtime/<workload>/<network>-<pool-slug>/block-producer`.
 
 ### Local Vault Upload Workflow
 
@@ -183,7 +186,7 @@ are not required for the node to run and should be preserved intentionally.
 Example shape:
 
 ```bash
-vault kv put kv/<path> \
+vault kv put kv/runtime/<workload>/<network>-<pool-slug>/block-producer \
   kes.skey=@/absolute/path/to/kes.skey \
   vrf.skey=@/absolute/path/to/vrf.skey \
   op.cert=@/absolute/path/to/op.cert
@@ -207,7 +210,7 @@ node:
     debug: true
     poolId: pool1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     vaultStaticSecret:
-      path: <vault-kv-path>
+      path: runtime/<workload>/<network>-<pool-slug>/block-producer
 ```
 
 If you need a fully explicit topology instead of generated relay service

@@ -51,7 +51,8 @@ dev-mode example values:
 That keeps Vault Secrets Operator enabled, but runs Vault in disposable dev mode
 so there is no init/unseal step. If you want to configure the shared VSO auth
 resources afterward, run the local post-install script with the dev root token
-from that example (`root` by default).
+from that example (`root` by default). That shared auth is read-only and scoped
+to `kv/runtime/...`.
 
 The shared `bootstrap.sh` flow also pre-applies the Vault Secrets Operator CRDs
 before installing the control-plane chart, so the dev-mode example works on a

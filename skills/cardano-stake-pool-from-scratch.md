@@ -73,7 +73,7 @@ Before producing final commands, collect:
 - reward account key choice
 - owner stake key choice
 - local key workspace path
-- Vault KV path for runtime and online maintenance block producer material
+- Vault KV path for runtime block producer material
 - whether this is a testnet workflow or a mainnet-grade custody workflow
 
 For common public networks, the usual network values are:
@@ -99,7 +99,8 @@ Default naming convention:
 - block producer namespace: `<network>-bp`
 - block producer release: `<network>-bp`
 - key workspace: `$HOME/cardano-pools/<network>/<pool-slug>`
-- Vault KV path: `cardano-node/<network>-<pool-slug>/block-producer`
+- Vault runtime path: `runtime/cardano-node/<network>-<pool-slug>/block-producer`
+- Vault operator path: `operator/cardano-node/<network>-<pool-slug>-<hex-salt>/...`
 - metadata file: `poolMetadata.json`
 - metadata URL: a short HTTPS URL controlled by the operator
 
@@ -133,7 +134,7 @@ After prerequisites pass, ask:
    lightweight static HTTPS file."
 4. "What pledge, fixed cost, and margin should be registered?"
 5. "What Vault KV path should hold the runtime producer material? I suggest
-   `cardano-node/<network>-<pool-slug>/block-producer`."
+   `runtime/cardano-node/<network>-<pool-slug>/block-producer`."
 
 For each command block, label it with:
 
@@ -224,8 +225,8 @@ should still explain the mainnet boundary so the habit is clear.
 
 ### Vault Runtime And Online Maintenance Path
 
-By default, use one Vault KV path for the block producer's online material. The
-Metis chart consumes these runtime fields:
+By default, use one Vault runtime path for the block producer's online
+material. The Metis chart consumes these runtime fields:
 
 - `kes.skey`
 - `vrf.skey`
@@ -263,7 +264,11 @@ Do not upload by default:
 - `stake.skey`
 
 If the operator wants online signing keys in Vault at all, place them in a
-separate operator-only Vault path that is not mounted into the producer pod.
+separate salted operator Vault path that is not mounted into the producer pod,
+for example `kv/operator/cardano-node/mainnet-mypool-7f3c9d2a8e4b1f6c/...`.
+This is safer than leaving sensitive files on an unprotected workstation
+filesystem, but for mainnet-grade workflows cold keys are still best kept on
+separate offline or air-gapped devices.
 For mainnet-grade workflows, keep cold and payment/stake signing keys outside
 the producer runtime path and outside Kubernetes.
 
@@ -1066,7 +1071,7 @@ Once the human confirms local login succeeded, upload runtime material plus the
 default optional convenience artifacts to the same Vault record:
 
 ```bash
-vault kv put kv/<vault-kv-path> \
+vault kv put kv/runtime/<workload>/<network>-<pool-slug>/block-producer \
   kes.skey=@keys/kes.skey \
   kes.vkey=@keys/kes.vkey \
   vrf.skey=@keys/vrf.skey \
@@ -1085,7 +1090,9 @@ The chart only requires `kes.skey`, `vrf.skey`, and `op.cert`, but keeping the
 related online artifacts beside them gives future maintenance flows a single
 place to look. Do not add `cold.skey`, `cold.counter`, `payment.skey`, or
 `stake.skey` to the producer-mounted runtime path. If the operator wants online
-signing keys in Vault at all, use a separate operator-only path.
+signing keys or other semi-cold material in Vault at all, use a separate salted
+operator path such as
+`kv/operator/cardano-node/<network>-<pool-slug>-<hex-salt>/...`.
 
 ## Step 14: Deploy Producer In Debug Mode
 
@@ -1115,7 +1122,7 @@ node:
     debug: true
     poolId: <pool-id-bech32>
     vaultStaticSecret:
-      path: <vault-kv-path>
+      path: runtime/cardano-node/<network>-<pool-slug>/block-producer
 ```
 
 For mainnet, omit `node.networkMagic` if the chart/image expects no testnet

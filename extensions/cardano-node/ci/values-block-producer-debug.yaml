@@ -3,4 +3,4 @@ node:
     enabled: true
     debug: true
     vaultStaticSecret:
-      path: cardano-node/example/block-producer
+      path: runtime/cardano-node/example/block-producer

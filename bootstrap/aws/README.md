@@ -78,7 +78,7 @@ the Vault Kubernetes service account before or after the cluster bootstrap.
 After the control-plane chart is installed:
 
 - initialize Vault once if you are not using dev mode
-- run `extensions/control-plane/scripts/post_install.sh` so the shared VSO auth resources are configured
+- run `extensions/control-plane/scripts/post_install.sh` so the shared VSO auth resources are configured with read-only access to `kv/runtime/...`
 
 ## Useful Links
 

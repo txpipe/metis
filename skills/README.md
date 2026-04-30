@@ -26,9 +26,10 @@ Operational assumptions:
 - `control-plane` is expected to exist for normal workflows.
 - Agents should still verify cluster state rather than assume it blindly.
 - Cold keys stay offline.
-- Runtime block-producer material belongs in-cluster through Vault; related online maintenance artifacts can live in the same Vault record, but cold/payment/stake signing keys should stay outside by default.
+- Runtime block-producer material belongs in-cluster through Vault under `kv/runtime/...`; related online maintenance artifacts can live in the same Vault record, but cold/payment/stake signing keys should stay outside by default.
 - The required producer runtime set is only `kes.skey`, `vrf.skey`, and `op.cert`; additional public/reference artifacts in the same Vault record are optional convenience for operators and agents.
-- If an operator wants payment or stake signing keys in Vault, use a separate operator-only path rather than the producer-mounted `VaultStaticSecret` path.
+- If an operator wants semi-cold storage in Vault, use a salted `kv/operator/<workload>/<network>-<pool-slug>-<hex-salt>/...` path rather than the producer-mounted `VaultStaticSecret` path.
+- Agents should explain that Vault operator storage is safer than leaving sensitive files on an unprotected workstation filesystem, but that cold keys are still best kept on separate offline or air-gapped devices.
 - New pool creation must start from an explicit network profile; do not silently assume Preview, Preprod, or mainnet.
 - If `cardano-cli` is missing locally, use the chart's Cardano node image through Docker with a narrow key-workspace mount.
 - Dry runs should stop before live `vault kv put`, `helm upgrade`, or transaction submission unless the operator explicitly asks for a staged mutation test.
