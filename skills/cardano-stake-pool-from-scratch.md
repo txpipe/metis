@@ -507,7 +507,7 @@ If `cardano-cli` is not installed locally but Docker is available, use the same
 Cardano node image as the chart and mount only the operator workspace:
 
 ```bash
-export CARDANO_CLI_IMAGE="ghcr.io/blinklabs-io/cardano-node:10.5.1"
+export CARDANO_CLI_IMAGE="ghcr.io/blinklabs-io/cardano-node:10.7.1"
 export CARDANO_CLI="docker run --rm --entrypoint cardano-cli -v ${POOL_WORKDIR}:/work -w /work ${CARDANO_CLI_IMAGE}"
 ${CARDANO_CLI} --version
 ```

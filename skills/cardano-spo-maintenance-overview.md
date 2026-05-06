@@ -161,7 +161,7 @@ Cardano image with a narrow workspace mount:
 
 ```bash
 export POOL_WORKDIR="$HOME/cardano-pools/<network>/<pool-slug>"
-export CARDANO_CLI_IMAGE="ghcr.io/blinklabs-io/cardano-node:10.5.1"
+export CARDANO_CLI_IMAGE="ghcr.io/blinklabs-io/cardano-node:10.7.1"
 export CARDANO_CLI="docker run --rm --entrypoint cardano-cli -v ${POOL_WORKDIR}:/work -w /work ${CARDANO_CLI_IMAGE}"
 ${CARDANO_CLI} --version
 ```
