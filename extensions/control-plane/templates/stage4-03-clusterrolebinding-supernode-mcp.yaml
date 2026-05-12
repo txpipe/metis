@@ -1,0 +1,17 @@
+{{- if .Values.supernodeMcp.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: supernode-mcp-readonly
+  labels:
+    app.kubernetes.io/name: supernode-mcp
+    app.kubernetes.io/component: mcp
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.supernodeMcp.serviceAccount.name }}
+  namespace: '{{ .Values.namespace }}'
+roleRef:
+  kind: ClusterRole
+  name: supernode-mcp-readonly
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

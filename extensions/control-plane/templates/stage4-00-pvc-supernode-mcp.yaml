@@ -1,0 +1,24 @@
+{{- if and .Values.supernodeMcp.enabled .Values.supernodeMcp.persistence.enabled (not .Values.supernodeMcp.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: supernode-mcp
+  namespace: '{{ .Values.namespace }}'
+  labels:
+    app.kubernetes.io/name: supernode-mcp
+    app.kubernetes.io/component: mcp
+{{- with .Values.supernodeMcp.persistence.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  accessModes:
+{{ toYaml .Values.supernodeMcp.persistence.accessModes | indent 4 }}
+{{- $storageClass := default .Values.storageClass .Values.supernodeMcp.persistence.storageClass }}
+{{- if $storageClass }}
+  storageClassName: {{ $storageClass }}
+{{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.supernodeMcp.persistence.size }}
+{{- end }}
