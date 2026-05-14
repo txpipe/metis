@@ -378,7 +378,6 @@ mod tests {
                 phase: Some("Running".to_string()),
                 ..Default::default()
             }),
-            ..Default::default()
         }
     }
 

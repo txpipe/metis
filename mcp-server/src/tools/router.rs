@@ -1325,6 +1325,43 @@ mod tests {
         assert!(!definition.input_schema.contains("approvalId"));
     }
 
+    #[test]
+    fn workloads_install_tool_schema_advertises_configuration_argument() {
+        let router = ToolRouter::new();
+        let tool = router
+            .list_with_dynamic(&[])
+            .tools
+            .into_iter()
+            .find(|tool| tool.name == "workloads.install")
+            .unwrap();
+        let schema = Value::Object((*tool.input_schema).clone());
+
+        assert_eq!(
+            schema
+                .get("required")
+                .and_then(Value::as_array)
+                .unwrap()
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>(),
+            vec!["extensionId", "releaseName", "namespace", "configuration"]
+        );
+        assert_eq!(
+            schema.pointer("/properties/configuration/type"),
+            Some(&json!("object"))
+        );
+        assert_eq!(
+            schema.pointer("/properties/configuration/additionalProperties"),
+            Some(&json!(true))
+        );
+        assert!(
+            schema
+                .pointer("/properties/configuration/description")
+                .and_then(Value::as_str)
+                .is_some_and(|description| description.contains("Required"))
+        );
+    }
+
     #[tokio::test]
     async fn vault_runtime_tool_rejects_non_runtime_path_before_client_setup() {
         let router = ToolRouter::new();

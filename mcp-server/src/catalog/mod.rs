@@ -117,8 +117,8 @@ mod tests {
         let extension = catalog.get("dolos").unwrap();
 
         assert_eq!(extension.name, "Dolos");
-        assert_eq!(extension.default_version, "0.1.0-rc1");
-        assert!(extension.versions.contains(&"0.1.0-rc1".to_string()));
+        assert_eq!(extension.default_version, "0.1.0");
+        assert!(extension.versions.contains(&"0.1.0".to_string()));
         assert_eq!(extension.configuration.get("type"), Some(&json!("object")));
         assert_eq!(extension.metrics.get("type"), Some(&json!("object")));
         assert_eq!(extension.outputs.len(), 4);

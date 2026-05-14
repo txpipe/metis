@@ -61,7 +61,7 @@ pub fn definitions() -> &'static [ToolDefinition] {
             approval_class: ApprovalClass::Mutation,
             read_only: false,
             destructive: false,
-            input_schema: r#"{"type":"object","required":["extensionId","releaseName","namespace","configuration"],"properties":{"extensionId":{"type":"string"},"releaseName":{"type":"string"},"namespace":{"type":"string"},"configuration":{"type":"object"},"dryRun":{"type":"boolean"}},"additionalProperties":false}"#,
+            input_schema: r#"{"type":"object","required":["extensionId","releaseName","namespace","configuration"],"properties":{"extensionId":{"type":"string","description":"Catalog extension ID to install, for example dolos or cardano-node-relay."},"releaseName":{"type":"string","description":"Helm release name to create or update."},"namespace":{"type":"string","description":"Kubernetes namespace where the workload will be installed."},"configuration":{"type":"object","description":"Required extension-specific configuration object. Use extensions.catalog.get for the selected extensionId and pass values matching that extension configuration schema.","additionalProperties":true},"dryRun":{"type":"boolean","description":"When true, validate and return the install plan without mutating Kubernetes. Defaults to true."}},"additionalProperties":false}"#,
         },
         ToolDefinition {
             name: "workloads.upgrade",
@@ -71,7 +71,7 @@ pub fn definitions() -> &'static [ToolDefinition] {
             approval_class: ApprovalClass::Mutation,
             read_only: false,
             destructive: false,
-            input_schema: r#"{"type":"object","required":["namespace","releaseName","configuration"],"properties":{"namespace":{"type":"string"},"releaseName":{"type":"string"},"configuration":{"type":"object"},"dryRun":{"type":"boolean"}},"additionalProperties":false}"#,
+            input_schema: r#"{"type":"object","required":["namespace","releaseName","configuration"],"properties":{"namespace":{"type":"string"},"releaseName":{"type":"string"},"configuration":{"type":"object","description":"Required extension-specific configuration object. Use extensions.catalog.get for the installed extension and pass values matching that extension configuration schema.","additionalProperties":true},"dryRun":{"type":"boolean","description":"When true, validate and return the upgrade plan without mutating Kubernetes."}},"additionalProperties":false}"#,
         },
         ToolDefinition {
             name: "workloads.delete",
