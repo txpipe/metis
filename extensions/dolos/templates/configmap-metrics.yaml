@@ -1,0 +1,50 @@
+{{- $configMapName := include "dolos.metricsConfigMapName" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configMapName }}
+  labels:
+    {{- include "dolos.labels" . | nindent 4 }}
+data:
+  metrics.sh: |-
+    #!/usr/bin/env sh
+    set -u
+
+    errors_json="[]"
+
+    append_error() {
+      if [ "$errors_json" = "[]" ]; then
+        errors_json="[\"$1\"]"
+      else
+        errors_json="${errors_json%]},\"$1\"]"
+      fi
+    }
+
+    response="$(curl -s --fail "http://127.0.0.1:{{ .Values.service.minibfPort }}/blocks/latest" || wget -qO- "http://127.0.0.1:{{ .Values.service.minibfPort }}/blocks/latest" || true)"
+
+    if [ -z "$response" ]; then
+      append_error "failed to read Dolos minibf latest block"
+    fi
+
+    compact="$(printf '%s' "$response" | tr -d '\n' | tr -d '\r')"
+    slot="$(printf '%s' "$compact" | sed -n 's/.*"slot"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p')"
+    epoch="$(printf '%s' "$compact" | sed -n 's/.*"epoch"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p')"
+    height="$(printf '%s' "$compact" | sed -n 's/.*"height"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p')"
+
+    [ -n "$slot" ] || append_error "slot missing from Dolos minibf latest block response"
+    [ -n "$epoch" ] || append_error "epoch missing from Dolos minibf latest block response"
+    [ -n "$height" ] || append_error "height missing from Dolos minibf latest block response"
+
+    slot_json="null"
+    epoch_json="null"
+    height_json="null"
+
+    [ -z "$slot" ] || slot_json="$slot"
+    [ -z "$epoch" ] || epoch_json="$epoch"
+    [ -z "$height" ] || height_json="$height"
+
+    printf '{"type":"dolos","blockHeight":%s,"epoch":%s,"slotNum":%s,"errors":%s}\n' \
+      "$height_json" \
+      "$epoch_json" \
+      "$slot_json" \
+      "$errors_json"

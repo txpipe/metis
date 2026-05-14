@@ -2,6 +2,7 @@
 {{- $selectorLabels := include "dolos.selectorLabels" . -}}
 {{- $serviceAccountName := include "dolos.serviceAccountName" . -}}
 {{- $configMapName := include "dolos.configurationConfigMapName" . -}}
+{{- $metricsConfigMapName := include "dolos.metricsConfigMapName" . -}}
 {{- $configChecksum := "" -}}
 {{- if and .Values.config.create (not .Values.config.existingConfigMap) }}
 {{- $configChecksum = include (print $.Template.BasePath "/configmap-config.yaml") . | sha256sum -}}
@@ -88,6 +89,10 @@ spec:
             - name: config
               mountPath: {{ $configDir }}
             {{- end }}
+            - name: metrics-scripts
+              mountPath: /opt/metis/bin/metrics.sh
+              subPath: metrics.sh
+              readOnly: true
             {{- with .Values.dolos.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -181,6 +186,10 @@ spec:
           configMap:
             name: {{ $configMapName }}
         {{- end }}
+        - name: metrics-scripts
+          configMap:
+            name: {{ $metricsConfigMapName }}
+            defaultMode: 0555
         {{- if and .Values.persistence.enabled .Values.persistence.existingClaim }}
         - name: data
           persistentVolumeClaim:

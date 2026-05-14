@@ -4,7 +4,7 @@ displayName: ""
 
 image:
   repository: ghcr.io/txpipe/dolos
-  tag: "v1.0.3"
+  tag: "v1.1.1"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -193,74 +193,6 @@ config:
       type = "cardano"
       magic = 2
       is_testnet = true
-    prime-testnet: |-
-      [upstream]
-      peer_address = "{{ default "relay-0.prime.testnet.apexfusion.org:5521" .Values.config.upstreamAddress }}"
-
-      [storage]
-      version = "v3"
-      path = "/var/data/prime-testnet"
-
-      [genesis]
-      byron_path = "/etc/config/byron.json"
-      shelley_path = "/etc/config/shelley.json"
-      alonzo_path = "/etc/config/alonzo.json"
-      conway_path = "/etc/config/conway.json"
-      force_protocol = 7
-
-      [sync]
-      max_rollback = 25920
-
-      [serve.grpc]
-      listen_address = "[::]:50051"
-
-      [serve.minibf]
-      listen_address = "[::]:3001"
-
-      [serve.minikupo]
-      listen_address = "[::]:1442"
-
-      [serve.trp]
-      listen_address = "[::]:8164"
-
-      [chain]
-      type = "cardano"
-      magic = 3311
-      is_testnet = true
-    prime-mainnet: |-
-      [upstream]
-      peer_address = "{{ default "relay-g1.prime.mainnet.apexfusion.org:5521" .Values.config.upstreamAddress }}"
-
-      [storage]
-      version = "v3"
-      path = "/var/data/prime-mainnet"
-
-      [genesis]
-      byron_path = "/etc/config/byron.json"
-      shelley_path = "/etc/config/shelley.json"
-      alonzo_path = "/etc/config/alonzo.json"
-      conway_path = "/etc/config/conway.json"
-      force_protocol = 7
-
-      [sync]
-      max_rollback = 25920
-
-      [serve.grpc]
-      listen_address = "[::]:50051"
-
-      [serve.minibf]
-      listen_address = "[::]:3001"
-
-      [serve.minikupo]
-      listen_address = "[::]:1442"
-
-      [serve.trp]
-      listen_address = "[::]:8164"
-
-      [chain]
-      type = "cardano"
-      magic = 764824073
-      is_testnet = false
 
 livenessProbe:
   enabled: false
