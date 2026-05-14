@@ -89,10 +89,6 @@ spec:
             - name: config
               mountPath: {{ $configDir }}
             {{- end }}
-            - name: metrics-scripts
-              mountPath: /opt/metis/bin/metrics.sh
-              subPath: metrics.sh
-              readOnly: true
             {{- with .Values.dolos.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -144,6 +140,10 @@ spec:
             - name: config
               mountPath: {{ $configDir }}
             {{- end }}
+            - name: metrics-scripts
+              mountPath: /opt/metis/bin/metrics.sh
+              subPath: metrics.sh
+              readOnly: true
             {{- with .Values.dolos.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
