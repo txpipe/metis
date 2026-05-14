@@ -161,10 +161,7 @@ supernodeDashboard:
     requests:
       cpu: 500m
       memory: 400Mi
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
 supernodeMcp:
   enabled: true
   replicaCount: 1
@@ -221,10 +218,7 @@ supernodeMcp:
     requests:
       cpu: 100m
       memory: 128Mi
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
 prometheus:
   tolerations: []
   resources:
