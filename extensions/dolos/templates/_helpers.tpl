@@ -82,6 +82,13 @@ Resolve the ConfigMap name for Dolos configuration.
 {{- end }}
 
 {{/*
+Resolve the ConfigMap name for Metis metrics scripts.
+*/}}
+{{- define "dolos.metricsConfigMapName" -}}
+{{- printf "%s-metrics" (include "dolos.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
 Resolve the effective config preset.
 */}}
 {{- define "dolos.effectivePreset" -}}
