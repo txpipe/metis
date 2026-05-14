@@ -188,11 +188,6 @@ supernodeMcp:
     storageClass: ""
     accessModes:
       - ReadWriteOnce
-<<<<<<< Updated upstream
-    size: 1Gi
-=======
-    size: 10Gi
->>>>>>> Stashed changes
     annotations: {}
   serviceAccount:
     create: true
