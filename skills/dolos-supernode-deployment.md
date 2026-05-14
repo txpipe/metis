@@ -2,13 +2,13 @@
 
 ## Goal
 
-Deploy Dolos on a supernode cluster so it can act as an internal chain data source for operators and validation workflows.
+Deploy Dolos on a supernode cluster through the Supernode MCP catalog workflow so it can act as an internal chain data source for operators and validation workflows.
 
 ## Assumptions
 
 - `control-plane` is already installed and functional.
-- The agent has `kubectl` and `helm` access to the target cluster.
-- The Dolos chart in this repository is the deployment source of truth.
+- The MCP server can reach Kubernetes and expose the workload lifecycle tools.
+- The supported MCP deployment path currently covers Cardano Dolos networks only.
 
 ## Inputs The Agent Must Ask For
 
@@ -18,19 +18,20 @@ Always ask the user to confirm these values, even when proposing defaults:
 - target namespace and release name
 - storage class
 - persistent volume size
-- display name
 - whether to use the default upstream relay or override it
 
 Recommended defaults to propose:
 
-- display name:
-  - `Dolos Prime Testnet` for `prime-testnet`
-  - `Dolos Prime Mainnet` for `prime-mainnet`
-  - `Dolos <Network>` for other networks
 - volume size:
-  - `50Gi` for `prime-testnet`
-  - `50Gi` for `prime-mainnet`
-  - `20Gi` only for lightweight/test usage
+  - `300Gi` for `cardano-mainnet`
+  - `50Gi` for `cardano-preprod`
+  - `50Gi` for `cardano-preview`
+
+Supported networks in MCP:
+
+- `cardano-mainnet`
+- `cardano-preprod`
+- `cardano-preview`
 
 ## Preflight Checks
 
@@ -38,43 +39,41 @@ Recommended defaults to propose:
 
 Use the extension discovery skill if needed.
 
-At minimum:
+At minimum, inspect:
 
-```bash
-helm list -A -o json
-kubectl get ns
-kubectl get pods -A
-```
+- `supernode://status`
+- `supernode://extensions/catalog`
+- `supernode://extensions/catalog/dolos`
+- `workloads.list`
 
 ### 2. Check Storage Classes
 
 Always ask the user to choose the storage class after checking what is actually available:
 
-```bash
-kubectl get storageclass
-```
+Use `cluster.storage_classes.list`.
 
-Do not assume a default storage class name.
+Do not assume a default storage class name. Prefer a class the cluster marks as default when appropriate, but still confirm the choice.
 
 ### 3. Check For An Existing Relay For The Same Network
 
 If a relay already exists on the supernode for the target network, propose using its internal service DNS as the Dolos upstream.
 
-Useful checks:
+Use `workloads.list` and existing release metadata first.
 
-```bash
-helm list -A -o json
-kubectl get svc -A
-```
+For the MCP install path, Dolos will automatically try to resolve a same-network Cardano relay when `upstreamAddress` is not provided.
 
-Common internal relay address patterns:
+Resolution behavior:
 
-- Apex Fusion relay service:
-  - `<release>-apex-fusion.<namespace>.svc.cluster.local:6000`
+- same network match only
+- prefer a relay in the same namespace
+- if still ambiguous, prefer deterministic name ordering
+
+Common internal relay address pattern for the supported Cardano relay workflow:
+
 - Cardano Node relay service:
   - `<release>-cardano-node.<namespace>.svc.cluster.local:3000`
 
-If a matching relay is already installed, propose that internal URL first.
+If a matching relay is already installed, propose that internal URL first. If the user provides `upstreamAddress` explicitly, that wins over auto-discovery.
 
 ## Recommended Deployment Flow
 
@@ -82,104 +81,55 @@ If a matching relay is already installed, propose that internal URL first.
 2. Check available storage classes.
 3. Ask the user to choose the storage class, proposing the most appropriate one found in the cluster.
 4. Ask the user to choose the PVC size, proposing a reasonable default.
-5. Ask the user to choose the display name, proposing a reasonable default.
-6. Check whether a relay already exists for that network.
-7. If a relay exists, propose its internal service URL as the upstream.
-8. If no internal relay exists, ask the user to confirm the external or custom upstream.
-9. Build the Helm values.
-10. Install or upgrade the Dolos release.
-
-## Prime Testnet
-
-For `prime-testnet`, the Dolos chart now supports a built-in preset with:
-
-- bundled genesis files
-- network magic `3311`
-- default upstream relay `relay-0.prime.testnet.apexfusion.org:5521`
-- `bootstrap relay`
-
-Minimal values example:
-
-```yaml
-displayName: "Dolos Prime Testnet"
-
-dolos:
-  network: prime-testnet
-
-persistence:
-  storageClass: "<chosen-storage-class>"
-  size: 50Gi
-```
-
-If an internal relay already exists, propose overriding the upstream with that service instead.
-
-Example using an internal Apex Fusion relay:
-
-```yaml
-displayName: "Dolos Prime Testnet"
-
-dolos:
-  network: prime-testnet
-
-config:
-  upstreamAddress: "prime-testnet-relay-apex-fusion.prime-testnet-relay.svc.cluster.local:6000"
-
-persistence:
-  storageClass: "<chosen-storage-class>"
-  size: 100Gi
-```
-
-## Prime Mainnet
-
-For `prime-mainnet`, the Dolos chart now supports a built-in preset with:
-
-- bundled genesis files
-- network magic `764824073`
-- default upstream relay `relay-g1.prime.mainnet.apexfusion.org:5521`
-- `bootstrap relay`
-
-Minimal values example:
-
-```yaml
-displayName: "Dolos Prime Mainnet"
-
-dolos:
-  network: prime-mainnet
-
-persistence:
-  storageClass: "<chosen-storage-class>"
-  size: 50Gi
-```
-
-If an internal relay already exists, propose overriding the upstream with that service instead.
+5. Check whether a relay already exists for that network.
+6. If a relay exists, propose its internal service URL as the upstream.
+7. If no internal relay exists, ask the user to confirm the external or custom upstream.
+8. Read `supernode://extensions/catalog/dolos` so the current MCP schema and defaults drive the request.
+9. Call `workloads.install` with `dryRun: true` first.
+10. Review the resolved configuration, including the chosen or discovered upstream and available storage classes.
+11. Call `workloads.install` with `dryRun: false` only after the plan is accepted.
 
 ## Install Pattern
 
-```bash
-helm install <release> ./extensions/dolos \
-  --namespace <namespace> \
-  --create-namespace \
-  -f my-values.yaml
+Use `workloads.install` with `extensionId=dolos`.
+
+Minimal dry-run example:
+
+```json
+{
+  "extensionId": "dolos",
+  "releaseName": "dolos-preview",
+  "namespace": "cardano-preview",
+  "dryRun": true,
+  "configuration": {
+    "network": "cardano-preview",
+    "namespace": "cardano-preview",
+    "storageClass": "<chosen-storage-class>"
+  }
+}
 ```
 
-For upgrades:
+Useful optional fields exposed by the catalog:
 
-```bash
-helm upgrade <release> ./extensions/dolos \
-  --namespace <namespace> \
-  -f my-values.yaml
-```
+- `upstreamAddress`
+- `imageTag`
+- `resources`
+- `pvcSize`
+- `exposeLoadBalancer`
+
+Do not use raw Helm values through MCP. The typed extension configuration is the supported interface.
+
+Prime presets still exist in the chart, but they are not part of the supported MCP Dolos workflow right now.
 
 ## Validation Checklist
 
 ### Kubernetes Checks
 
-```bash
-kubectl get pods -n <namespace>
-kubectl get pvc -n <namespace>
-kubectl get svc -n <namespace>
-kubectl describe pod -n <namespace> <pod-name>
-```
+Use MCP workload inspection first:
+
+- `workloads.get`
+- `workloads.logs.get`
+- `workloads.metrics.get`
 
 Confirm:
 
@@ -196,13 +146,20 @@ Confirm:
 
 Confirm the service ports are present:
 
-```bash
-kubectl get svc -n <namespace> <service-name> -o yaml
-```
+- `grpc`
+- `minibf`
+- `minikupo`
+- `trp`
 
 ### Basic Functional Check
 
-If `minibf` is exposed through the service, port-forward it locally and verify it responds.
+Use `workloads.metrics.get` as the first functional check. The Dolos metrics payload should expose:
+
+- `blockHeight`
+- `epoch`
+- `slotNum`
+
+If you need deeper verification, port-forward `minibf` locally and query it directly.
 
 Example:
 
@@ -214,8 +171,9 @@ Then query it from another shell.
 
 ## Best Practices
 
-- Always ask the user to choose storage class, size, and display name.
+- Always ask the user to choose storage class and confirm the proposed volume size.
 - Always propose a reasonable default rather than silently choosing one.
 - Prefer an internal relay URL when a matching relay already exists in the cluster.
 - Keep Dolos close to the relay path that the operator already trusts.
-- Use the built-in `prime-testnet` preset instead of a custom config unless there is a concrete reason not to.
+- Treat `upstreamAddress` as required unless MCP can resolve a same-network internal relay automatically.
+- Treat bootstrap as always enabled in the supported MCP deployment flow.

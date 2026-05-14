@@ -8,7 +8,7 @@ Use these skills as follows:
 
 - `kubernetes-extension-discovery.md`: discover which Metis extensions are already installed and whether prerequisites like `control-plane` are missing.
 - `kubernetes-storage-and-prereqs.md`: validate storage classes, PVC behavior, node readiness, and scheduling prerequisites before installs or upgrades.
-- `cardano-relay-setup.md`: install and validate a Cardano relay workload first.
+- `cardano-relay-setup.md`: install and validate a Cardano relay workload first through the MCP catalog-driven workload lifecycle.
 - `cardano-stake-pool-from-scratch.md`: guide a human operator through creating a new Cardano stake pool on any supported network, including key custody, metadata, pool registration, Vault runtime upload, and debug-first producer activation.
 - `cardano-block-producer-upgrade.md`: upgrade an existing relay to block-producer mode from an existing pool, using debug mode first, with explicit producer topology guidance.
 - `cardano-spo-maintenance-overview.md`: choose the right ongoing SPO maintenance workflow, understand custody boundaries, and apply dry-run rules before touching live Vault or the live ledger.
@@ -17,7 +17,8 @@ Use these skills as follows:
 - `cardano-spo-pool-retirement.md`: retire a stake pool with a deliberate epoch choice and offline signing flow.
 - `cardano-block-producer-verification.md`: explain what can be verified today from the dashboard and what still requires external confirmation.
 - `cardano-block-producer-troubleshooting.md`: diagnose cases where a producer looks healthy locally but recent pool blocks are missing from the canonical external chain view.
-- `dolos-supernode-deployment.md`: deploy Dolos on the supernode cluster, including storage-class selection, size/display-name prompts, and internal relay upstream selection.
+- `dolos-supernode-deployment.md`: deploy Dolos on the supernode cluster through MCP, including storage-class validation, internal relay upstream resolution, and basic Dolos metrics checks.
+- `workload-output-port-forward.md`: expose a discovered workload output locally with `kubectl port-forward` using the Kubernetes context that maps to the Supernode cluster.
 - `cardano-node-metrics-access.md`: read raw node metrics and the derived Metis metrics payload directly from a running pod via `kubectl exec`.
 - `supernode-dashboard-port-forward.md`: expose the user-facing `supernode-dashboard` locally with `kubectl port-forward`, with Grafana and Prometheus as supporting debug paths.
 

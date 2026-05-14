@@ -19,6 +19,7 @@ use rmcp::model::ReadResourceRequestParams;
 use rmcp::model::ReadResourceResult;
 use rmcp::model::ServerCapabilities;
 use rmcp::model::ServerInfo;
+use rmcp::service::NotificationContext;
 use rmcp::service::RequestContext;
 
 use crate::audit::AuditEvent;
@@ -34,6 +35,7 @@ use crate::prompts::PromptCatalog;
 use crate::resources::ResourceRouter;
 use crate::resources::router::ResourceReadError;
 use crate::tools::ToolRouter;
+use crate::tools::dynamic::DynamicToolState;
 
 #[derive(Clone)]
 pub struct SupernodeMcpServer {
@@ -44,6 +46,7 @@ pub struct SupernodeMcpServer {
     resources: ResourceRouter,
     prompts: PromptCatalog,
     tools: ToolRouter,
+    dynamic_tools: DynamicToolState,
 }
 
 impl SupernodeMcpServer {
@@ -63,6 +66,7 @@ impl SupernodeMcpServer {
             resources,
             prompts: PromptCatalog,
             tools: ToolRouter::new(),
+            dynamic_tools: DynamicToolState::default(),
         }
     }
 
@@ -82,6 +86,7 @@ impl SupernodeMcpServer {
         ServerInfo::new(
             ServerCapabilities::builder()
                 .enable_tools()
+                .enable_tool_list_changed()
                 .enable_resources()
                 .enable_prompts()
                 .build(),
@@ -184,19 +189,26 @@ impl ServerHandler for SupernodeMcpServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, McpError> {
         self.audit_discovery("tools/list");
+        self.dynamic_tools.refresh().await;
+        let dynamic_definitions = self.dynamic_tools.definitions().await;
 
-        Ok(self.tools.list())
+        Ok(self.tools.list_with_dynamic(&dynamic_definitions))
     }
 
     async fn call_tool(
         &self,
         request: CallToolRequestParams,
-        _context: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, McpError> {
         let tool_name = request.name.to_string();
-        let definition = self.tools.get(&tool_name).ok_or_else(|| {
-            McpError::invalid_params(format!("tool not found: {tool_name}"), None)
-        })?;
+        self.dynamic_tools.refresh().await;
+        let dynamic_definitions = self.dynamic_tools.definitions().await;
+        let definition = self
+            .tools
+            .get_with_dynamic(&tool_name, &dynamic_definitions)
+            .ok_or_else(|| {
+                McpError::invalid_params(format!("tool not found: {tool_name}"), None)
+            })?;
         let approval_id = request
             .arguments
             .as_ref()
@@ -245,10 +257,46 @@ impl ServerHandler for SupernodeMcpServer {
             })));
         }
 
-        Ok(self
+        let result = self
             .tools
             .call(definition, request.arguments.as_ref(), &self.catalog)
-            .await)
+            .await;
+
+        if result.is_error != Some(true)
+            && !definition.read_only
+            && self.dynamic_tools.refresh().await
+            && let Err(error) = context.peer.notify_tool_list_changed().await
+        {
+            tracing::warn!(%error, "failed to send tools/list_changed notification");
+        }
+
+        Ok(result)
+    }
+
+    async fn on_initialized(&self, context: NotificationContext<RoleServer>) {
+        let dynamic_tools = self.dynamic_tools.clone();
+        let peer = context.peer.clone();
+
+        tokio::spawn(async move {
+            dynamic_tools.refresh().await;
+            let mut last_signature = dynamic_tools.signature().await;
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
+
+            loop {
+                interval.tick().await;
+                dynamic_tools.refresh().await;
+                let current_signature = dynamic_tools.signature().await;
+                if current_signature == last_signature {
+                    continue;
+                }
+                last_signature = current_signature;
+
+                if let Err(error) = peer.notify_tool_list_changed().await {
+                    tracing::warn!(%error, "failed to send tools/list_changed notification");
+                    break;
+                }
+            }
+        });
     }
 
     fn get_info(&self) -> ServerInfo {
@@ -302,6 +350,12 @@ mod tests {
 
         assert_eq!(info.protocol_version, ProtocolVersion::V_2025_11_25);
         assert_eq!(info.server_info.name, "metis-supernode-mcp");
+        assert_eq!(
+            info.capabilities
+                .tools
+                .and_then(|capability| capability.list_changed),
+            Some(true)
+        );
     }
 
     #[test]

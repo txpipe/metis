@@ -1,49 +1,20 @@
 use std::sync::Arc;
 
-use k8s_openapi::api::apps::v1::Deployment;
-use k8s_openapi::api::apps::v1::StatefulSet;
-use k8s_openapi::api::core::v1::Event;
-use k8s_openapi::api::core::v1::ObjectReference;
-use k8s_openapi::api::core::v1::Pod;
-use k8s_openapi::api::core::v1::Service;
-use k8s_openapi::api::storage::v1::StorageClass;
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
-use kube::api::ObjectList;
-use rmcp::model::CallToolResult;
-use rmcp::model::JsonObject;
-use rmcp::model::ListToolsResult;
-use rmcp::model::Meta;
-use rmcp::model::Tool;
-use rmcp::model::ToolAnnotations;
-use serde_json::Value;
-use serde_json::json;
+use rmcp::model::{CallToolResult, JsonObject, ListToolsResult, Meta, Tool, ToolAnnotations};
+use serde_json::{Value, json};
 
-use crate::catalog::ExtensionCatalog;
-use crate::catalog::ExtensionDefinition;
-use crate::helm;
-use crate::helm::HelmChartRef;
-use crate::helm::HelmInstallPlan;
-use crate::k8s::HelmReleaseDiscovery;
-use crate::k8s::HelmReleaseSummary;
-use crate::k8s::KubernetesClient;
-use crate::k8s::PodExecError;
-use crate::k8s::PodLogParams;
-use crate::k8s::ResourceListParams;
-use crate::vault::SecretObject;
-use crate::vault::VaultClient;
-use crate::vault::VaultError;
-use crate::vault::VaultPath;
-use crate::vault::WriteMode;
+use crate::{
+    catalog::ExtensionCatalog,
+    helm::{self, HelmChartRef, HelmInstallPlan},
+    k8s::{HelmReleaseDiscovery, KubernetesClient, ResourceListParams},
+    vault::{SecretObject, VaultClient, VaultError, VaultPath, WriteMode},
+};
 
-use super::ToolDefinition;
-use super::supernode;
-use super::vault;
-use super::workloads;
-
-const CARDANO_NODE_CHART_NAME: &str = "cardano-node";
-const CARDANO_NODE_RELAY_EXTENSION_ID: &str = "cardano-node-relay";
-const WORKLOAD_METRICS_CONTAINER: &str = "cardano-node";
-const WORKLOAD_METRICS_SCRIPT: &str = "/opt/metis/bin/metrics.sh";
+use super::{
+    ToolDefinition, common::kube_error, common::pod_exec_error, common::success,
+    common::tool_error, common::vault_error, k8s_summaries, supernode, vault, workloads,
+    workloads::install, workloads::logs, workloads::metrics, workloads::outputs,
+};
 
 #[derive(Debug, Clone)]
 pub struct ToolRouter {
@@ -64,18 +35,24 @@ impl ToolRouter {
         }
     }
 
-    pub fn list(&self) -> ListToolsResult {
+    pub fn list_with_dynamic(&self, dynamic_definitions: &[ToolDefinition]) -> ListToolsResult {
         ListToolsResult::with_all_items(
             self.definitions
                 .iter()
+                .chain(dynamic_definitions.iter())
                 .map(|definition| tool_from_definition(*definition))
                 .collect(),
         )
     }
 
-    pub fn get(&self, name: &str) -> Option<ToolDefinition> {
+    pub fn get_with_dynamic(
+        &self,
+        name: &str,
+        dynamic_definitions: &[ToolDefinition],
+    ) -> Option<ToolDefinition> {
         self.definitions
             .iter()
+            .chain(dynamic_definitions.iter())
             .find(|definition| definition.name == name)
             .copied()
     }
@@ -103,11 +80,12 @@ impl ToolRouter {
             "vault.runtime.metadata.get" => vault_runtime_metadata_get(arguments).await,
             "vault.runtime.write" => vault_runtime_write(arguments, WriteMode::Replace).await,
             "vault.runtime.patch" => vault_runtime_write(arguments, WriteMode::Patch).await,
-            "workloads.list" => workloads_list(arguments).await,
-            "workloads.get" => workloads_get(arguments).await,
-            "workloads.logs.get" => workloads_logs_get(arguments).await,
+            "workloads.list" => workloads_list(arguments, catalog).await,
+            "workloads.get" => workloads_get(arguments, catalog).await,
+            "workloads.logs.get" => logs::get(arguments).await,
             "workloads.metrics.get" => workloads_metrics_get(arguments, catalog).await,
             "workloads.install" => workloads_install(arguments, catalog).await,
+            "dolos.snapshot.refresh" => workloads::dolos::snapshot_refresh(arguments).await,
             _ => self.not_implemented_result(definition),
         }
     }
@@ -207,7 +185,7 @@ async fn storage_classes_list(arguments: Option<&JsonObject>) -> CallToolResult 
 
     match client.list_storage_classes(&params).await {
         Ok(storage_classes) => success(json!({
-            "storageClasses": storage_classes.items.iter().map(storage_class_summary).collect::<Vec<_>>(),
+            "storageClasses": storage_classes.items.iter().map(k8s_summaries::storage_class_summary).collect::<Vec<_>>(),
         })),
         Err(error) => kube_error("cluster.storage_classes.list", error),
     }
@@ -224,7 +202,7 @@ async fn events_list(arguments: Option<&JsonObject>) -> CallToolResult {
     match client.list_events(namespace.as_deref(), &params).await {
         Ok(events) => success(json!({
             "namespace": namespace,
-            "events": events.items.iter().map(event_summary).collect::<Vec<_>>(),
+            "events": events.items.iter().map(k8s_summaries::event_summary).collect::<Vec<_>>(),
         })),
         Err(error) => kube_error("cluster.events.list", error),
     }
@@ -297,8 +275,20 @@ async fn workloads_install(
         );
     }
 
-    let resolved_configuration = apply_extension_defaults(extension, Value::Object(configuration));
-    let helm_values = planned_helm_values(extension, &release_name, &resolved_configuration);
+    let resolved_configuration = install::apply_defaults(extension, Value::Object(configuration));
+    let resolution = match install::resolve_configuration(
+        extension,
+        &namespace,
+        resolved_configuration,
+        dry_run,
+    )
+    .await
+    {
+        Ok(resolution) => resolution,
+        Err(error) => return error,
+    };
+    let helm_values =
+        install::planned_helm_values(extension, &release_name, &resolution.configuration);
     let chart = HelmChartRef {
         chart: extension.chart.clone(),
         version: extension.default_version.clone(),
@@ -319,8 +309,10 @@ async fn workloads_install(
                 "version": extension.default_version,
             },
             "chart": chart,
-            "resolvedConfiguration": resolved_configuration,
+            "resolvedConfiguration": resolution.configuration,
             "helmValues": helm_values,
+            "availableStorageClasses": resolution.available_storage_classes,
+            "recommendedStorageClasses": resolution.recommended_storage_classes,
             "notes": [
                 "dry-run planning only; no Kubernetes or Helm mutation was performed",
                 "raw Helm values are rejected by the extension configuration schema"
@@ -376,8 +368,10 @@ async fn workloads_install(
             "version": extension.default_version,
         },
         "chart": chart,
-        "resolvedConfiguration": resolved_configuration,
+        "resolvedConfiguration": resolution.configuration,
         "helmValues": helm_values,
+        "availableStorageClasses": resolution.available_storage_classes,
+        "recommendedStorageClasses": resolution.recommended_storage_classes,
         "helm": helm_result,
         "notes": [
             "Helm upgrade --install completed successfully",
@@ -386,7 +380,10 @@ async fn workloads_install(
     }))
 }
 
-async fn workloads_list(arguments: Option<&JsonObject>) -> CallToolResult {
+async fn workloads_list(
+    arguments: Option<&JsonObject>,
+    catalog: &ExtensionCatalog,
+) -> CallToolResult {
     let namespace = optional_string(arguments, "namespace");
     let include_control_plane = optional_bool(arguments, "includeControlPlane").unwrap_or(false);
     let params = list_params(arguments, Some(200));
@@ -409,24 +406,46 @@ async fn workloads_list(arguments: Option<&JsonObject>) -> CallToolResult {
     };
 
     let deployments = match client.list_deployments(namespace.as_deref(), &params).await {
-        Ok(items) => deployment_summaries(items, include_control_plane),
+        Ok(items) => k8s_summaries::deployment_summaries(items, include_control_plane),
         Err(error) => return kube_error("workloads.list", error),
     };
     let stateful_sets = match client
         .list_stateful_sets(namespace.as_deref(), &params)
         .await
     {
-        Ok(items) => stateful_set_summaries(items, include_control_plane),
+        Ok(items) => k8s_summaries::stateful_set_summaries(items, include_control_plane),
         Err(error) => return kube_error("workloads.list", error),
     };
     let pods = match client.list_pods(namespace.as_deref(), &params).await {
-        Ok(items) => pod_summaries(items, include_control_plane),
+        Ok(items) => k8s_summaries::pod_summaries(items, include_control_plane),
         Err(error) => return kube_error("workloads.list", error),
     };
     let services = match client.list_services(namespace.as_deref(), &params).await {
-        Ok(items) => service_summaries(items, include_control_plane),
+        Ok(items) => items,
         Err(error) => return kube_error("workloads.list", error),
     };
+    let workload_outputs = helm_releases
+        .iter()
+        .map(|release| {
+            json!({
+                "namespace": release.namespace,
+                "name": release.name,
+                "outputs": outputs::outputs_for_release(
+                    &release.namespace,
+                    &release.name,
+                    Some(release),
+                    &services.items,
+                    catalog,
+                ),
+            })
+        })
+        .filter(|entry| {
+            entry
+                .pointer("/outputs")
+                .and_then(Value::as_array)
+                .is_some_and(|outputs| !outputs.is_empty())
+        })
+        .collect::<Vec<_>>();
 
     success(json!({
         "namespace": namespace,
@@ -435,11 +454,15 @@ async fn workloads_list(arguments: Option<&JsonObject>) -> CallToolResult {
         "deployments": deployments,
         "statefulSets": stateful_sets,
         "pods": pods,
-        "services": services,
+        "services": k8s_summaries::service_summaries(services, include_control_plane),
+        "workloadOutputs": workload_outputs,
     }))
 }
 
-async fn workloads_get(arguments: Option<&JsonObject>) -> CallToolResult {
+async fn workloads_get(
+    arguments: Option<&JsonObject>,
+    catalog: &ExtensionCatalog,
+) -> CallToolResult {
     let namespace = match required_string(arguments, "namespace") {
         Ok(value) => value,
         Err(error) => return error,
@@ -467,15 +490,15 @@ async fn workloads_get(arguments: Option<&JsonObject>) -> CallToolResult {
     };
 
     let deployment = match get_optional(client.get_deployment(&namespace, &name).await) {
-        Ok(value) => value.map(|deployment| deployment_summary(&deployment)),
+        Ok(value) => value.map(|deployment| k8s_summaries::deployment_summary(&deployment)),
         Err(error) => return kube_error("workloads.get", error),
     };
     let stateful_set = match get_optional(client.get_stateful_set(&namespace, &name).await) {
-        Ok(value) => value.map(|stateful_set| stateful_set_summary(&stateful_set)),
+        Ok(value) => value.map(|stateful_set| k8s_summaries::stateful_set_summary(&stateful_set)),
         Err(error) => return kube_error("workloads.get", error),
     };
     let pod = match get_optional(client.get_pod(&namespace, &name).await) {
-        Ok(value) => value.map(|pod| pod_summary(&pod)),
+        Ok(value) => value.map(|pod| k8s_summaries::pod_summary(&pod)),
         Err(error) => return kube_error("workloads.get", error),
     };
     let services = match client
@@ -488,10 +511,10 @@ async fn workloads_get(arguments: Option<&JsonObject>) -> CallToolResult {
         )
         .await
     {
-        Ok(items) => service_summaries(items, true),
+        Ok(items) => items,
         Err(error) => return kube_error("workloads.get", error),
     };
-    let pods = match client
+    let pod_items = match client
         .list_pods(
             Some(&namespace),
             &ResourceListParams {
@@ -501,16 +524,20 @@ async fn workloads_get(arguments: Option<&JsonObject>) -> CallToolResult {
         )
         .await
     {
-        Ok(items) => pod_summaries(items, true),
+        Ok(items) => items.items,
         Err(error) => return kube_error("workloads.get", error),
     };
+    let pods = pod_items
+        .iter()
+        .map(k8s_summaries::pod_summary)
+        .collect::<Vec<_>>();
 
     if deployment.is_none()
         && stateful_set.is_none()
         && pod.is_none()
         && helm_release.is_none()
         && pods.is_empty()
-        && services.is_empty()
+        && services.items.is_empty()
     {
         return tool_error(
             "not_found",
@@ -528,54 +555,16 @@ async fn workloads_get(arguments: Option<&JsonObject>) -> CallToolResult {
         "statefulSet": stateful_set,
         "pod": pod,
         "relatedPods": pods,
-        "relatedServices": services,
+        "logTargets": k8s_summaries::pod_log_target_summaries(&pod_items),
+        "relatedServices": k8s_summaries::service_summaries(services.clone(), true),
+        "outputs": outputs::outputs_for_release(
+            &namespace,
+            &name,
+            helm_release.as_ref(),
+            &services.items,
+            catalog,
+        ),
     }))
-}
-
-async fn workloads_logs_get(arguments: Option<&JsonObject>) -> CallToolResult {
-    let namespace = match required_string(arguments, "namespace") {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
-    let workload = match required_string(arguments, "workload") {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
-    let container = optional_string(arguments, "container");
-    let tail_lines = optional_i64(arguments, "tailLines");
-    let client = match KubernetesClient::try_default().await {
-        Ok(client) => client,
-        Err(error) => return kube_error("workloads.logs.get", error),
-    };
-
-    let pod_name = match find_log_pod(&client, &namespace, &workload).await {
-        Ok(Some(pod_name)) => pod_name,
-        Ok(None) => {
-            return tool_error(
-                "not_found",
-                format!("no pod found for workload: {namespace}/{workload}"),
-                json!({ "namespace": namespace, "workload": workload }),
-            );
-        }
-        Err(error) => return kube_error("workloads.logs.get", error),
-    };
-    let params = PodLogParams {
-        container: container.clone(),
-        tail_lines,
-        ..Default::default()
-    };
-
-    match client.pod_logs(&namespace, &pod_name, &params).await {
-        Ok(logs) => success(json!({
-            "namespace": namespace,
-            "workload": workload,
-            "pod": pod_name,
-            "container": container,
-            "tailLines": params.to_kube().tail_lines,
-            "logs": logs,
-        })),
-        Err(error) => kube_error("workloads.logs.get", error),
-    }
 }
 
 async fn workloads_metrics_get(
@@ -614,12 +603,12 @@ async fn workloads_metrics_get(
             );
         }
     };
-    let extension = match metrics_extension_for_release(&helm_release, catalog) {
-        Some(extension) => extension,
+    let target = match metrics::target_for_release(&helm_release, catalog) {
+        Some(target) => target,
         None => {
             return tool_error(
                 "unsupported_metrics_workload",
-                "metrics are only supported for catalog-managed Cardano node relay workloads",
+                "metrics are only supported for catalog-managed Cardano node relay and Dolos workloads",
                 json!({
                     "namespace": namespace,
                     "workload": workload,
@@ -628,7 +617,7 @@ async fn workloads_metrics_get(
             );
         }
     };
-    let pod_name = match find_log_pod(&client, &namespace, &workload).await {
+    let pod_name = match find_workload_pod(&client, &namespace, &workload).await {
         Ok(Some(pod_name)) => pod_name,
         Ok(None) => {
             return tool_error(
@@ -643,15 +632,15 @@ async fn workloads_metrics_get(
         .pod_exec_capture(
             &namespace,
             &pod_name,
-            WORKLOAD_METRICS_CONTAINER,
-            &[WORKLOAD_METRICS_SCRIPT],
+            target.container,
+            &[metrics::SCRIPT_PATH],
         )
         .await
     {
         Ok(output) => output,
         Err(error) => return pod_exec_error("workloads.metrics.get", error),
     };
-    let metrics = match parse_metrics_payload(&output.stdout) {
+    let metrics = match serde_json::from_str::<Value>(output.stdout.trim()) {
         Ok(metrics) => metrics,
         Err(error) => {
             return tool_error(
@@ -661,7 +650,7 @@ async fn workloads_metrics_get(
                     "namespace": namespace,
                     "workload": workload,
                     "pod": pod_name,
-                    "container": WORKLOAD_METRICS_CONTAINER,
+                    "container": target.container,
                 }),
             );
         }
@@ -671,16 +660,16 @@ async fn workloads_metrics_get(
         "namespace": namespace,
         "workload": workload,
         "pod": pod_name,
-        "container": WORKLOAD_METRICS_CONTAINER,
-        "source": format!("pod-exec:{WORKLOAD_METRICS_SCRIPT}"),
+        "container": target.container,
+        "source": format!("pod-exec:{}", metrics::SCRIPT_PATH),
         "extension": {
-            "id": extension.id,
-            "name": extension.name,
-            "version": extension.default_version,
+            "id": target.extension.id,
+            "name": target.extension.name,
+            "version": target.extension.default_version,
         },
         "helmRelease": helm_release,
         "metrics": metrics,
-        "metricsSchema": extension.metrics,
+        "metricsSchema": target.extension.metrics,
         "stderr": if output.stderr.trim().is_empty() { Value::Null } else { Value::String(output.stderr) },
     }))
 }
@@ -728,16 +717,12 @@ fn tool_meta(definition: ToolDefinition) -> Meta {
     Meta(meta)
 }
 
-async fn find_log_pod(
+async fn find_workload_pod(
     client: &KubernetesClient,
     namespace: &str,
     workload: &str,
 ) -> Result<Option<String>, kube::Error> {
-    if let Some(pod) = get_optional(client.get_pod(namespace, workload).await)? {
-        return Ok(pod.metadata.name);
-    }
-
-    let pods = client
+    let mut pods = client
         .list_pods(
             Some(namespace),
             &ResourceListParams {
@@ -745,10 +730,18 @@ async fn find_log_pod(
                 ..Default::default()
             },
         )
-        .await?;
+        .await?
+        .items;
+
+    if pods.is_empty()
+        && let Some(pod) = get_optional(client.get_pod(namespace, workload).await)?
+    {
+        pods.push(pod);
+    }
+
+    pods.sort_by(|left, right| left.metadata.name.cmp(&right.metadata.name));
 
     let running_pod = pods
-        .items
         .iter()
         .find(|pod| {
             pod.status
@@ -763,71 +756,9 @@ async fn find_log_pod(
     }
 
     Ok(pods
-        .items
         .iter()
         .find(|pod| pod.metadata.deletion_timestamp.is_none())
         .and_then(|pod| pod.metadata.name.clone()))
-}
-
-fn success(value: Value) -> CallToolResult {
-    CallToolResult::structured(value)
-}
-
-fn tool_error(code: &str, message: impl Into<String>, details: Value) -> CallToolResult {
-    CallToolResult::structured_error(json!({
-        "error": code,
-        "message": message.into(),
-        "details": details,
-    }))
-}
-
-fn kube_error(tool: &str, error: kube::Error) -> CallToolResult {
-    tool_error(
-        "kubernetes_error",
-        error.to_string(),
-        json!({ "tool": tool }),
-    )
-}
-
-fn pod_exec_error(tool: &str, error: PodExecError) -> CallToolResult {
-    let code = match &error {
-        PodExecError::Timeout { .. } => "pod_exec_timeout",
-        PodExecError::OutputTooLarge { .. } => "pod_exec_output_too_large",
-        PodExecError::CommandFailed { .. } => "pod_exec_command_failed",
-        PodExecError::Kubernetes(_) => "kubernetes_error",
-        PodExecError::MissingStream(_)
-        | PodExecError::Read { .. }
-        | PodExecError::RemoteCommand(_) => "pod_exec_error",
-    };
-
-    tool_error(code, error.to_string(), json!({ "tool": tool }))
-}
-
-fn metrics_extension_for_release<'a>(
-    release: &HelmReleaseSummary,
-    catalog: &'a ExtensionCatalog,
-) -> Option<&'a ExtensionDefinition> {
-    match release.chart.name.as_deref() {
-        Some(CARDANO_NODE_CHART_NAME) => catalog.get(CARDANO_NODE_RELAY_EXTENSION_ID),
-        _ => None,
-    }
-}
-
-fn parse_metrics_payload(payload: &str) -> Result<Value, serde_json::Error> {
-    serde_json::from_str(payload.trim())
-}
-
-fn vault_error(tool: &str, error: VaultError) -> CallToolResult {
-    let code = match &error {
-        VaultError::Path(_) => "vault_path_not_allowed",
-        VaultError::MissingConfig(_) | VaultError::InvalidConfig(_) => "vault_not_configured",
-        VaultError::RootTokenRejected => "vault_root_token_rejected",
-        VaultError::InvalidWriteMode => "invalid_arguments",
-        VaultError::SecretValue(_) => "invalid_secret_values",
-        VaultError::Status(_) | VaultError::Http(_) | VaultError::TokenFile(_) => "vault_error",
-    };
-
-    tool_error(code, error.to_string(), json!({ "tool": tool }))
 }
 
 fn get_optional<T>(result: Result<T, kube::Error>) -> Result<Option<T>, kube::Error> {
@@ -975,145 +906,6 @@ fn validate_property_value(
     Ok(())
 }
 
-fn merge_defaults(defaults: &Value, values: Value) -> Value {
-    match (defaults, values) {
-        (Value::Object(defaults), Value::Object(mut values)) => {
-            for (key, default_value) in defaults {
-                let value = values
-                    .remove(key)
-                    .map(|value| merge_defaults(default_value, value))
-                    .unwrap_or_else(|| default_value.clone());
-                values.insert(key.clone(), value);
-            }
-            Value::Object(values)
-        }
-        (_, values) => values,
-    }
-}
-
-fn apply_extension_defaults(extension: &ExtensionDefinition, inputs: Value) -> Value {
-    let defaults = match extension.id.as_str() {
-        "cardano-node-relay" => cardano_node_relay_defaults(input_string(&inputs, "network")),
-        _ => json!({}),
-    };
-
-    merge_defaults(&defaults, inputs)
-}
-
-fn cardano_node_relay_defaults(network: Option<&str>) -> Value {
-    let (pvc_size, cpu_request, memory_request, cpu_limit, memory_limit) = match network {
-        Some("mainnet") => ("250Gi", "2", "8Gi", "4", "16Gi"),
-        Some("preprod") => ("120Gi", "1", "4Gi", "2", "8Gi"),
-        _ => ("80Gi", "500m", "2Gi", "1", "4Gi"),
-    };
-
-    json!({
-        "topology": { "mode": "image-default" },
-        "exposeLoadBalancer": false,
-        "imageTag": "11.0.1",
-        "resources": {
-            "requests": {
-                "cpu": cpu_request,
-                "memory": memory_request,
-            },
-            "limits": {
-                "cpu": cpu_limit,
-                "memory": memory_limit,
-            },
-        },
-        "pvcSize": pvc_size,
-    })
-}
-
-fn planned_helm_values(
-    extension: &ExtensionDefinition,
-    release_name: &str,
-    inputs: &Value,
-) -> Value {
-    let mut helm_values = JsonObject::new();
-    helm_values.insert(
-        "displayName".to_string(),
-        Value::String(release_name.to_string()),
-    );
-
-    if let Some(storage_class) = input_string(inputs, "storageClass") {
-        insert_path(
-            &mut helm_values,
-            &["persistence", "storageClass"],
-            Value::String(storage_class.to_string()),
-        );
-    }
-
-    if extension.id == "cardano-node-relay" {
-        if let Some(network) = input_string(inputs, "network") {
-            insert_path(
-                &mut helm_values,
-                &["node", "network"],
-                Value::String(network.to_string()),
-            );
-        }
-        if let Some(pvc_size) = input_string(inputs, "pvcSize") {
-            insert_path(
-                &mut helm_values,
-                &["persistence", "size"],
-                Value::String(pvc_size.to_string()),
-            );
-        }
-        if let Some(image_tag) = input_string(inputs, "imageTag") {
-            insert_path(
-                &mut helm_values,
-                &["image", "tag"],
-                Value::String(image_tag.to_string()),
-            );
-        }
-        if inputs
-            .get("exposeLoadBalancer")
-            .and_then(Value::as_bool)
-            .unwrap_or(false)
-        {
-            insert_path(
-                &mut helm_values,
-                &["service", "type"],
-                Value::String("LoadBalancer".to_string()),
-            );
-        }
-        if let Some(resources) = inputs.get("resources") {
-            helm_values.insert("resources".to_string(), resources.clone());
-        }
-        if let Some(topology) = inputs.get("topology") {
-            insert_path(&mut helm_values, &["node", "topology"], topology.clone());
-        }
-        insert_path(
-            &mut helm_values,
-            &["node", "blockProducer", "enabled"],
-            Value::Bool(false),
-        );
-    }
-
-    Value::Object(helm_values)
-}
-
-fn insert_path(root: &mut JsonObject, path: &[&str], value: Value) {
-    let Some((last, parents)) = path.split_last() else {
-        return;
-    };
-    let mut current = root;
-
-    for parent in parents {
-        current = current
-            .entry((*parent).to_string())
-            .or_insert_with(|| Value::Object(JsonObject::new()))
-            .as_object_mut()
-            .expect("planned Helm value parent must be an object");
-    }
-
-    current.insert((*last).to_string(), value);
-}
-
-fn input_string<'a>(inputs: &'a Value, name: &str) -> Option<&'a str> {
-    inputs.get(name).and_then(Value::as_str)
-}
-
 fn value_type_name(value: &Value) -> &'static str {
     match value {
         Value::Null => "null",
@@ -1179,166 +971,11 @@ fn optional_bool(arguments: Option<&JsonObject>, name: &str) -> Option<bool> {
     arguments?.get(name)?.as_bool()
 }
 
-fn optional_i64(arguments: Option<&JsonObject>, name: &str) -> Option<i64> {
-    arguments?.get(name)?.as_i64()
-}
-
 fn optional_u32(arguments: Option<&JsonObject>, name: &str) -> Option<u32> {
     arguments?
         .get(name)?
         .as_u64()
         .and_then(|value| u32::try_from(value).ok())
-}
-
-fn deployment_summaries(
-    deployments: ObjectList<Deployment>,
-    include_control_plane: bool,
-) -> Vec<Value> {
-    deployments
-        .items
-        .iter()
-        .filter(|deployment| include_control_plane || !is_control_plane(&deployment.metadata))
-        .map(deployment_summary)
-        .collect()
-}
-
-fn deployment_summary(deployment: &Deployment) -> Value {
-    json!({
-        "kind": "Deployment",
-        "metadata": metadata_summary(&deployment.metadata),
-        "replicas": deployment.spec.as_ref().and_then(|spec| spec.replicas),
-        "readyReplicas": deployment.status.as_ref().and_then(|status| status.ready_replicas),
-        "availableReplicas": deployment.status.as_ref().and_then(|status| status.available_replicas),
-    })
-}
-
-fn stateful_set_summaries(
-    stateful_sets: ObjectList<StatefulSet>,
-    include_control_plane: bool,
-) -> Vec<Value> {
-    stateful_sets
-        .items
-        .iter()
-        .filter(|stateful_set| include_control_plane || !is_control_plane(&stateful_set.metadata))
-        .map(stateful_set_summary)
-        .collect()
-}
-
-fn stateful_set_summary(stateful_set: &StatefulSet) -> Value {
-    json!({
-        "kind": "StatefulSet",
-        "metadata": metadata_summary(&stateful_set.metadata),
-        "replicas": stateful_set.spec.as_ref().and_then(|spec| spec.replicas),
-        "readyReplicas": stateful_set.status.as_ref().and_then(|status| status.ready_replicas),
-        "currentReplicas": stateful_set.status.as_ref().and_then(|status| status.current_replicas),
-    })
-}
-
-fn pod_summaries(pods: ObjectList<Pod>, include_control_plane: bool) -> Vec<Value> {
-    pods.items
-        .iter()
-        .filter(|pod| include_control_plane || !is_control_plane(&pod.metadata))
-        .map(pod_summary)
-        .collect()
-}
-
-fn pod_summary(pod: &Pod) -> Value {
-    json!({
-        "kind": "Pod",
-        "metadata": metadata_summary(&pod.metadata),
-        "phase": pod.status.as_ref().and_then(|status| status.phase.clone()),
-        "podIp": pod.status.as_ref().and_then(|status| status.pod_ip.clone()),
-        "nodeName": pod.spec.as_ref().and_then(|spec| spec.node_name.clone()),
-        "containers": pod.spec.as_ref().map(|spec| {
-            spec.containers
-                .iter()
-                .map(|container| container.name.clone())
-                .collect::<Vec<_>>()
-        }).unwrap_or_default(),
-    })
-}
-
-fn service_summaries(services: ObjectList<Service>, include_control_plane: bool) -> Vec<Value> {
-    services
-        .items
-        .iter()
-        .filter(|service| include_control_plane || !is_control_plane(&service.metadata))
-        .map(service_summary)
-        .collect()
-}
-
-fn service_summary(service: &Service) -> Value {
-    json!({
-        "kind": "Service",
-        "metadata": metadata_summary(&service.metadata),
-        "type": service.spec.as_ref().and_then(|spec| spec.type_.clone()),
-        "clusterIp": service.spec.as_ref().and_then(|spec| spec.cluster_ip.clone()),
-        "ports": service.spec.as_ref().map(|spec| {
-            spec.ports.clone().unwrap_or_default().into_iter().map(|port| json!({
-                "name": port.name,
-                "port": port.port,
-                "protocol": port.protocol,
-            })).collect::<Vec<_>>()
-        }).unwrap_or_default(),
-    })
-}
-
-fn storage_class_summary(storage_class: &StorageClass) -> Value {
-    json!({
-        "metadata": metadata_summary(&storage_class.metadata),
-        "provisioner": storage_class.provisioner,
-        "reclaimPolicy": storage_class.reclaim_policy,
-        "volumeBindingMode": storage_class.volume_binding_mode,
-        "allowVolumeExpansion": storage_class.allow_volume_expansion,
-        "isDefault": storage_class.metadata.annotations.as_ref().is_some_and(|annotations| {
-            annotations.get("storageclass.kubernetes.io/is-default-class").is_some_and(|value| value == "true")
-                || annotations.get("storageclass.beta.kubernetes.io/is-default-class").is_some_and(|value| value == "true")
-        }),
-    })
-}
-
-fn event_summary(event: &Event) -> Value {
-    json!({
-        "metadata": metadata_summary(&event.metadata),
-        "type": event.type_,
-        "reason": event.reason,
-        "message": event.message,
-        "count": event.count,
-        "involvedObject": object_reference_summary(&event.involved_object),
-        "firstTimestamp": event.first_timestamp,
-        "lastTimestamp": event.last_timestamp,
-    })
-}
-
-fn metadata_summary(metadata: &ObjectMeta) -> Value {
-    json!({
-        "name": metadata.name,
-        "namespace": metadata.namespace,
-        "labels": metadata.labels,
-        "creationTimestamp": metadata.creation_timestamp,
-    })
-}
-
-fn object_reference_summary(reference: &ObjectReference) -> Value {
-    json!({
-        "kind": reference.kind,
-        "namespace": reference.namespace,
-        "name": reference.name,
-        "uid": reference.uid,
-    })
-}
-
-fn is_control_plane(metadata: &ObjectMeta) -> bool {
-    metadata.name.as_deref() == Some("control-plane")
-        || metadata.namespace.as_deref() == Some("control-plane")
-        || metadata.labels.as_ref().is_some_and(|labels| {
-            labels
-                .get("app.kubernetes.io/name")
-                .is_some_and(|value| value == "control-plane")
-                || labels
-                    .get("app.kubernetes.io/instance")
-                    .is_some_and(|value| value == "control-plane")
-        })
 }
 
 impl Default for ToolRouter {
@@ -1350,8 +987,6 @@ impl Default for ToolRouter {
 #[cfg(test)]
 mod tests {
     use crate::catalog::ExtensionCatalog;
-    use crate::k8s::HelmChartSummary;
-    use crate::k8s::HelmReleaseSummary;
 
     use super::*;
 
@@ -1359,7 +994,7 @@ mod tests {
     fn lists_mvp_tools_with_policy_metadata() {
         let router = ToolRouter::new();
 
-        let tools = router.list().tools;
+        let tools = router.list_with_dynamic(&[]).tools;
 
         let install = tools
             .iter()
@@ -1379,7 +1014,7 @@ mod tests {
     fn does_not_include_extension_specific_install_tools() {
         let router = ToolRouter::new();
 
-        let tools = router.list().tools;
+        let tools = router.list_with_dynamic(&[]).tools;
 
         assert!(
             !tools
@@ -1399,16 +1034,54 @@ mod tests {
     fn can_lookup_tool_definition() {
         let router = ToolRouter::new();
 
-        let definition = router.get("workloads.delete").unwrap();
+        let definition = router.get_with_dynamic("workloads.delete", &[]).unwrap();
 
         assert!(definition.destructive);
+    }
+
+    #[test]
+    fn workloads_logs_schema_exposes_pod_and_container_selection() {
+        let router = ToolRouter::new();
+        let definition = router.get_with_dynamic("workloads.logs.get", &[]).unwrap();
+
+        assert!(definition.input_schema.contains("pod"));
+        assert!(definition.input_schema.contains("container"));
+        assert!(definition.input_schema.contains("previous"));
+        assert!(definition.input_schema.contains("sinceSeconds"));
+        assert!(definition.input_schema.contains("timestamps"));
+    }
+
+    #[test]
+    fn dynamic_tool_definitions_are_listed_and_resolved_when_supplied() {
+        let router = ToolRouter::new();
+        let dynamic = workloads::dolos::definitions();
+
+        assert!(
+            router
+                .get_with_dynamic("dolos.snapshot.refresh", &[])
+                .is_none()
+        );
+        assert!(
+            router
+                .list_with_dynamic(dynamic)
+                .tools
+                .iter()
+                .any(|tool| tool.name == "dolos.snapshot.refresh")
+        );
+        assert!(
+            router
+                .get_with_dynamic("dolos.snapshot.refresh", dynamic)
+                .is_some()
+        );
     }
 
     #[tokio::test]
     async fn executes_catalog_get_tool() {
         let router = ToolRouter::new();
         let catalog = ExtensionCatalog::embedded();
-        let definition = router.get("extensions.catalog.get").unwrap();
+        let definition = router
+            .get_with_dynamic("extensions.catalog.get", &[])
+            .unwrap();
         let mut arguments = JsonObject::new();
         arguments.insert(
             "extensionId".to_string(),
@@ -1431,7 +1104,9 @@ mod tests {
     async fn missing_required_argument_returns_tool_error() {
         let router = ToolRouter::new();
         let catalog = ExtensionCatalog::embedded();
-        let definition = router.get("extensions.catalog.get").unwrap();
+        let definition = router
+            .get_with_dynamic("extensions.catalog.get", &[])
+            .unwrap();
 
         let result = router.call(definition, None, &catalog).await;
 
@@ -1449,7 +1124,9 @@ mod tests {
     async fn workloads_metrics_get_dispatches_to_argument_validation() {
         let router = ToolRouter::new();
         let catalog = ExtensionCatalog::embedded();
-        let definition = router.get("workloads.metrics.get").unwrap();
+        let definition = router
+            .get_with_dynamic("workloads.metrics.get", &[])
+            .unwrap();
 
         let result = router.call(definition, None, &catalog).await;
 
@@ -1463,47 +1140,11 @@ mod tests {
         );
     }
 
-    #[test]
-    fn metrics_extension_resolves_cardano_node_chart() {
-        let catalog = ExtensionCatalog::embedded();
-        let release = helm_release_with_chart(Some("cardano-node"));
-
-        let extension = metrics_extension_for_release(&release, &catalog).unwrap();
-
-        assert_eq!(extension.id, "cardano-node-relay");
-    }
-
-    #[test]
-    fn metrics_extension_rejects_unsupported_chart() {
-        let catalog = ExtensionCatalog::embedded();
-        let release = helm_release_with_chart(Some("dolos"));
-
-        assert!(metrics_extension_for_release(&release, &catalog).is_none());
-    }
-
-    #[test]
-    fn metrics_payload_parser_accepts_script_json() {
-        let metrics = parse_metrics_payload(
-            r#"
-            {"type":"cardano-node","role":"relay","errors":[]}
-            "#,
-        )
-        .unwrap();
-
-        assert_eq!(metrics.pointer("/type"), Some(&json!("cardano-node")));
-        assert_eq!(metrics.pointer("/role"), Some(&json!("relay")));
-    }
-
-    #[test]
-    fn metrics_payload_parser_rejects_invalid_json() {
-        assert!(parse_metrics_payload("not json").is_err());
-    }
-
     #[tokio::test]
     async fn non_planning_mutation_tool_execution_remains_explicitly_unimplemented() {
         let router = ToolRouter::new();
         let catalog = ExtensionCatalog::embedded();
-        let definition = router.get("workloads.upgrade").unwrap();
+        let definition = router.get_with_dynamic("workloads.upgrade", &[]).unwrap();
 
         let result = router.call(definition, None, &catalog).await;
 
@@ -1521,7 +1162,7 @@ mod tests {
     async fn workloads_install_dry_run_returns_validated_plan() {
         let router = ToolRouter::new();
         let catalog = ExtensionCatalog::embedded();
-        let definition = router.get("workloads.install").unwrap();
+        let definition = router.get_with_dynamic("workloads.install", &[]).unwrap();
         let mut arguments = JsonObject::new();
         arguments.insert(
             "extensionId".to_string(),
@@ -1578,7 +1219,7 @@ mod tests {
     async fn workloads_install_rejects_unknown_raw_helm_values() {
         let router = ToolRouter::new();
         let catalog = ExtensionCatalog::embedded();
-        let definition = router.get("workloads.install").unwrap();
+        let definition = router.get_with_dynamic("workloads.install", &[]).unwrap();
         let mut arguments = JsonObject::new();
         arguments.insert(
             "extensionId".to_string(),
@@ -1616,10 +1257,69 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn dolos_install_dry_run_returns_validated_plan() {
+        let router = ToolRouter::new();
+        let catalog = ExtensionCatalog::embedded();
+        let definition = router.get_with_dynamic("workloads.install", &[]).unwrap();
+        let mut arguments = JsonObject::new();
+        arguments.insert(
+            "extensionId".to_string(),
+            Value::String("dolos".to_string()),
+        );
+        arguments.insert(
+            "releaseName".to_string(),
+            Value::String("dolos-preview".to_string()),
+        );
+        arguments.insert(
+            "namespace".to_string(),
+            Value::String("cardano".to_string()),
+        );
+        arguments.insert("dryRun".to_string(), Value::Bool(true));
+        arguments.insert(
+            "configuration".to_string(),
+            json!({
+                "network": "cardano-preview",
+                "namespace": "cardano",
+                "storageClass": "standard",
+                "upstreamAddress": "relay-preview-cardano-node.cardano.svc.cluster.local:3000",
+            }),
+        );
+
+        let result = router.call(definition, Some(&arguments), &catalog).await;
+
+        assert_eq!(result.is_error, Some(false));
+        let content = result.structured_content.as_ref().unwrap();
+        assert_eq!(content.pointer("/wouldMutate"), Some(&Value::Bool(false)));
+        assert_eq!(content.pointer("/extension/id"), Some(&json!("dolos")));
+        assert_eq!(
+            content.pointer("/chart/chart"),
+            Some(&json!("oci://oci.supernode.store/extensions/dolos"))
+        );
+        assert_eq!(
+            content.pointer("/helmValues/dolos/network"),
+            Some(&json!("cardano-preview"))
+        );
+        assert_eq!(
+            content.pointer("/helmValues/config/upstreamAddress"),
+            Some(&json!(
+                "relay-preview-cardano-node.cardano.svc.cluster.local:3000"
+            ))
+        );
+        assert_eq!(
+            content.pointer("/helmValues/image/tag"),
+            Some(&json!("v1.1.1"))
+        );
+        assert_eq!(
+            content.pointer("/helmValues/persistence/size"),
+            Some(&json!("50Gi"))
+        );
+    }
+
     #[test]
     fn workloads_install_schema_does_not_expose_approval_id() {
         let router = ToolRouter::new();
-        let definition = router.get("workloads.install").unwrap();
+        let definition = router.get_with_dynamic("workloads.install", &[]).unwrap();
 
         assert!(definition.input_schema.contains("configuration"));
         assert!(!definition.input_schema.contains("approvalId"));
@@ -1629,7 +1329,7 @@ mod tests {
     async fn vault_runtime_tool_rejects_non_runtime_path_before_client_setup() {
         let router = ToolRouter::new();
         let catalog = ExtensionCatalog::embedded();
-        let definition = router.get("vault.runtime.write").unwrap();
+        let definition = router.get_with_dynamic("vault.runtime.write", &[]).unwrap();
         let mut arguments = JsonObject::new();
         arguments.insert(
             "path".to_string(),
@@ -1648,22 +1348,5 @@ mod tests {
             Some(&Value::String("vault_path_not_allowed".to_string()))
         );
         assert!(!serde_json::to_string(&result).unwrap().contains("secret"));
-    }
-
-    fn helm_release_with_chart(chart_name: Option<&str>) -> HelmReleaseSummary {
-        HelmReleaseSummary {
-            name: "relay-preview".to_string(),
-            namespace: "cardano".to_string(),
-            revision: 1,
-            status: Some("deployed".to_string()),
-            chart: HelmChartSummary {
-                name: chart_name.map(str::to_string),
-                version: Some("0.1.0".to_string()),
-            },
-            app_version: Some("11.0.1".to_string()),
-            description: None,
-            updated: None,
-            secret_name: Some("sh.helm.release.v1.relay-preview.v1".to_string()),
-        }
     }
 }

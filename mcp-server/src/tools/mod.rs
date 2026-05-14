@@ -1,3 +1,6 @@
+pub(crate) mod common;
+pub(crate) mod dynamic;
+pub(crate) mod k8s_summaries;
 pub mod router;
 pub mod supernode;
 pub mod vault;
@@ -5,8 +8,7 @@ pub mod workloads;
 
 pub use router::ToolRouter;
 
-use crate::policy::ApprovalClass;
-use crate::policy::Scope;
+use crate::policy::{ApprovalClass, Scope};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct ToolDefinition {

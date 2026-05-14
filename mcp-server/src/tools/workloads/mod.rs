@@ -2,6 +2,14 @@ use crate::policy::ApprovalClass;
 use crate::policy::Scope;
 
 use super::ToolDefinition;
+use std::collections::BTreeSet;
+
+pub(crate) mod dolos;
+pub(crate) mod install;
+pub(crate) mod logs;
+pub(crate) mod metrics;
+pub(crate) mod outputs;
+pub(crate) mod registry;
 
 pub fn definitions() -> &'static [ToolDefinition] {
     &[
@@ -28,12 +36,12 @@ pub fn definitions() -> &'static [ToolDefinition] {
         ToolDefinition {
             name: "workloads.logs.get",
             title: "Get Workload Logs",
-            description: "Read bounded pod logs for a workload.",
+            description: "Read bounded pod logs for one selected workload pod and container.",
             required_scope: Scope::Debug,
             approval_class: ApprovalClass::ReadOnlyDebug,
             read_only: true,
             destructive: false,
-            input_schema: r#"{"type":"object","required":["namespace","workload"],"properties":{"namespace":{"type":"string"},"workload":{"type":"string"},"tailLines":{"type":"integer","minimum":1,"maximum":1000}},"additionalProperties":false}"#,
+            input_schema: r#"{"type":"object","required":["namespace","workload"],"properties":{"namespace":{"type":"string"},"workload":{"type":"string"},"pod":{"type":"string","description":"Exact pod name to read. Required when the workload has multiple active pods."},"container":{"type":"string","description":"Exact container or init-container name to read. Required when the selected pod has multiple loggable containers."},"tailLines":{"type":"integer","minimum":1,"maximum":1000},"sinceSeconds":{"type":"integer","minimum":1},"previous":{"type":"boolean"},"timestamps":{"type":"boolean"}},"additionalProperties":false}"#,
         },
         ToolDefinition {
             name: "workloads.metrics.get",
@@ -76,4 +84,16 @@ pub fn definitions() -> &'static [ToolDefinition] {
             input_schema: r#"{"type":"object","required":["namespace","releaseName"],"properties":{"namespace":{"type":"string"},"releaseName":{"type":"string"},"deletePvcs":{"type":"boolean"},"approvalId":{"type":"string"}},"additionalProperties":false}"#,
         },
     ]
+}
+
+pub(crate) fn dynamic_definitions(
+    installed_extension_ids: &BTreeSet<String>,
+) -> Vec<ToolDefinition> {
+    let mut definitions = Vec::new();
+
+    if installed_extension_ids.contains(registry::DOLOS_EXTENSION_ID) {
+        definitions.extend(dolos::definitions().iter().copied());
+    }
+
+    definitions
 }

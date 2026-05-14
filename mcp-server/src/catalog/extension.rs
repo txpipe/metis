@@ -7,6 +7,26 @@ pub type ExtensionMetrics = Value;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ExtensionOutputDefinition {
+    pub name: String,
+    pub description: String,
+    pub port_name: String,
+    pub protocol: String,
+}
+
+impl ExtensionOutputDefinition {
+    pub fn new(name: &str, description: &str, port_name: &str, protocol: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            description: description.to_string(),
+            port_name: port_name.to_string(),
+            protocol: protocol.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExtensionDefinition {
     pub id: ExtensionId,
     pub name: String,
@@ -17,6 +37,7 @@ pub struct ExtensionDefinition {
     pub secrets: Vec<String>,
     pub dependencies: Vec<ExtensionId>,
     pub metrics: ExtensionMetrics,
+    pub outputs: Vec<ExtensionOutputDefinition>,
     pub chart: String,
 }
 
@@ -32,6 +53,7 @@ impl ExtensionDefinition {
         secrets: Vec<&str>,
         dependencies: Vec<&str>,
         metrics: ExtensionMetrics,
+        outputs: Vec<ExtensionOutputDefinition>,
         chart: String,
     ) -> Self {
         Self {
@@ -44,6 +66,7 @@ impl ExtensionDefinition {
             secrets: secrets.into_iter().map(str::to_string).collect(),
             dependencies: dependencies.into_iter().map(str::to_string).collect(),
             metrics,
+            outputs,
             chart,
         }
     }

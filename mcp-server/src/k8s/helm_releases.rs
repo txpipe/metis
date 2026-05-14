@@ -31,6 +31,8 @@ pub struct HelmReleaseSummary {
     pub description: Option<String>,
     pub updated: Option<Value>,
     pub secret_name: Option<String>,
+    #[serde(skip_serializing)]
+    pub config: Option<Value>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
@@ -125,6 +127,7 @@ struct HelmReleaseData {
     version: i32,
     info: Option<HelmReleaseInfo>,
     chart: Option<HelmChart>,
+    config: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -181,6 +184,7 @@ fn decode_helm_release_secret(
         description: info.as_ref().and_then(|info| info.description.clone()),
         updated: info.and_then(|info| info.last_deployed),
         secret_name: secret.metadata.name.clone(),
+        config: release.config,
     })
 }
 
@@ -279,6 +283,7 @@ mod tests {
         assert_eq!(release.chart.name.as_deref(), Some("cardano-node"));
         assert_eq!(release.chart.version.as_deref(), Some("0.1.0-rc1"));
         assert_eq!(release.app_version.as_deref(), Some("10.7.1"));
+        assert_eq!(release.config, Some(json!({ "mustNotBeReturned": true })));
     }
 
     #[test]

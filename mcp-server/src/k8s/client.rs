@@ -13,10 +13,14 @@ use kube::Api;
 use kube::Client;
 use kube::Resource;
 use kube::api::AttachParams;
+use kube::api::DeleteParams;
 use kube::api::ListParams;
 use kube::api::LogParams;
 use kube::api::ObjectList;
+use kube::api::Patch;
+use kube::api::PatchParams;
 use serde::de::DeserializeOwned;
+use serde_json::json;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncReadExt;
 use tokio::time::Duration;
@@ -304,6 +308,17 @@ impl KubernetesClient {
             .await
     }
 
+    pub async fn delete_persistent_volume_claim(
+        &self,
+        namespace: &str,
+        name: &str,
+    ) -> Result<(), kube::Error> {
+        self.api::<PersistentVolumeClaim>(Some(namespace))
+            .delete(name, &DeleteParams::default())
+            .await
+            .map(|_| ())
+    }
+
     pub async fn list_config_maps(
         &self,
         namespace: Option<&str>,
@@ -364,6 +379,21 @@ impl KubernetesClient {
         name: &str,
     ) -> Result<StatefulSet, kube::Error> {
         self.api::<StatefulSet>(Some(namespace)).get(name).await
+    }
+
+    pub async fn scale_stateful_set(
+        &self,
+        namespace: &str,
+        name: &str,
+        replicas: i32,
+    ) -> Result<StatefulSet, kube::Error> {
+        self.api::<StatefulSet>(Some(namespace))
+            .patch(
+                name,
+                &PatchParams::default(),
+                &Patch::Merge(json!({ "spec": { "replicas": replicas } })),
+            )
+            .await
     }
 
     pub async fn list_storage_classes(
