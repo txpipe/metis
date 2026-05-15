@@ -1,0 +1,149 @@
+{{- if .Values.supernodeMcp.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: supernode-mcp
+  namespace: '{{ .Values.namespace }}'
+  labels:
+    app.kubernetes.io/name: supernode-mcp
+    app.kubernetes.io/component: mcp
+spec:
+  serviceName: supernode-mcp
+  replicas: {{ .Values.supernodeMcp.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: supernode-mcp
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: supernode-mcp
+{{- with .Values.supernodeMcp.podAnnotations }}
+{{ toYaml . | indent 8 }}
+{{- end }}
+      labels:
+        app.kubernetes.io/name: supernode-mcp
+        app.kubernetes.io/component: mcp
+    spec:
+      securityContext:
+        fsGroup: 65534
+        fsGroupChangePolicy: OnRootMismatch
+      automountServiceAccountToken: true
+      serviceAccountName: {{ .Values.supernodeMcp.serviceAccount.name }}
+      containers:
+      - name: supernode-mcp
+        image: {{ .Values.supernodeMcp.image.repository }}:{{ .Values.supernodeMcp.image.tag }}
+        imagePullPolicy: {{ .Values.supernodeMcp.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.supernodeMcp.service.port }}
+          protocol: TCP
+        env:
+        - name: MCP_BIND_ADDR
+          value: {{ .Values.supernodeMcp.bindAddr | quote }}
+        - name: MCP_AUTH_MODE
+          value: {{ .Values.supernodeMcp.auth.mode | quote }}
+        - name: MCP_LOG_LEVEL
+          value: {{ .Values.supernodeMcp.logLevel | quote }}
+        - name: MCP_SESSION_STORE
+          value: {{ .Values.supernodeMcp.sessionStore.type | quote }}
+        - name: MCP_SESSION_SQLITE_PATH
+          value: {{ .Values.supernodeMcp.sessionStore.sqlitePath | quote }}
+{{- with .Values.supernodeMcp.sessionStore.ttlSeconds }}
+        - name: MCP_SESSION_TTL_SECONDS
+          value: {{ . | quote }}
+{{- end }}
+        - name: MCP_HELM_VALUES_DIR
+          value: {{ .Values.supernodeMcp.helm.valuesDir | quote }}
+        - name: HELM_CACHE_HOME
+          value: {{ .Values.supernodeMcp.helm.cacheHome | quote }}
+        - name: HELM_CONFIG_HOME
+          value: {{ .Values.supernodeMcp.helm.configHome | quote }}
+        - name: HELM_DATA_HOME
+          value: {{ .Values.supernodeMcp.helm.dataHome | quote }}
+        - name: VAULT_ADDR
+          value: {{ default (printf "http://%s-vault.%s.svc:8200" .Release.Name .Values.namespace) .Values.supernodeMcp.vault.addr | quote }}
+        - name: VAULT_KV_MOUNT
+          value: {{ .Values.supernodeMcp.vault.kvMount | quote }}
+{{- with .Values.supernodeMcp.vault.tokenFile }}
+        - name: VAULT_TOKEN_FILE
+          value: {{ . | quote }}
+{{- end }}
+{{- if .Values.supernodeMcp.vault.tokenSecretRef.name }}
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.supernodeMcp.vault.tokenSecretRef.name }}
+              key: {{ .Values.supernodeMcp.vault.tokenSecretRef.key }}
+{{- end }}
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: http
+          initialDelaySeconds: 2
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 20
+{{- with .Values.supernodeMcp.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+{{- end }}
+        volumeMounts:
+        - name: session-store
+          mountPath: /var/lib/supernode-mcp
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+{{- with .Values.supernodeMcp.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- with .Values.supernodeMcp.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- with .Values.supernodeMcp.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- if or (not .Values.supernodeMcp.persistence.enabled) .Values.supernodeMcp.persistence.existingClaim }}
+      volumes:
+      - name: session-store
+{{- if .Values.supernodeMcp.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.supernodeMcp.persistence.existingClaim }}
+{{- else }}
+        emptyDir: {}
+{{- end }}
+{{- end }}
+{{- if and .Values.supernodeMcp.persistence.enabled (not .Values.supernodeMcp.persistence.existingClaim) }}
+  volumeClaimTemplates:
+  - metadata:
+      name: session-store
+      labels:
+        app.kubernetes.io/name: supernode-mcp
+        app.kubernetes.io/component: mcp
+{{- with .Values.supernodeMcp.persistence.annotations }}
+      annotations:
+{{ toYaml . | indent 8 }}
+{{- end }}
+    spec:
+      accessModes:
+{{ toYaml .Values.supernodeMcp.persistence.accessModes | indent 8 }}
+{{- $storageClass := default .Values.storageClass .Values.supernodeMcp.persistence.storageClass }}
+{{- if $storageClass }}
+      storageClassName: {{ $storageClass }}
+{{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.supernodeMcp.persistence.size }}
+{{- end }}
+{{- end }}

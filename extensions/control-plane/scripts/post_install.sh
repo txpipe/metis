@@ -15,6 +15,7 @@ VAULT_TOKEN="${VAULT_TOKEN:?set VAULT_TOKEN}"
 
 RELEASE_NAME="${RELEASE_NAME:-control-plane}"
 NAMESPACE="${NAMESPACE:-control-plane}"
+KUBECTL_CONTEXT="${KUBECTL_CONTEXT:-}"
 LOCAL_PORT="${LOCAL_PORT:-8200}"
 VAULT_AUTH_MOUNT="${VAULT_AUTH_MOUNT:-kubernetes}"
 VAULT_AUTH_PATH="${VAULT_AUTH_PATH:-auth/kubernetes}"
@@ -30,10 +31,26 @@ VAULT_ROLE_POLICIES="${VAULT_ROLE_POLICIES:-control-plane}"
 VAULT_ROLE_AUDIENCE="${VAULT_ROLE_AUDIENCE:-}"
 VAULT_DISABLE_ISS_VALIDATION="${VAULT_DISABLE_ISS_VALIDATION:-true}"
 KUBERNETES_HOST="${KUBERNETES_HOST:-https://kubernetes.default.svc:443}"
+MCP_VAULT_ENABLED="${MCP_VAULT_ENABLED:-true}"
+MCP_VAULT_POLICY_NAME="${MCP_VAULT_POLICY_NAME:-supernode-mcp}"
+MCP_VAULT_TOKEN_SECRET_NAME="${MCP_VAULT_TOKEN_SECRET_NAME:-supernode-mcp-vault-token}"
+MCP_VAULT_TOKEN_SECRET_KEY="${MCP_VAULT_TOKEN_SECRET_KEY:-token}"
+MCP_VAULT_TOKEN_DISPLAY_NAME="${MCP_VAULT_TOKEN_DISPLAY_NAME:-supernode-mcp}"
+MCP_VAULT_TOKEN_TTL="${MCP_VAULT_TOKEN_TTL:-720h}"
+MCP_VAULT_TOKEN_PERIOD="${MCP_VAULT_TOKEN_PERIOD:-}"
+MCP_VAULT_TOKEN_ORPHAN="${MCP_VAULT_TOKEN_ORPHAN:-true}"
 VAULT_ADDR="http://127.0.0.1:${LOCAL_PORT}"
 
 PORT_FORWARD_LOG="$(mktemp)"
 PORT_FORWARD_PID=""
+MCP_VAULT_TOKEN_FILE=""
+KUBECTL_ARGS=()
+KUBECTL_CONTEXT_TEXT=""
+
+if [[ -n "$KUBECTL_CONTEXT" ]]; then
+  KUBECTL_ARGS+=(--context "$KUBECTL_CONTEXT")
+  KUBECTL_CONTEXT_TEXT="--context ${KUBECTL_CONTEXT} "
+fi
 
 normalize_prefix() {
   local prefix="$1"
@@ -54,6 +71,9 @@ cleanup() {
     wait "${PORT_FORWARD_PID}" >/dev/null 2>&1 || true
   fi
   rm -f "${PORT_FORWARD_LOG}"
+  if [[ -n "${MCP_VAULT_TOKEN_FILE}" ]]; then
+    rm -f "${MCP_VAULT_TOKEN_FILE}"
+  fi
 }
 trap cleanup EXIT
 
@@ -75,8 +95,29 @@ if prefix_overlaps "$VAULT_KV_RUNTIME_PREFIX" "$VAULT_KV_OPERATOR_PREFIX"; then
   exit 1
 fi
 
+if [[ "$MCP_VAULT_ENABLED" == "true" ]]; then
+  if [[ -z "$MCP_VAULT_POLICY_NAME" ]]; then
+    printf 'MCP_VAULT_POLICY_NAME must not be empty when MCP_VAULT_ENABLED=true.\n' >&2
+    exit 1
+  fi
+
+  if [[ -z "$MCP_VAULT_TOKEN_SECRET_NAME" ]]; then
+    printf 'MCP_VAULT_TOKEN_SECRET_NAME must not be empty when MCP_VAULT_ENABLED=true.\n' >&2
+    exit 1
+  fi
+
+  if [[ -z "$MCP_VAULT_TOKEN_SECRET_KEY" ]]; then
+    printf 'MCP_VAULT_TOKEN_SECRET_KEY must not be empty when MCP_VAULT_ENABLED=true.\n' >&2
+    exit 1
+  fi
+
+  if [[ -n "$MCP_VAULT_TOKEN_PERIOD" && -n "$MCP_VAULT_TOKEN_TTL" ]]; then
+    printf 'MCP_VAULT_TOKEN_PERIOD is set; MCP_VAULT_TOKEN_TTL will be ignored for the MCP token.\n'
+  fi
+fi
+
 printf 'Starting kubectl port-forward to service/%s-vault in namespace %s...\n' "$RELEASE_NAME" "$NAMESPACE"
-kubectl -n "$NAMESPACE" port-forward "service/${RELEASE_NAME}-vault" "${LOCAL_PORT}:8200" >"${PORT_FORWARD_LOG}" 2>&1 &
+kubectl "${KUBECTL_ARGS[@]}" -n "$NAMESPACE" port-forward "service/${RELEASE_NAME}-vault" "${LOCAL_PORT}:8200" >"${PORT_FORWARD_LOG}" 2>&1 &
 PORT_FORWARD_PID="$!"
 
 wait_for_vault() {
@@ -152,6 +193,50 @@ fi
 
 vault write "$VAULT_AUTH_PATH/role/${VAULT_ROLE_NAME}" "${role_args[@]}"
 
+if [[ "$MCP_VAULT_ENABLED" == "true" ]]; then
+  printf 'Writing MCP Vault policy %s...\n' "$MCP_VAULT_POLICY_NAME"
+  vault policy write "$MCP_VAULT_POLICY_NAME" - <<EOF
+path "${VAULT_KV_PATH}/data/${VAULT_KV_RUNTIME_PREFIX}/*" {
+  capabilities = ["create", "read", "update", "patch"]
+}
+
+path "${VAULT_KV_PATH}/metadata/${VAULT_KV_RUNTIME_PREFIX}" {
+  capabilities = ["list"]
+}
+
+path "${VAULT_KV_PATH}/metadata/${VAULT_KV_RUNTIME_PREFIX}/*" {
+  capabilities = ["read", "list"]
+}
+EOF
+
+  printf 'Creating MCP Vault token and storing it in Kubernetes Secret %s/%s...\n' "$NAMESPACE" "$MCP_VAULT_TOKEN_SECRET_NAME"
+  token_args=(
+    "-display-name=${MCP_VAULT_TOKEN_DISPLAY_NAME}"
+    "-field=token"
+    "-policy=${MCP_VAULT_POLICY_NAME}"
+  )
+
+  if [[ "$MCP_VAULT_TOKEN_ORPHAN" == "true" ]]; then
+    token_args+=("-orphan")
+  fi
+
+  if [[ -n "$MCP_VAULT_TOKEN_PERIOD" ]]; then
+    token_args+=("-period=${MCP_VAULT_TOKEN_PERIOD}")
+  else
+    token_args+=("-ttl=${MCP_VAULT_TOKEN_TTL}")
+  fi
+
+  MCP_VAULT_TOKEN_FILE="$(mktemp)"
+  chmod 600 "$MCP_VAULT_TOKEN_FILE"
+  vault token create "${token_args[@]}" >"$MCP_VAULT_TOKEN_FILE"
+
+  kubectl "${KUBECTL_ARGS[@]}" -n "$NAMESPACE" create secret generic "$MCP_VAULT_TOKEN_SECRET_NAME" \
+    "--from-file=${MCP_VAULT_TOKEN_SECRET_KEY}=${MCP_VAULT_TOKEN_FILE}" \
+    --dry-run=client \
+    -o yaml \
+    | kubectl "${KUBECTL_ARGS[@]}" -n "$NAMESPACE" apply -f -
+fi
+
 cat <<EOF
 
 Vault post-install configuration finished.
@@ -162,10 +247,45 @@ Shared workload auth can read only:
 Operator-only space remains outside shared workload auth:
   ${VAULT_KV_PATH}/${VAULT_KV_OPERATOR_PREFIX}/...
 
+EOF
+
+if [[ "$MCP_VAULT_ENABLED" == "true" ]]; then
+  cat <<EOF
+
+MCP Vault credentials were written to Kubernetes Secret:
+  namespace: ${NAMESPACE}
+  name: ${MCP_VAULT_TOKEN_SECRET_NAME}
+  key: ${MCP_VAULT_TOKEN_SECRET_KEY}
+
+The MCP policy can access only runtime KV paths:
+  ${VAULT_KV_PATH}/${VAULT_KV_RUNTIME_PREFIX}/...
+
+Wire the Secret into the Helm-managed MCP Deployment with:
+  helm upgrade ${RELEASE_NAME} . \\
+    --namespace ${NAMESPACE} \\
+    --reuse-values \\
+    --set supernodeMcp.vault.tokenSecretRef.name=${MCP_VAULT_TOKEN_SECRET_NAME} \\
+    --set supernodeMcp.vault.tokenSecretRef.key=${MCP_VAULT_TOKEN_SECRET_KEY}
+
+If the MCP Deployment is already running, restart it after the Helm upgrade:
+  kubectl ${KUBECTL_CONTEXT_TEXT}-n ${NAMESPACE} rollout restart deployment/supernode-mcp
+EOF
+fi
+
+cat <<EOF
+
 The root token can still write anywhere in the mounted KV.
 
 Verify:
-  kubectl -n ${NAMESPACE} exec -it ${RELEASE_NAME}-vault-0 -- vault auth list
-  kubectl -n ${NAMESPACE} exec -it ${RELEASE_NAME}-vault-0 -- vault read ${VAULT_AUTH_PATH}/role/${VAULT_ROLE_NAME}
+  kubectl ${KUBECTL_CONTEXT_TEXT}-n ${NAMESPACE} exec -it ${RELEASE_NAME}-vault-0 -- vault auth list
+  kubectl ${KUBECTL_CONTEXT_TEXT}-n ${NAMESPACE} exec -it ${RELEASE_NAME}-vault-0 -- vault read ${VAULT_AUTH_PATH}/role/${VAULT_ROLE_NAME}
+EOF
+
+if [[ "$MCP_VAULT_ENABLED" == "true" ]]; then
+  cat <<EOF
+  kubectl ${KUBECTL_CONTEXT_TEXT}-n ${NAMESPACE} get secret ${MCP_VAULT_TOKEN_SECRET_NAME}
 
 EOF
+else
+  printf '\n'
+fi

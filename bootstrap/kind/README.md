@@ -64,6 +64,71 @@ If you want to configure the shared VSO auth resources after the install, use:
 VAULT_TOKEN=root ../extensions/control-plane/scripts/post_install.sh
 ```
 
+## Local Control Plane With Local MCP Image
+
+Use this flow when testing local MCP server changes in Kind before publishing an
+image.
+
+Create or reuse the Kind cluster:
+
+```bash
+./bootstrap/kind/bootstrap.sh --config ./bootstrap/kind/config.yml
+```
+
+Build and load the local MCP image into Kind:
+
+```bash
+docker build -t metis-supernode-mcp:dev ./mcp-server
+kind load docker-image metis-supernode-mcp:dev --name "${KIND_CLUSTER_NAME:-supernode}"
+```
+
+Install the local control-plane chart with the local MCP image and dev Vault:
+
+```bash
+helm dependency build ./extensions/control-plane
+helm upgrade --install control-plane ./extensions/control-plane \
+  --namespace control-plane \
+  --create-namespace \
+  --values ./bootstrap/kind/values.yml \
+  --values ./extensions/control-plane/examples/dev-values.yaml \
+  --set supernodeMcp.image.repository=metis-supernode-mcp \
+  --set supernodeMcp.image.tag=dev \
+  --set supernodeMcp.image.pullPolicy=Never
+```
+
+The control-plane chart enables a PVC-backed SQLite MCP session store by
+default. This lets existing MCP sessions survive a pod restart, as long as the
+client keeps using the same `Mcp-Session-Id` and the session has not expired.
+
+Configure Vault for local MCP runtime-secret operations:
+
+```bash
+VAULT_TOKEN=root ./extensions/control-plane/scripts/post_install.sh
+```
+
+Forward the MCP service and check health:
+
+```bash
+kubectl -n control-plane rollout status deployment/supernode-mcp
+kubectl -n control-plane port-forward service/supernode-mcp 8082:8443
+curl http://127.0.0.1:8082/healthz
+```
+
+Live `workloads.install` calls are enabled through MCP. Use `dryRun: true` to
+inspect the generated Helm values, then call the same tool with `dryRun: false`
+to apply the install.
+
+When rebuilding the MCP image, load it again and restart the deployment:
+
+```bash
+docker build -t metis-supernode-mcp:dev ./mcp-server
+kind load docker-image metis-supernode-mcp:dev --name "${KIND_CLUSTER_NAME:-supernode}"
+kubectl -n control-plane rollout restart deployment/supernode-mcp
+```
+
+MCP clients should reinitialize only when the server returns `404 Session not
+found`, which means the session was deleted, expired, or the PVC was replaced.
+
 ## Outputs
 
 - Creates (or reuses) a Kind cluster named `supernode` by default.

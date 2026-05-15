@@ -168,8 +168,10 @@ For dev mode, skip initialization and unseal entirely.
     requires the `vault` CLI to be installed on your machine, assumes
     `vault operator init` has already been run for standalone or HA modes,
     port-forwards to `service/control-plane-vault`, and configures the shared
-    Kubernetes auth mount, KV v2 mount, policy, and role using the local
-    `vault` CLI. By default, the shared role can read only `kv/runtime/...`.
+    Kubernetes auth mount, KV v2 mount, shared workload policy/role, and MCP
+    Vault token Secret using the local `vault` CLI. By default, the shared role
+    can read only `kv/runtime/...`, while the MCP token can read/write only
+    `kv/runtime/...`.
 
 ```shell
 VAULT_TOKEN=<vault-admin-token> ./scripts/post_install.sh
@@ -189,7 +191,8 @@ kubectl -n control-plane exec -it control-plane-vault-0 -- \
 ```
 
 The `post_install.sh` script is safe to rerun when you intentionally want to
-reconcile the Vault auth mount, policy, role, or KV mount.
+reconcile the Vault auth mount, policy, role, KV mount, or MCP Vault token
+Secret.
 
 The default post-install policy is intentionally read-only and prefix-scoped.
 Workload charts that create `VaultStaticSecret` resources are expected to
@@ -346,6 +349,15 @@ helm template control-plane . -f examples/aws-values.yaml | kubeconform -strict 
 | `prometheusOperator.tolerations` | Tolerations applied to the Prometheus Operator deployment | `[]` |
 | `grafana.tolerations` | Tolerations applied to the Grafana StatefulSet | `[]` |
 | `prometheus.tolerations` | Tolerations applied to the Prometheus CRD | `[]` |
+| `supernodeMcp.sessionStore.type` | MCP Streamable HTTP session store (`sqlite` or `memory`) | `sqlite` |
+| `supernodeMcp.sessionStore.sqlitePath` | SQLite database path for restart-resistant MCP sessions | `/var/lib/supernode-mcp/sessions.sqlite3` |
+| `supernodeMcp.sessionStore.ttlSeconds` | Session restore TTL in seconds | `86400` |
+| `supernodeMcp.helm.valuesDir` | Writable directory used for generated MCP Helm values files | `/var/lib/supernode-mcp/helm/values` |
+| `supernodeMcp.helm.cacheHome` | Helm cache directory for the MCP container | `/var/lib/supernode-mcp/helm/cache` |
+| `supernodeMcp.helm.configHome` | Helm config directory for the MCP container | `/var/lib/supernode-mcp/helm/config` |
+| `supernodeMcp.helm.dataHome` | Helm data directory for the MCP container | `/var/lib/supernode-mcp/helm/data` |
+| `supernodeMcp.persistence.enabled` | Creates a PVC for the MCP SQLite session store | `true` |
+| `supernodeMcp.persistence.size` | MCP session store PVC size | `1Gi` |
 
 Consult `values.yaml` for the authoritative list.
 

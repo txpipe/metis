@@ -2,6 +2,7 @@
 /cli/target
 /backend/target
 /operator/target
+/mcp-server/target
 
 .env
 cert
