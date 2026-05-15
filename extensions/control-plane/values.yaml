@@ -183,6 +183,7 @@ supernodeMcp:
     configHome: /var/lib/supernode-mcp/helm/config
     dataHome: /var/lib/supernode-mcp/helm/data
   persistence:
+    size: 10Gi
     enabled: true
     existingClaim: ""
     storageClass: ""
