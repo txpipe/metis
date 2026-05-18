@@ -48,7 +48,7 @@ jobs:
 
       - name: rename binaries
         run: |
-          mv target/${{ matrix.target }}/release/supernode-mcp${{ matrix.ext }} supernode-mcp-${{ matrix.release_for }}${{ matrix.ext }}
+          mv target/${{ matrix.target }}/release/mcp-server${{ matrix.ext }} supernode-mcp-${{ matrix.release_for }}${{ matrix.ext }}
 
       - name: upload
         uses: actions/upload-artifact@v4
