@@ -4,12 +4,14 @@ use crate::policy::Scope;
 use super::ToolDefinition;
 use std::collections::BTreeSet;
 
+pub(crate) mod delete;
 pub(crate) mod dolos;
 pub(crate) mod install;
 pub(crate) mod logs;
 pub(crate) mod metrics;
 pub(crate) mod outputs;
 pub(crate) mod registry;
+pub(crate) mod upgrade;
 
 pub fn definitions() -> &'static [ToolDefinition] {
     &[
@@ -81,7 +83,7 @@ pub fn definitions() -> &'static [ToolDefinition] {
             approval_class: ApprovalClass::Destructive,
             read_only: false,
             destructive: true,
-            input_schema: r#"{"type":"object","required":["namespace","releaseName"],"properties":{"namespace":{"type":"string"},"releaseName":{"type":"string"},"deletePvcs":{"type":"boolean"},"approvalId":{"type":"string"}},"additionalProperties":false}"#,
+            input_schema: r#"{"type":"object","required":["namespace","releaseName"],"properties":{"namespace":{"type":"string"},"releaseName":{"type":"string"},"dryRun":{"type":"boolean","description":"When true, validate and return the delete plan without mutating Kubernetes. Defaults to true."},"deletePvcs":{"type":"boolean","description":"Delete candidate PVCs after Helm uninstall. Defaults to false."},"approvalId":{"type":"string"}},"additionalProperties":false}"#,
         },
     ]
 }

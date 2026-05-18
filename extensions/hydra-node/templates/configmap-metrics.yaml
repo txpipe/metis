@@ -1,0 +1,150 @@
+{{- $configMapName := include "hydra-node.metricsConfigMapName" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configMapName }}
+  labels:
+    {{- include "hydra-node.labels" . | nindent 4 }}
+data:
+  metrics.sh: |-
+    #!/usr/bin/env sh
+    set -u
+
+    errors_json="[]"
+
+    append_error() {
+      msg="$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+      if [ "$errors_json" = "[]" ]; then
+        errors_json="[\"$msg\"]"
+      else
+        errors_json="${errors_json%]},\"$msg\"]"
+      fi
+    }
+
+    command_exists() {
+      command -v "$1" >/dev/null 2>&1
+    }
+
+    http_get() {
+      url="$1"
+      curl -s --fail "$url" 2>/dev/null || wget -qO- "$url" 2>/dev/null || true
+    }
+
+    metric_value() {
+      metric_name="$1"
+      printf '%s\n' "$prometheus" | awk -v key="$metric_name" '$1 == key { print $2; exit }'
+    }
+
+    json_get() {
+      json="$1"
+      filter="$2"
+      if command_exists jq && [ -n "$json" ]; then
+        printf '%s' "$json" | jq -r "$filter // empty" 2>/dev/null || true
+      fi
+    }
+
+    json_count() {
+      json="$1"
+      filter="$2"
+      if command_exists jq && [ -n "$json" ]; then
+        printf '%s' "$json" | jq -r "$filter | length" 2>/dev/null || true
+      fi
+    }
+
+    json_lovelace_sum() {
+      json="$1"
+      if command_exists jq && [ -n "$json" ]; then
+        printf '%s' "$json" | jq -r '[.[]?.value?.lovelace // 0] | add // 0' 2>/dev/null || true
+      fi
+    }
+
+    json_string_or_null() {
+      value="$1"
+      if [ -z "$value" ]; then
+        printf 'null'
+      else
+        printf '"%s"' "$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+      fi
+    }
+
+    json_number_or_null() {
+      value="$1"
+      if printf '%s' "$value" | grep -Eq '^-?[0-9]+([.][0-9]+)?$'; then
+        printf '%s' "$value"
+      else
+        printf 'null'
+      fi
+    }
+
+    api_base="http://127.0.0.1:{{ .Values.service.apiPort }}"
+    monitoring_base="http://127.0.0.1:{{ .Values.service.monitoringPort }}"
+    mode="{{ ternary "offline" "online" .Values.node.offlineMode }}"
+
+    prometheus="$(http_get "$monitoring_base/metrics")"
+    [ -n "$prometheus" ] || append_error "failed to read Hydra Prometheus metrics"
+
+    head="$(http_get "$api_base/head")"
+    [ -n "$head" ] || append_error "failed to read Hydra /head endpoint"
+
+    snapshot="$(http_get "$api_base/snapshot")"
+    [ -n "$snapshot" ] || append_error "failed to read Hydra /snapshot endpoint"
+
+    snapshot_utxo="$(http_get "$api_base/snapshot/utxo")"
+    [ -n "$snapshot_utxo" ] || append_error "failed to read Hydra /snapshot/utxo endpoint"
+
+    last_seen="$(http_get "$api_base/snapshot/last-seen")"
+    [ -n "$last_seen" ] || append_error "failed to read Hydra /snapshot/last-seen endpoint"
+
+    commits="$(http_get "$api_base/commits")"
+    [ -n "$commits" ] || append_error "failed to read Hydra /commits endpoint"
+
+    if ! command_exists jq; then
+      append_error "jq is not available; API-derived metrics are limited"
+    fi
+
+    head_status="$(json_get "$head" '.tag // .headStatus')"
+    head_id="$(json_get "$head" '.headId // .hydraHeadId')"
+    hydra_node_version="$(json_get "$head" '.hydraNodeVersion')"
+    current_slot="$(json_get "$head" '.currentSlot')"
+    chain_synced_status="$(json_get "$head" '.chainSyncedStatus.tag // .chainSyncedStatus')"
+    snapshot_number="$(json_get "$snapshot" '.snapshot.number // .number')"
+    snapshot_version="$(json_get "$snapshot" '.snapshot.version // .version')"
+    last_seen_snapshot_tag="$(json_get "$last_seen" '.tag')"
+    pending_deposits="$(json_count "$commits" '.')"
+    confirmed_utxo_count="$(json_count "$snapshot_utxo" '.')"
+    confirmed_lovelace="$(json_lovelace_sum "$snapshot_utxo")"
+
+    peers_connected="$(metric_value hydra_head_peers_connected)"
+    requested_tx="$(metric_value hydra_head_requested_tx)"
+    confirmed_tx="$(metric_value hydra_head_confirmed_tx)"
+    inputs="$(metric_value hydra_head_inputs)"
+    tx_confirmation_count="$(metric_value hydra_head_tx_confirmation_time_ms_count)"
+    tx_confirmation_sum="$(metric_value hydra_head_tx_confirmation_time_ms_sum)"
+    tx_confirmation_avg=""
+    if [ -n "$tx_confirmation_count" ] && [ -n "$tx_confirmation_sum" ]; then
+      tx_confirmation_avg="$(awk -v sum="$tx_confirmation_sum" -v count="$tx_confirmation_count" 'BEGIN { if (count > 0) print sum / count }')"
+    fi
+
+    printf '{'
+    printf '"type":"hydra-node"'
+    printf ',"mode":%s' "$(json_string_or_null "$mode")"
+    printf ',"headStatus":%s' "$(json_string_or_null "$head_status")"
+    printf ',"headId":%s' "$(json_string_or_null "$head_id")"
+    printf ',"hydraNodeVersion":%s' "$(json_string_or_null "$hydra_node_version")"
+    printf ',"currentSlot":%s' "$(json_number_or_null "$current_slot")"
+    printf ',"chainSyncedStatus":%s' "$(json_string_or_null "$chain_synced_status")"
+    printf ',"peersConnected":%s' "$(json_number_or_null "$peers_connected")"
+    printf ',"pendingDeposits":%s' "$(json_number_or_null "$pending_deposits")"
+    printf ',"snapshotNumber":%s' "$(json_number_or_null "$snapshot_number")"
+    printf ',"snapshotVersion":%s' "$(json_number_or_null "$snapshot_version")"
+    printf ',"confirmedUtxoCount":%s' "$(json_number_or_null "$confirmed_utxo_count")"
+    printf ',"confirmedLovelace":%s' "$(json_number_or_null "$confirmed_lovelace")"
+    printf ',"lastSeenSnapshotTag":%s' "$(json_string_or_null "$last_seen_snapshot_tag")"
+    printf ',"requestedTx":%s' "$(json_number_or_null "$requested_tx")"
+    printf ',"confirmedTx":%s' "$(json_number_or_null "$confirmed_tx")"
+    printf ',"inputs":%s' "$(json_number_or_null "$inputs")"
+    printf ',"txConfirmationTimeMsCount":%s' "$(json_number_or_null "$tx_confirmation_count")"
+    printf ',"txConfirmationTimeMsSum":%s' "$(json_number_or_null "$tx_confirmation_sum")"
+    printf ',"txConfirmationTimeMsAvg":%s' "$(json_number_or_null "$tx_confirmation_avg")"
+    printf ',"errors":%s' "$errors_json"
+    printf '}\n'

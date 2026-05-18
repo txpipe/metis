@@ -11,8 +11,8 @@ node:
 
 keys:
   hydraSigning:
-    value: |-
-      online-hydra-signing-key
+    vaultStaticSecret:
+      path: runtime/hydra/online/hydra-signing
   hydraVerification:
     items:
       - filename: hydra-self.vk
@@ -25,8 +25,8 @@ keys:
     enabled: true
     socketPath: /ipc/node.socket
     signing:
-      value: |-
-        online-cardano-signing-key
+      vaultStaticSecret:
+        path: runtime/hydra/online/cardano-signing
     verification:
       value: |-
         online-cardano-verification-key

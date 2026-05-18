@@ -1,7 +1,7 @@
 keys:
   hydraSigning:
-    value: |-
-      offline-hydra-signing-key
+    vaultStaticSecret:
+      path: runtime/hydra/offline/hydra-signing
   hydraVerification:
     items:
       - filename: hydra.vk

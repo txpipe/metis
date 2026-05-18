@@ -1,5 +1,6 @@
 pub(crate) mod common;
 pub(crate) mod dynamic;
+pub(crate) mod hydra;
 pub(crate) mod k8s_summaries;
 pub mod router;
 pub mod supernode;

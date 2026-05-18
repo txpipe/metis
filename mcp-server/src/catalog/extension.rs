@@ -7,6 +7,44 @@ pub type ExtensionMetrics = Value;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ExtensionSecretDefinition {
+    pub name: String,
+    pub description: String,
+    pub required: bool,
+    pub required_when: Option<String>,
+    pub scope: String,
+    pub material: String,
+    pub write_only: bool,
+    pub accepted_sources: Vec<String>,
+}
+
+impl ExtensionSecretDefinition {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        name: &str,
+        description: &str,
+        required: bool,
+        required_when: Option<&str>,
+        scope: &str,
+        material: &str,
+        write_only: bool,
+        accepted_sources: Vec<&str>,
+    ) -> Self {
+        Self {
+            name: name.to_string(),
+            description: description.to_string(),
+            required,
+            required_when: required_when.map(str::to_string),
+            scope: scope.to_string(),
+            material: material.to_string(),
+            write_only,
+            accepted_sources: accepted_sources.into_iter().map(str::to_string).collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExtensionOutputDefinition {
     pub name: String,
     pub description: String,
@@ -34,7 +72,7 @@ pub struct ExtensionDefinition {
     pub versions: Vec<String>,
     pub default_version: String,
     pub configuration: ExtensionConfiguration,
-    pub secrets: Vec<String>,
+    pub secrets: Vec<ExtensionSecretDefinition>,
     pub dependencies: Vec<ExtensionId>,
     pub metrics: ExtensionMetrics,
     pub outputs: Vec<ExtensionOutputDefinition>,
@@ -50,7 +88,7 @@ impl ExtensionDefinition {
         versions: Vec<&str>,
         default_version: &str,
         configuration: ExtensionConfiguration,
-        secrets: Vec<&str>,
+        secrets: Vec<ExtensionSecretDefinition>,
         dependencies: Vec<&str>,
         metrics: ExtensionMetrics,
         outputs: Vec<ExtensionOutputDefinition>,
@@ -63,7 +101,7 @@ impl ExtensionDefinition {
             versions: versions.into_iter().map(str::to_string).collect(),
             default_version: default_version.to_string(),
             configuration,
-            secrets: secrets.into_iter().map(str::to_string).collect(),
+            secrets,
             dependencies: dependencies.into_iter().map(str::to_string).collect(),
             metrics,
             outputs,

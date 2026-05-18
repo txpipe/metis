@@ -146,6 +146,7 @@ fn external_hosts(service: &Service) -> Vec<String> {
 fn output_scheme(protocol: &str) -> &'static str {
     match protocol {
         "HTTP" => "http://",
+        "WebSocket" => "ws://",
         "gRPC" => "grpc://",
         _ => "tcp://",
     }
@@ -235,6 +236,40 @@ mod tests {
             output.name == "utxorpc"
                 && output.url == "grpc://dolos-preview.cardano-preview.svc.cluster.local:50051"
         }));
+    }
+
+    #[test]
+    fn hydra_outputs_include_api_websocket_p2p_and_monitoring() {
+        let catalog = ExtensionCatalog::embedded();
+        let release = helm_release(Some("hydra-node"));
+        let service = service_with_ports(
+            "hydra-preview-hydra-node",
+            "hydra",
+            "hydra-preview",
+            "ClusterIP",
+            vec![("api", 4001), ("p2p", 5001), ("monitoring", 6001)],
+            vec![],
+        );
+
+        let outputs = outputs_for_release(
+            "hydra",
+            "hydra-preview",
+            Some(&release),
+            &[service],
+            &catalog,
+        );
+
+        assert_eq!(outputs.len(), 4);
+        assert!(outputs.iter().any(|output| {
+            output.name == "api"
+                && output.url == "http://hydra-preview-hydra-node.hydra.svc.cluster.local:4001"
+        }));
+        assert!(outputs.iter().any(|output| {
+            output.name == "ws"
+                && output.url == "ws://hydra-preview-hydra-node.hydra.svc.cluster.local:4001"
+        }));
+        assert!(outputs.iter().any(|output| output.name == "p2p"));
+        assert!(outputs.iter().any(|output| output.name == "monitoring"));
     }
 
     #[test]

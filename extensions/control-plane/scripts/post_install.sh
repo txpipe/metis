@@ -44,13 +44,19 @@ VAULT_ADDR="http://127.0.0.1:${LOCAL_PORT}"
 PORT_FORWARD_LOG="$(mktemp)"
 PORT_FORWARD_PID=""
 MCP_VAULT_TOKEN_FILE=""
-KUBECTL_ARGS=()
 KUBECTL_CONTEXT_TEXT=""
 
 if [[ -n "$KUBECTL_CONTEXT" ]]; then
-  KUBECTL_ARGS+=(--context "$KUBECTL_CONTEXT")
   KUBECTL_CONTEXT_TEXT="--context ${KUBECTL_CONTEXT} "
 fi
+
+kubectl_cmd() {
+  if [[ -n "$KUBECTL_CONTEXT" ]]; then
+    kubectl --context "$KUBECTL_CONTEXT" "$@"
+  else
+    kubectl "$@"
+  fi
+}
 
 normalize_prefix() {
   local prefix="$1"
@@ -117,7 +123,7 @@ if [[ "$MCP_VAULT_ENABLED" == "true" ]]; then
 fi
 
 printf 'Starting kubectl port-forward to service/%s-vault in namespace %s...\n' "$RELEASE_NAME" "$NAMESPACE"
-kubectl "${KUBECTL_ARGS[@]}" -n "$NAMESPACE" port-forward "service/${RELEASE_NAME}-vault" "${LOCAL_PORT}:8200" >"${PORT_FORWARD_LOG}" 2>&1 &
+kubectl_cmd -n "$NAMESPACE" port-forward "service/${RELEASE_NAME}-vault" "${LOCAL_PORT}:8200" >"${PORT_FORWARD_LOG}" 2>&1 &
 PORT_FORWARD_PID="$!"
 
 wait_for_vault() {
@@ -230,11 +236,11 @@ EOF
   chmod 600 "$MCP_VAULT_TOKEN_FILE"
   vault token create "${token_args[@]}" >"$MCP_VAULT_TOKEN_FILE"
 
-  kubectl "${KUBECTL_ARGS[@]}" -n "$NAMESPACE" create secret generic "$MCP_VAULT_TOKEN_SECRET_NAME" \
+  kubectl_cmd -n "$NAMESPACE" create secret generic "$MCP_VAULT_TOKEN_SECRET_NAME" \
     "--from-file=${MCP_VAULT_TOKEN_SECRET_KEY}=${MCP_VAULT_TOKEN_FILE}" \
     --dry-run=client \
     -o yaml \
-    | kubectl "${KUBECTL_ARGS[@]}" -n "$NAMESPACE" apply -f -
+    | kubectl_cmd -n "$NAMESPACE" apply -f -
 fi
 
 cat <<EOF

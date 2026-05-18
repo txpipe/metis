@@ -3,8 +3,8 @@ fullnameOverride: ""
 displayName: ""
 
 image:
-  repository: ghcr.io/input-output-hk/hydra-node
-  tag: "0.17.0"
+  repository: ghcr.io/cardano-scaling/hydra-node
+  tag: "2.1.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -69,11 +69,19 @@ node:
   initContainers: []
   terminationGracePeriodSeconds: 60
   offlineMode: true
+  offlineHeadSeed: "0001"
   quiet: true
   nodeId: "hydra-node-1"
+  network: ""
+  contestationPeriod: ""
+  depositPeriod: ""
+  unsyncedPeriod: null
+  startChainFrom: ""
   hydraScriptsTxId: ""
   apiHost: 0.0.0.0
+  listenHost: 0.0.0.0
   host: 0.0.0.0
+  peers: []
   persistenceSubPath: ""
   cardanoSocketProxy:
     enabled: false
@@ -130,15 +138,10 @@ keys:
       name: vault-auth
   hydraSigning:
     filename: hydra.sk
-    existingSecret:
-      name: ""
-      key: ""
     vaultStaticSecret:
-      enabled: false
       mount: kv
       path: ""
       refreshAfter: 1m
-    value: ""
   hydraVerification:
     existingConfigMap:
       name: ""
@@ -148,15 +151,10 @@ keys:
     socketPath: /ipc/node.socket
     signing:
       filename: cardano.sk
-      existingSecret:
-        name: ""
-        key: ""
       vaultStaticSecret:
-        enabled: false
         mount: kv
         path: ""
         refreshAfter: 1m
-      value: ""
     verification:
       filename: cardano.vk
       existingConfigMap:

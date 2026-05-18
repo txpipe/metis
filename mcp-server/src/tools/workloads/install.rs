@@ -102,6 +102,7 @@ pub(crate) fn apply_defaults(extension: &ExtensionDefinition, inputs: Value) -> 
     let defaults = match extension.id.as_str() {
         "cardano-node-relay" => cardano_node_relay_defaults(input_string(&inputs, "network")),
         "dolos" => dolos_defaults(input_string(&inputs, "network")),
+        "hydra-node" => hydra_node_defaults(),
         _ => json!({}),
     };
 
@@ -131,6 +132,8 @@ pub(crate) fn planned_helm_values(
         plan_cardano_node_values(inputs, &mut helm_values);
     } else if extension.id == registry::DOLOS_EXTENSION_ID {
         plan_dolos_values(inputs, &mut helm_values);
+    } else if extension.id == registry::HYDRA_NODE_EXTENSION_ID {
+        plan_hydra_node_values(inputs, &mut helm_values);
     }
 
     Value::Object(helm_values)
@@ -146,6 +149,19 @@ pub(crate) fn dolos_defaults(network: Option<&str>) -> Value {
         "imageTag": "v1.1.1",
         "exposeLoadBalancer": false,
         "pvcSize": pvc_size,
+    })
+}
+
+fn hydra_node_defaults() -> Value {
+    json!({
+        "mode": "offline",
+        "nodeId": "hydra-node-1",
+        "imageTag": "2.1.0",
+        "pvcSize": "5Gi",
+        "exposeLoadBalancer": false,
+        "contestationPeriod": "43200s",
+        "offline": { "headSeed": "0001" },
+        "peers": [],
     })
 }
 
@@ -346,6 +362,240 @@ fn plan_dolos_values(inputs: &Value, helm_values: &mut JsonObject) {
     if let Some(resources) = inputs.get("resources") {
         helm_values.insert("resources".to_string(), resources.clone());
     }
+}
+
+fn plan_hydra_node_values(inputs: &Value, helm_values: &mut JsonObject) {
+    if let Some(mode) = input_string(inputs, "mode") {
+        insert_path(
+            helm_values,
+            &["node", "offlineMode"],
+            Value::Bool(mode != "online"),
+        );
+    }
+    if let Some(node_id) = input_string(inputs, "nodeId") {
+        insert_path(
+            helm_values,
+            &["node", "nodeId"],
+            Value::String(node_id.to_string()),
+        );
+    }
+    if let Some(image_tag) = input_string(inputs, "imageTag") {
+        insert_path(
+            helm_values,
+            &["image", "tag"],
+            Value::String(image_tag.to_string()),
+        );
+    }
+    if let Some(pvc_size) = input_string(inputs, "pvcSize") {
+        insert_path(
+            helm_values,
+            &["persistence", "size"],
+            Value::String(pvc_size.to_string()),
+        );
+    }
+    if inputs
+        .get("exposeLoadBalancer")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        insert_path(
+            helm_values,
+            &["service", "type"],
+            Value::String("LoadBalancer".to_string()),
+        );
+    }
+    if let Some(contestation_period) = input_string(inputs, "contestationPeriod") {
+        insert_path(
+            helm_values,
+            &["node", "contestationPeriod"],
+            Value::String(contestation_period.to_string()),
+        );
+    }
+    if let Some(deposit_period) = input_string(inputs, "depositPeriod") {
+        insert_path(
+            helm_values,
+            &["node", "depositPeriod"],
+            Value::String(deposit_period.to_string()),
+        );
+    }
+    if let Some(unsynced_period) = inputs.get("unsyncedPeriod").and_then(Value::as_i64) {
+        insert_path(
+            helm_values,
+            &["node", "unsyncedPeriod"],
+            Value::Number(unsynced_period.into()),
+        );
+    }
+    if let Some(peers) = inputs.get("peers") {
+        insert_path(helm_values, &["node", "peers"], peers.clone());
+    }
+    if let Some(resources) = inputs.get("resources") {
+        helm_values.insert("resources".to_string(), resources.clone());
+    }
+
+    if let Some(offline) = inputs.get("offline") {
+        if let Some(head_seed) = input_string(offline, "headSeed") {
+            insert_path(
+                helm_values,
+                &["node", "offlineHeadSeed"],
+                Value::String(head_seed.to_string()),
+            );
+        }
+        if let Some(protocol_parameters) = offline.get("protocolParameters")
+            && let Some(data) = pretty_json_string(protocol_parameters)
+        {
+            insert_path(
+                helm_values,
+                &["ledger", "protocolParameters", "data"],
+                Value::String(data),
+            );
+        }
+        if let Some(initial_utxo) = offline.get("initialUtxo")
+            && let Some(data) = pretty_json_string(initial_utxo)
+        {
+            insert_path(
+                helm_values,
+                &["ledger", "initialUtxo", "data"],
+                Value::String(data),
+            );
+        }
+    }
+
+    if let Some(hydra_signing_key) = inputs.get("hydraSigningKey") {
+        plan_secret_ref(hydra_signing_key, helm_values, &["keys", "hydraSigning"]);
+    }
+    if let Some(hydra_verification_keys) = inputs.get("hydraVerificationKeys") {
+        insert_path(
+            helm_values,
+            &["keys", "hydraVerification", "items"],
+            hydra_verification_keys.clone(),
+        );
+    }
+
+    if input_string(inputs, "mode") == Some("online") {
+        insert_path(
+            helm_values,
+            &["keys", "cardano", "enabled"],
+            Value::Bool(true),
+        );
+        if let Some(network) = input_string(inputs, "network") {
+            insert_path(
+                helm_values,
+                &["node", "network"],
+                Value::String(network.to_string()),
+            );
+        }
+        if let Some(cardano_signing_key) = inputs.get("cardanoSigningKey") {
+            plan_secret_ref(
+                cardano_signing_key,
+                helm_values,
+                &["keys", "cardano", "signing"],
+            );
+        }
+        if let Some(cardano_verification_key) = inputs.get("cardanoVerificationKey") {
+            if let Some(filename) = input_string(cardano_verification_key, "filename") {
+                insert_path(
+                    helm_values,
+                    &["keys", "cardano", "verification", "filename"],
+                    Value::String(filename.to_string()),
+                );
+            }
+            if let Some(value) = input_string(cardano_verification_key, "value") {
+                insert_path(
+                    helm_values,
+                    &["keys", "cardano", "verification", "value"],
+                    Value::String(value.to_string()),
+                );
+            }
+            if let Some(existing_config_map) =
+                input_string(cardano_verification_key, "existingConfigMap")
+            {
+                insert_path(
+                    helm_values,
+                    &[
+                        "keys",
+                        "cardano",
+                        "verification",
+                        "existingConfigMap",
+                        "name",
+                    ],
+                    Value::String(existing_config_map.to_string()),
+                );
+            }
+        }
+        if let Some(cardano_backend) = inputs.get("cardanoBackend") {
+            if let Some(socket_path) = input_string(cardano_backend, "socketPath") {
+                insert_path(
+                    helm_values,
+                    &["keys", "cardano", "socketPath"],
+                    Value::String(socket_path.to_string()),
+                );
+            }
+            if let Some(hydra_scripts_tx_id) = input_string(cardano_backend, "hydraScriptsTxId") {
+                insert_path(
+                    helm_values,
+                    &["node", "hydraScriptsTxId"],
+                    Value::String(hydra_scripts_tx_id.to_string()),
+                );
+            }
+            if let Some(start_chain_from) = input_string(cardano_backend, "startChainFrom") {
+                insert_path(
+                    helm_values,
+                    &["node", "startChainFrom"],
+                    Value::String(start_chain_from.to_string()),
+                );
+            }
+            if matches!(
+                input_string(cardano_backend, "mode"),
+                Some("socketProxy") | Some("autoRelay")
+            ) && let Some(upstream_address) = input_string(cardano_backend, "upstreamAddress")
+                && let Some((host, port)) = upstream_address.rsplit_once(':')
+                && let Ok(port) = port.parse::<i64>()
+            {
+                insert_path(
+                    helm_values,
+                    &["node", "cardanoSocketProxy", "enabled"],
+                    Value::Bool(true),
+                );
+                insert_path(
+                    helm_values,
+                    &["node", "cardanoSocketProxy", "targetHost"],
+                    Value::String(host.to_string()),
+                );
+                insert_path(
+                    helm_values,
+                    &["node", "cardanoSocketProxy", "targetPort"],
+                    Value::Number(port.into()),
+                );
+            }
+        }
+    }
+}
+
+fn plan_secret_ref(secret_ref: &Value, helm_values: &mut JsonObject, base_path: &[&str]) {
+    if input_string(secret_ref, "source") == Some("vaultStaticSecret") {
+        if let Some(vault_path) = input_string(secret_ref, "vaultPath") {
+            insert_path(
+                helm_values,
+                &path(base_path, &["vaultStaticSecret", "path"]),
+                Value::String(vault_path.to_string()),
+            );
+        }
+        if let Some(key) = input_string(secret_ref, "key") {
+            insert_path(
+                helm_values,
+                &path(base_path, &["filename"]),
+                Value::String(key.to_string()),
+            );
+        }
+    }
+}
+
+fn path<'a>(base_path: &'a [&'a str], suffix: &'a [&'a str]) -> Vec<&'a str> {
+    base_path.iter().chain(suffix.iter()).copied().collect()
+}
+
+fn pretty_json_string(value: &Value) -> Option<String> {
+    serde_json::to_string_pretty(value).ok()
 }
 
 fn merge_defaults(defaults: &Value, values: Value) -> Value {

@@ -34,4 +34,7 @@ rules:
 - apiGroups: ["monitoring.coreos.com"]
   resources: ["podmonitors"]
   verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+- apiGroups: ["secrets.hashicorp.com"]
+  resources: ["vaultstaticsecrets"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
 {{- end }}

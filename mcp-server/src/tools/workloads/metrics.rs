@@ -31,6 +31,12 @@ pub(crate) fn target_for_release<'a>(
                     container: registry::DOLOS_METRICS_CONTAINER,
                 })
         }
+        Some(registry::HYDRA_NODE_CHART_NAME) => catalog
+            .get(registry::HYDRA_NODE_EXTENSION_ID)
+            .map(|extension| MetricsTarget {
+                extension,
+                container: registry::HYDRA_NODE_METRICS_CONTAINER,
+            }),
         _ => None,
     }
 }
@@ -63,6 +69,17 @@ mod tests {
 
         assert_eq!(target.extension.id, "dolos");
         assert_eq!(target.container, registry::DOLOS_METRICS_CONTAINER);
+    }
+
+    #[test]
+    fn resolves_hydra_node_chart() {
+        let catalog = ExtensionCatalog::embedded();
+        let release = helm_release(Some("hydra-node"));
+
+        let target = target_for_release(&release, &catalog).unwrap();
+
+        assert_eq!(target.extension.id, "hydra-node");
+        assert_eq!(target.container, registry::HYDRA_NODE_METRICS_CONTAINER);
     }
 
     #[test]

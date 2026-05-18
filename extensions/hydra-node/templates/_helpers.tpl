@@ -88,24 +88,14 @@ Resolve ConfigMap name for initial UTxO.
 Resolve Secret name for Hydra signing key.
 */}}
 {{- define "hydra-node.hydraSigningSecretName" -}}
-{{- if .Values.keys.hydraSigning.existingSecret.name }}
-{{- .Values.keys.hydraSigning.existingSecret.name }}
-{{- else if or .Values.keys.hydraSigning.value .Values.keys.hydraSigning.vaultStaticSecret.enabled }}
 {{- printf "%s-hydra-signing" (include "hydra-node.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- "" }}
-{{- end }}
 {{- end }}
 
 {{/*
 Resolve Secret key for Hydra signing key.
 */}}
 {{- define "hydra-node.hydraSigningSecretKey" -}}
-{{- if .Values.keys.hydraSigning.existingSecret.key }}
-{{- .Values.keys.hydraSigning.existingSecret.key }}
-{{- else }}
 {{- default "hydra.sk" .Values.keys.hydraSigning.filename }}
-{{- end }}
 {{- end }}
 
 {{/*
@@ -125,9 +115,7 @@ Resolve ConfigMap name for Hydra verification keys.
 Resolve Secret name for Cardano signing key.
 */}}
 {{- define "hydra-node.cardanoSigningSecretName" -}}
-{{- if .Values.keys.cardano.signing.existingSecret.name }}
-{{- .Values.keys.cardano.signing.existingSecret.name }}
-{{- else if and .Values.keys.cardano.enabled (or .Values.keys.cardano.signing.value .Values.keys.cardano.signing.vaultStaticSecret.enabled) }}
+{{- if .Values.keys.cardano.enabled }}
 {{- printf "%s-cardano-signing" (include "hydra-node.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- "" }}
@@ -138,11 +126,7 @@ Resolve Secret name for Cardano signing key.
 Resolve Secret key for Cardano signing key.
 */}}
 {{- define "hydra-node.cardanoSigningSecretKey" -}}
-{{- if .Values.keys.cardano.signing.existingSecret.key }}
-{{- .Values.keys.cardano.signing.existingSecret.key }}
-{{- else }}
 {{- default "cardano.sk" .Values.keys.cardano.signing.filename }}
-{{- end }}
 {{- end }}
 
 {{/*
@@ -156,4 +140,11 @@ Resolve ConfigMap name for Cardano verification key.
 {{- else }}
 {{- "" }}
 {{- end }}
+{{- end }}
+
+{{/*
+Resolve the ConfigMap name for Metis metrics scripts.
+*/}}
+{{- define "hydra-node.metricsConfigMapName" -}}
+{{- printf "%s-metrics" (include "hydra-node.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}

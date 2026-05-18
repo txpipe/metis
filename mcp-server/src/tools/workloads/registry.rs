@@ -10,6 +10,9 @@ pub(crate) const CARDANO_NODE_METRICS_CONTAINER: &str = "cardano-node";
 pub(crate) const DOLOS_CHART_NAME: &str = "dolos";
 pub(crate) const DOLOS_EXTENSION_ID: &str = "dolos";
 pub(crate) const DOLOS_METRICS_CONTAINER: &str = "dolos";
+pub(crate) const HYDRA_NODE_CHART_NAME: &str = "hydra-node";
+pub(crate) const HYDRA_NODE_EXTENSION_ID: &str = "hydra-node";
+pub(crate) const HYDRA_NODE_METRICS_CONTAINER: &str = "hydra-node";
 
 pub(crate) fn extension_for_release<'a>(
     release: &HelmReleaseSummary,
@@ -22,6 +25,7 @@ pub(crate) fn extension_id_for_chart(chart_name: Option<&str>) -> Option<&'stati
     match chart_name {
         Some(CARDANO_NODE_CHART_NAME) => Some(CARDANO_NODE_RELAY_EXTENSION_ID),
         Some(DOLOS_CHART_NAME) => Some(DOLOS_EXTENSION_ID),
+        Some(HYDRA_NODE_CHART_NAME) => Some(HYDRA_NODE_EXTENSION_ID),
         _ => None,
     }
 }

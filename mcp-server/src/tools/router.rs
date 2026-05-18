@@ -12,7 +12,7 @@ use crate::{
 
 use super::{
     ToolDefinition, common::kube_error, common::pod_exec_error, common::success,
-    common::tool_error, common::vault_error, k8s_summaries, supernode, vault, workloads,
+    common::tool_error, common::vault_error, hydra, k8s_summaries, supernode, vault, workloads,
     workloads::install, workloads::logs, workloads::metrics, workloads::outputs,
 };
 
@@ -27,6 +27,7 @@ impl ToolRouter {
             .iter()
             .chain(workloads::definitions())
             .chain(vault::definitions())
+            .chain(hydra::definitions())
             .copied()
             .collect();
 
@@ -80,11 +81,14 @@ impl ToolRouter {
             "vault.runtime.metadata.get" => vault_runtime_metadata_get(arguments).await,
             "vault.runtime.write" => vault_runtime_write(arguments, WriteMode::Replace).await,
             "vault.runtime.patch" => vault_runtime_write(arguments, WriteMode::Patch).await,
+            "hydra.keys.generate" => hydra::generate_keys(arguments).await,
             "workloads.list" => workloads_list(arguments, catalog).await,
             "workloads.get" => workloads_get(arguments, catalog).await,
             "workloads.logs.get" => logs::get(arguments).await,
             "workloads.metrics.get" => workloads_metrics_get(arguments, catalog).await,
             "workloads.install" => workloads_install(arguments, catalog).await,
+            "workloads.upgrade" => workloads::upgrade::upgrade(arguments, catalog).await,
+            "workloads.delete" => workloads::delete::delete(arguments, catalog).await,
             "dolos.snapshot.refresh" => workloads::dolos::snapshot_refresh(arguments).await,
             _ => self.not_implemented_result(definition),
         }
@@ -608,7 +612,7 @@ async fn workloads_metrics_get(
         None => {
             return tool_error(
                 "unsupported_metrics_workload",
-                "metrics are only supported for catalog-managed Cardano node relay and Dolos workloads",
+                "metrics are only supported for catalog-managed Cardano node relay, Dolos, and Hydra node workloads",
                 json!({
                     "namespace": namespace,
                     "workload": workload,
@@ -1141,7 +1145,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn non_planning_mutation_tool_execution_remains_explicitly_unimplemented() {
+    async fn workloads_upgrade_dispatches_to_argument_validation() {
         let router = ToolRouter::new();
         let catalog = ExtensionCatalog::embedded();
         let definition = router.get_with_dynamic("workloads.upgrade", &[]).unwrap();
@@ -1154,7 +1158,7 @@ mod tests {
                 .structured_content
                 .as_ref()
                 .and_then(|value| value.get("error")),
-            Some(&Value::String("not_implemented".to_string()))
+            Some(&Value::String("invalid_arguments".to_string()))
         );
     }
 

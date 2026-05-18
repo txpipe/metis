@@ -18,6 +18,9 @@ Use these skills as follows:
 - `cardano-block-producer-verification.md`: explain what can be verified today from the dashboard and what still requires external confirmation.
 - `cardano-block-producer-troubleshooting.md`: diagnose cases where a producer looks healthy locally but recent pool blocks are missing from the canonical external chain view.
 - `dolos-supernode-deployment.md`: deploy Dolos on the supernode cluster through MCP, including storage-class validation, internal relay upstream resolution, and basic Dolos metrics checks.
+- `hydra-node-deployment.md`: deploy a Hydra node through MCP using catalog configuration, `hydra.keys.generate`, runtime secret references, and offline or online mode guidance.
+- `hydra-head-operations.md`: interact directly with the Hydra HTTP/WebSocket API after discovering and port-forwarding workload outputs.
+- `hydra-node-troubleshooting.md`: diagnose Hydra startup, metrics, topology, peer, sync, and stuck-snapshot issues.
 - `workload-output-port-forward.md`: expose a discovered workload output locally with `kubectl port-forward` using the Kubernetes context that maps to the Supernode cluster.
 - `cardano-node-metrics-access.md`: read raw node metrics and the derived Metis metrics payload directly from a running pod via `kubectl exec`.
 - `supernode-dashboard-port-forward.md`: expose the user-facing `supernode-dashboard` locally with `kubectl port-forward`, with Grafana and Prometheus as supporting debug paths.

@@ -9,7 +9,9 @@ async-trait = "0.1"
 axum = "0.8"
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
+ed25519-dalek = "2"
 flate2 = "1"
+getrandom = "0.2"
 k8s-openapi = { version = "0.27.1", features = ["latest"] }
 kube = { version = "3.1.0", features = ["gzip", "oauth", "oidc", "ws"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
@@ -17,6 +19,7 @@ rmcp = { version = "1.6", features = ["server", "transport-streamable-http-serve
 rusqlite = { version = "0.37", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "process", "rt-multi-thread", "signal", "io-util", "time"] }
 tokio-util = "0.7"
