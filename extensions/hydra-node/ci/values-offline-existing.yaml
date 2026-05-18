@@ -8,9 +8,8 @@ ledger:
 
 keys:
   hydraSigning:
-    existingSecret:
-      name: hydra-existing-signing
-      key: hydra.sk
+    vaultStaticSecret:
+      path: runtime/hydra/offline-existing/hydra-signing
   hydraVerification:
     existingConfigMap:
       name: hydra-existing-verification

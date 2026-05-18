@@ -161,6 +161,60 @@ supernodeDashboard:
     requests:
       cpu: 500m
       memory: 400Mi
+
+supernodeMcp:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/txpipe/metis-supernode-mcp
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  auth:
+    mode: trusted
+  logLevel: info
+  bindAddr: 0.0.0.0:8443
+  sessionStore:
+    type: sqlite
+    sqlitePath: /var/lib/supernode-mcp/sessions.sqlite3
+    ttlSeconds: 86400
+  helm:
+    valuesDir: /var/lib/supernode-mcp/helm/values
+    cacheHome: /var/lib/supernode-mcp/helm/cache
+    configHome: /var/lib/supernode-mcp/helm/config
+    dataHome: /var/lib/supernode-mcp/helm/data
+  persistence:
+    size: 10Gi
+    enabled: true
+    existingClaim: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    annotations: {}
+  serviceAccount:
+    create: true
+    name: supernode-mcp
+  service:
+    type: ClusterIP
+    port: 8443
+    nodePort: null
+  vault:
+    addr: ""
+    kvMount: kv
+    tokenSecretRef:
+      name: ""
+      key: token
+    tokenFile: ""
+  podAnnotations: {}
+  tolerations: []
+  nodeSelector: {}
+  affinity: {}
+  resources:
+    limits:
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
 prometheus:
   tolerations: []
   resources:

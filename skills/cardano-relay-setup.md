@@ -2,21 +2,18 @@
 
 ## Goal
 
-Install and validate a Cardano relay workload first. Relay-first is the base path before any block-producer activation.
+Install and validate a Cardano relay workload through the Supernode MCP catalog workflow first. Relay-first is the base path before any block-producer activation.
 
 ## Assumptions
 
-- The cluster is reachable with `kubectl` and `helm`.
+- The Supernode MCP server is available and can reach Kubernetes.
 - `control-plane` is expected to exist, but should still be verified when diagnosing problems.
-- The operator has selected the target chart:
-  - `extensions/cardano-node`
-  - `extensions/apex-fusion`
+- The supported relay install path in MCP is the `cardano-node-relay` catalog entry.
 
 ## Required Inputs
 
 - target namespace
 - target release name
-- target chart path
 - target network
 - storage class, if the default is not correct for the cluster
 - any required tolerations or resource overrides
@@ -28,6 +25,7 @@ Install and validate a Cardano relay workload first. Relay-first is the base pat
 - Open only the ports actually required by the workload and topology.
 - Use hardened SSH and avoid password-based logins on underlying hosts.
 - Validate storage classes before installation.
+- Use MCP catalog validation and typed workload tools instead of raw Helm values.
 
 ## Relay Topology Guidance
 
@@ -58,70 +56,57 @@ For a producer later:
 
 ### Discover Installed Extensions
 
-```bash
-helm list -A -o json
-kubectl get ns
-```
+Use MCP resources and tools first:
+
+- read `supernode://status`
+- read `supernode://extensions/catalog`
+- read `supernode://extensions/catalog/cardano-node-relay`
+- call `extensions.catalog.get` with `extensionId=cardano-node-relay` when you need the structured schema
+- call `workloads.list` to inspect existing installed releases
 
 ### Check Storage Classes
 
-```bash
-kubectl get storageclass
-```
+Use `cluster.storage_classes.list`.
 
-If storage classes are unclear, inspect the likely candidate before install:
-
-```bash
-kubectl describe storageclass <storage-class-name>
-```
+Pick a storage class that the cluster actually supports. Do not invent or assume a storage class name.
 
 ### Check Cluster Scheduling Basics
 
-```bash
-kubectl get nodes
-kubectl get events -A --sort-by=.lastTimestamp
-```
+Use `cluster.events.list` for recent scheduling or provisioning problems. Fall back to direct `kubectl` inspection only when MCP data is not enough for diagnosis.
 
 ## Install Pattern
 
-### Cardano Node
+Use `workloads.install` with `extensionId=cardano-node-relay`.
 
-For non-mainnet networks, set the network magic explicitly when needed.
+Start with a dry run so the MCP server validates the configuration schema and shows the exact Helm plan it would apply.
 
-Example pattern:
+Minimal configuration shape:
 
-```bash
-helm install <release> ./extensions/cardano-node \
-  --namespace <namespace> \
-  --create-namespace \
-  --set node.network=<network> \
-  --set node.networkMagic=<magic> \
-  --set persistence.storageClass=<storage-class>
+```json
+{
+  "extensionId": "cardano-node-relay",
+  "releaseName": "<release>",
+  "namespace": "<namespace>",
+  "dryRun": true,
+  "configuration": {
+    "network": "preview",
+    "namespace": "<namespace>",
+    "storageClass": "<storage-class>"
+  }
+}
 ```
 
-If you want the simple default relay networking path, leave topology at the
-chart default `image-default` until a producer is attached.
+Safe optional fields exposed by the catalog include:
 
-### Apex Fusion
+- `topology`
+- `exposeLoadBalancer`
+- `imageTag`
+- `resources`
+- `pvcSize`
 
-The chart derives built-in testnet network magic automatically for supported networks.
+Do not pass raw Helm values. The MCP workflow rejects them intentionally.
 
-Known built-in values:
-
-- `vector-testnet` -> `1`
-- `prime-testnet` -> `3311`
-
-Example pattern:
-
-```bash
-helm install <release> ./extensions/apex-fusion \
-  --namespace <namespace> \
-  --create-namespace \
-  --set node.network=<network> \
-  --set persistence.storageClass=<storage-class>
-```
-
-Only override `node.networkMagic` when the network is non-standard or the chart default does not apply.
+If you want the simple default relay networking path, leave topology at the catalog default `image-default` until a producer is attached.
 
 ### Relay Topology After A Producer Exists
 
@@ -164,13 +149,11 @@ private path in `localRoots`.
 
 ## Post-Install Validation
 
-Check the namespace:
+Use MCP workload inspection first:
 
-```bash
-kubectl get all -n <namespace>
-kubectl get pvc -n <namespace>
-kubectl get pods -n <namespace>
-```
+- `workloads.get` for the installed release
+- `workloads.logs.get` for bounded relay pod logs
+- `workloads.metrics.get` for typed relay metrics
 
 Healthy relay expectations:
 
@@ -180,6 +163,8 @@ Healthy relay expectations:
 - node metrics are exposed
 - sync is progressing
 - transaction processing is not stuck at zero for long periods on a healthy synced node
+
+If you need lower-level Kubernetes details after the MCP view, then inspect the namespace directly with `kubectl`.
 
 Topology interpretation:
 
@@ -201,8 +186,9 @@ If the dashboard is available, validate:
 - PVC pending forever
 - pod unschedulable because of node taints or resource requests
 - wrong network magic
-- unsupported network value for the selected chart
+- unsupported network value for the catalog entry
 - missing tolerations in constrained clusters
+- raw Helm values supplied instead of extension configuration
 
 ## Escalation Rule
 

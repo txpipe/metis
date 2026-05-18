@@ -1,10 +1,14 @@
 {{- $fullName := include "hydra-node.fullname" . -}}
 {{- $selectorLabels := include "hydra-node.selectorLabels" . -}}
 {{- $serviceAccountName := include "hydra-node.serviceAccountName" . -}}
+{{- $metricsConfigMapName := include "hydra-node.metricsConfigMapName" . -}}
 {{- $protocolConfigName := include "hydra-node.protocolParametersConfigMapName" . -}}
 {{- $initialUtxoConfigName := include "hydra-node.initialUtxoConfigMapName" . -}}
-{{- $hydraSigningSecretName := required "You must provide a Hydra signing key via keys.hydraSigning.value or keys.hydraSigning.existingSecret.name" (include "hydra-node.hydraSigningSecretName" .) -}}
+{{- $hydraSigningSecretName := include "hydra-node.hydraSigningSecretName" . -}}
 {{- $hydraSigningSecretKey := include "hydra-node.hydraSigningSecretKey" . -}}
+{{- if not .Values.keys.hydraSigning.vaultStaticSecret.path }}
+  {{- fail "keys.hydraSigning.vaultStaticSecret.path is required; Hydra signing keys must be sourced from Vault" }}
+{{- end }}
 {{- $hydraVerificationConfigName := include "hydra-node.hydraVerificationConfigMapName" . -}}
 {{- $verificationCount := 0 -}}
 {{- range $item := .Values.keys.hydraVerification.items }}
@@ -25,6 +29,9 @@
 {{- if $cardanoEnabled }}
   {{- $cardanoSigningSecretName = required "Cardano signing key must be provided when keys.cardano.enabled=true" (include "hydra-node.cardanoSigningSecretName" .) }}
   {{- $cardanoSigningSecretKey = include "hydra-node.cardanoSigningSecretKey" . }}
+  {{- if not .Values.keys.cardano.signing.vaultStaticSecret.path }}
+    {{- fail "keys.cardano.signing.vaultStaticSecret.path is required when keys.cardano.enabled=true; Cardano signing keys must be sourced from Vault" }}
+  {{- end }}
   {{- $cardanoVerificationConfigName = include "hydra-node.cardanoVerificationConfigMapName" . }}
   {{- if not $cardanoVerificationConfigName }}
     {{- fail "Cardano verification key must be provided via keys.cardano.verification when keys.cardano.enabled=true" }}
@@ -90,7 +97,8 @@
     {{- if not $initialUtxoConfigName }}
       {{- fail "Offline mode requires ledger.initialUtxo to be configured or provided via existing ConfigMap" }}
     {{- end }}
-    {{- $args = append $args "offline" }}
+    {{- $args = append $args "--offline-head-seed" }}
+    {{- $args = append $args (required "node.offlineHeadSeed must be set when running offline" .Values.node.offlineHeadSeed) }}
     {{- $args = append $args "--initial-utxo" }}
     {{- $args = append $args (printf "%s/%s" $ledgerMount .Values.ledger.initialUtxo.filename) }}
     {{- $args = append $args "--ledger-protocol-parameters" }}
@@ -98,6 +106,10 @@
   {{- else }}
     {{- $args = append $args "--node-id" }}
     {{- $args = append $args .Values.node.nodeId }}
+    {{- with .Values.node.network }}
+      {{- $args = append $args "--network" }}
+      {{- $args = append $args . }}
+    {{- end }}
     {{- $args = append $args "--hydra-scripts-tx-id" }}
     {{- $args = append $args (required "node.hydraScriptsTxId must be set when running online" .Values.node.hydraScriptsTxId) }}
     {{- $args = append $args "--cardano-signing-key" }}
@@ -106,6 +118,22 @@
     {{- $args = append $args (printf "%s/%s" $keysMount (default "cardano.vk" .Values.keys.cardano.verification.filename)) }}
     {{- $args = append $args "--node-socket" }}
     {{- $args = append $args $cardanoNodeSocketPath }}
+    {{- with .Values.node.startChainFrom }}
+      {{- $args = append $args "--start-chain-from" }}
+      {{- $args = append $args . }}
+    {{- end }}
+  {{- end }}
+  {{- with .Values.node.contestationPeriod }}
+    {{- $args = append $args "--contestation-period" }}
+    {{- $args = append $args . }}
+  {{- end }}
+  {{- with .Values.node.depositPeriod }}
+    {{- $args = append $args "--deposit-period" }}
+    {{- $args = append $args . }}
+  {{- end }}
+  {{- with .Values.node.unsyncedPeriod }}
+    {{- $args = append $args "--unsynced-period" }}
+    {{- $args = append $args (printf "%v" .) }}
   {{- end }}
   {{- $args = append $args "--hydra-signing-key" }}
   {{- $args = append $args $hydraSigningPath }}
@@ -115,10 +143,18 @@
       {{- $args = append $args (printf "%s/%s" $keysMount $item.filename) }}
     {{- end }}
   {{- end }}
-  {{- $args = append $args "--host" }}
-  {{- $args = append $args (printf "%v" .Values.node.host) }}
-  {{- $args = append $args "--port" }}
-  {{- $args = append $args (printf "%v" .Values.service.p2pPort) }}
+  {{- $listenHost := default .Values.node.host .Values.node.listenHost }}
+  {{- $args = append $args "--listen" }}
+  {{- $args = append $args (printf "%v:%v" $listenHost .Values.service.p2pPort) }}
+  {{- range $peer := .Values.node.peers }}
+    {{- if kindIs "string" $peer }}
+      {{- $args = append $args "--peer" }}
+      {{- $args = append $args $peer }}
+    {{- else if and $peer.host $peer.port }}
+      {{- $args = append $args "--peer" }}
+      {{- $args = append $args (printf "%v:%v" $peer.host $peer.port) }}
+    {{- end }}
+  {{- end }}
   {{- $args = append $args "--api-host" }}
   {{- $args = append $args (printf "%v" .Values.node.apiHost) }}
   {{- $args = append $args "--api-port" }}
@@ -168,6 +204,7 @@ spec:
       {{- $_ := set $annotations $key $val }}
       {{- end }}
       {{- end }}
+      {{- $_ := set $annotations "checksum/metrics" (include (print $.Template.BasePath "/configmap-metrics.yaml") . | sha256sum) }}
       {{- if gt (len $annotations) 0 }}
       annotations:
         {{- toYaml $annotations | nindent 8 }}
@@ -238,6 +275,10 @@ spec:
             - name: ledger-config
               mountPath: {{ .Values.ledger.mountPath | default "/etc/hydra" }}
             {{- end }}
+            - name: metrics-scripts
+              mountPath: /opt/metis/bin/metrics.sh
+              subPath: metrics.sh
+              readOnly: true
             {{- with .Values.node.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -340,6 +381,10 @@ spec:
                       path: {{ .Values.ledger.initialUtxo.filename }}
               {{- end }}
         {{- end }}
+        - name: metrics-scripts
+          configMap:
+            name: {{ $metricsConfigMapName }}
+            defaultMode: 0555
         {{- if and (not .Values.persistence.enabled) (not .Values.persistence.existingClaim) }}
         - name: data
           emptyDir: {}

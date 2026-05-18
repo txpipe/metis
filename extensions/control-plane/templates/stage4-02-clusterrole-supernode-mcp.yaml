@@ -1,0 +1,40 @@
+{{- if .Values.supernodeMcp.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: supernode-mcp-readonly
+  labels:
+    app.kubernetes.io/name: supernode-mcp
+    app.kubernetes.io/component: mcp
+rules:
+- apiGroups: [""]
+  resources: ["namespaces", "pods", "services", "endpoints", "persistentvolumeclaims", "configmaps", "events"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["create"]
+- apiGroups: [""]
+  resources: ["serviceaccounts", "services", "persistentvolumeclaims", "configmaps"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get"]
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create", "get"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list"]
+- apiGroups: ["monitoring.coreos.com"]
+  resources: ["podmonitors"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+- apiGroups: ["secrets.hashicorp.com"]
+  resources: ["vaultstaticsecrets"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+{{- end }}

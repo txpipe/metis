@@ -10,23 +10,31 @@ head suitable for rapid experiments.
 - StatefulSet with persistent storage for the Hydra persistence directory.
 - Optional ConfigMaps for the offline `protocol-parameters.json` and
   `utxo.json` payloads.
-- Secret/ConfigMap integration points for supplying Hydra and Cardano key
-  material. The chart never generates keys for you.
+- VaultStaticSecret integration for Hydra and Cardano signing key material.
+  The chart never generates keys for you and does not accept direct Kubernetes
+  Secret or inline signing-key sources.
 - Separate Services for identity (headless) and access (ClusterIP/NodePort/LoadBalancer).
+- Mandatory PodMonitor and a Metis `/opt/metis/bin/metrics.sh` script for
+  Prometheus and MCP metrics collection.
 - Tunable probes, resources, tolerations, and topology settings.
 
 ## Prerequisites
 
-The chart expects you to generate and manage keys **outside** of Helm:
+The chart expects you to generate and manage keys **outside** of Helm. With MCP,
+use `hydra.keys.generate` to replicate `hydra-node gen-hydra-key` and write both
+`hydra.sk` and `hydra.vk` to a `runtime/...` Vault path. The tool returns only
+the public verification key payload for chart configuration.
+
+Required key material:
 
 - A Hydra signing key (`hydra.sk`) and at least one Hydra verification key file.
   Each verification key listed under `keys.hydraVerification.items` is passed to
   `--hydra-verification-key`. Include the node's own verification key together
   with any peers you intend to operate with.
-- For offline heads you must also provide the ledger genesis snapshots:
-  `protocol-parameters.json` and an initial `utxo.json`. Inline defaults are
-  included to match the Hydra quick-start docs, but override them with your own
-  content before going live.
+- For offline heads you must also provide an `node.offlineHeadSeed`, ledger
+  protocol parameters, and an initial `utxo.json`. Inline defaults are included
+  to match quick experiments, but override them with your own content before
+  sharing a head with peers.
 - For online heads set `keys.cardano.enabled=true` and supply a Cardano signing
   key, verification key, remote node address, and a `node.hydraScriptsTxId`
   value. The chart can launch a `socat` sidecar via
@@ -34,12 +42,14 @@ The chart expects you to generate and manage keys **outside** of Helm:
   or you can disable the proxy and mount a socket path manually using
   `node.extraVolumes` / `node.extraVolumeMounts`.
 
-Create the required Kubernetes objects ahead of time or let the chart create
-them from inline values:
+Write the required signing key material into Vault ahead of time and let the
+chart render VaultStaticSecret resources that sync Kubernetes Secret
+destinations for the pod. If you are not using MCP key generation, the equivalent
+manual workflow is:
 
 ```shell
-kubectl create secret generic hydra-signing \
-  --from-file=hydra.sk=/path/to/hydra.sk
+vault kv put kv/runtime/hydra/demo/hydra-signing \
+  hydra.sk=@/path/to/hydra.sk
 
 kubectl create configmap hydra-verification \
   --from-file=hydra.vk=/path/to/hydra.vk
@@ -49,16 +59,16 @@ kubectl create configmap hydra-verification \
 
 ```shell
 helm install hydra-node ./hydra-node \
-  --set keys.hydraSigning.existingSecret.name=hydra-signing \
-  --set keys.hydraSigning.existingSecret.key=hydra.sk \
+  --set keys.hydraSigning.vaultStaticSecret.path=runtime/hydra/demo/hydra-signing \
   --set keys.hydraVerification.existingConfigMap.name=hydra-verification \
   --set keys.hydraVerification.items[0].filename=hydra.vk
 ```
 
 Offline mode is enabled by default (`node.offlineMode=true`) and uses the
-projection of the ledger ConfigMaps mounted at `/etc/hydra`. Adjust the
-inline JSON documents under `ledger.protocolParameters.data` and
-`ledger.initialUtxo.data` or reference pre-existing ConfigMaps.
+projection of the ledger ConfigMaps mounted at `/etc/hydra`. The default
+offline head seed is `0001`. Adjust `node.offlineHeadSeed`, the inline JSON
+documents under `ledger.protocolParameters.data` and `ledger.initialUtxo.data`,
+or reference pre-existing ConfigMaps.
 
 ## Local Testing With kind
 
@@ -74,14 +84,15 @@ have a Hydra key pair available on disk.
    kubectl config use-context kind-hydra
    ```
 
-2. Prepare a namespace and populate it with the Hydra signing key and at least
-   one verification key. Replace the file paths with your own key material (you
-   can get test keys on the [Hydra demo](https://github.com/cardano-scaling/hydra/tree/master/demo)):
+2. Prepare a namespace and populate Vault with the Hydra signing key. Also
+   create at least one public verification key ConfigMap. Replace the file paths
+   with your own key material (you can get test keys on the
+   [Hydra demo](https://github.com/cardano-scaling/hydra/tree/master/demo)):
 
    ```shell
    kubectl create namespace hydra
-   kubectl -n hydra create secret generic hydra-signing \
-     --from-file=hydra.sk=/path/to/hydra.sk
+   vault kv put kv/runtime/hydra/kind/hydra-signing \
+     hydra.sk=@/path/to/hydra.sk
    kubectl -n hydra create configmap hydra-verification \
      --from-file=hydra.vk=/path/to/hydra.vk
    ```
@@ -104,13 +115,12 @@ have a Hydra key pair available on disk.
    and key references together:
 
    ```shell
-   helm install hydra ./hydra-node \
-     --namespace hydra \
-     --values hydra-kind-values.yaml \
-     --set keys.hydraSigning.existingSecret.name=hydra-signing \
-     --set keys.hydraSigning.existingSecret.key=hydra.sk \
-     --set keys.hydraVerification.existingConfigMap.name=hydra-verification \
-     --set keys.hydraVerification.items[0].filename=hydra.vk
+helm install hydra ./hydra-node \
+      --namespace hydra \
+      --values hydra-kind-values.yaml \
+      --set keys.hydraSigning.vaultStaticSecret.path=runtime/hydra/kind/hydra-signing \
+      --set keys.hydraVerification.existingConfigMap.name=hydra-verification \
+      --set keys.hydraVerification.items[0].filename=hydra.vk
    ```
 
 5. Wait for the StatefulSet to settle and inspect the pod logs to confirm the
@@ -158,9 +168,8 @@ keys:
     enabled: true
     socketPath: /ipc/node.socket
     signing:
-      existingSecret:
-        name: cardano-admin
-        key: cardano.sk
+      vaultStaticSecret:
+        path: runtime/hydra/demo/cardano-signing
       filename: cardano.sk
     verification:
       existingConfigMap:
@@ -173,6 +182,58 @@ Unix socket at `/ipc/node.socket` and forwards data to the specified remote node
 address. If you already mount a socket into the pod (for example via a shared
 PVC), disable the proxy (`node.cardanoSocketProxy.enabled=false`) and use
 `node.extraVolumes` / `node.extraVolumeMounts` instead.
+
+## Metrics
+
+The chart always renders a `PodMonitor` for the `monitoring` port and mounts a
+Metis metrics script at `/opt/metis/bin/metrics.sh`. The script reads Hydra's
+Prometheus endpoint plus selected HTTP API endpoints and returns a compact JSON
+payload for MCP and dashboard consumers.
+
+The derived payload intentionally summarizes snapshot UTxO instead of returning
+full UTxO entries:
+
+```json
+{
+  "type": "hydra-node",
+  "mode": "offline",
+  "headStatus": null,
+  "headId": null,
+  "hydraNodeVersion": null,
+  "currentSlot": null,
+  "chainSyncedStatus": null,
+  "peersConnected": null,
+  "pendingDeposits": null,
+  "snapshotNumber": null,
+  "snapshotVersion": null,
+  "confirmedUtxoCount": null,
+  "confirmedLovelace": null,
+  "lastSeenSnapshotTag": null,
+  "requestedTx": null,
+  "confirmedTx": null,
+  "inputs": null,
+  "txConfirmationTimeMsCount": null,
+  "txConfirmationTimeMsSum": null,
+  "txConfirmationTimeMsAvg": null,
+  "errors": []
+}
+```
+
+Raw Hydra metrics used by the script include:
+
+- `hydra_head_confirmed_tx`
+- `hydra_head_inputs`
+- `hydra_head_peers_connected`
+- `hydra_head_requested_tx`
+- `hydra_head_tx_confirmation_time_ms_*`
+
+## MCP And Secret Custody
+
+Signing keys must be passed as runtime Vault references, not raw Helm values and
+not pre-existing Kubernetes Secrets. Use `vault.runtime.write` to stage runtime
+material under `kv/runtime/...`, then configure the extension with a
+`vaultStaticSecret` reference. MCP should never read or echo Hydra or Cardano
+signing key values.
 
 ## Testing
 
@@ -195,17 +256,19 @@ helm template hydra-vault . -f ci/values-vault-static-secret.yaml > /tmp/hydra-v
 
 | Value | Description | Default |
 |-------|-------------|---------|
-| `node.offlineMode` | Run `hydra-node offline` with pre-seeded ledger state | `true` |
+| `node.offlineMode` | Run without Cardano L1 connectivity using pre-seeded ledger state | `true` |
+| `node.offlineHeadSeed` | Hexadecimal offline head seed shared by offline participants | `0001` |
+| `node.peers` | Static peer endpoints passed as `--peer` values | `[]` |
 | `keys.vaultAuth.ref` | Shared VaultAuth reference used by chart-managed VaultStaticSecret resources | `control-plane/default` |
-| `keys.hydraSigning.*` | Source of the Hydra signing key (`hydra.sk`) | empty |
-| `keys.hydraSigning.vaultStaticSecret.*` | Optional VaultStaticSecret that syncs the Hydra signing key into Kubernetes | disabled |
+| `keys.hydraSigning.vaultStaticSecret.*` | Required VaultStaticSecret that syncs the Hydra signing key into Kubernetes | path empty |
 | `keys.hydraVerification.items` | Filenames (and optional inline payloads) for verification keys | `[]` |
 | `ledger.protocolParameters` | Provides `protocol-parameters.json` for offline heads | inline demo JSON |
 | `ledger.initialUtxo` | Provides `utxo.json` for offline heads | inline demo JSON |
 | `keys.cardano.enabled` | Switch on online mode support (requires additional settings) | `false` |
-| `keys.cardano.signing.vaultStaticSecret.*` | Optional VaultStaticSecret that syncs the Cardano signing key into Kubernetes | disabled |
+| `keys.cardano.signing.vaultStaticSecret.*` | Required VaultStaticSecret that syncs the Cardano signing key into Kubernetes when online mode is enabled | path empty |
 | `node.cardanoSocketProxy.enabled` | Launch a `socat` sidecar that exposes a remote Cardano node as a Unix socket | `false` |
 | `service.apiPort` | WebSocket API port exposed on the Service | `4001` |
+| `service.monitoringPort` | Hydra Prometheus metrics port scraped by the mandatory PodMonitor | `6001` |
 | `persistence.size` | Persistent volume claim size for the Hydra state | `5Gi` |
 
 Consult `values.yaml` for the full matrix of options and tailoring knobs.

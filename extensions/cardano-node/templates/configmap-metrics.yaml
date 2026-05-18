@@ -456,6 +456,7 @@ data:
         (if $kesExpirationSecondsValue != null then $kesExpirationSecondsValue elif $kesRemainingValue != null and $slotsPerKESPeriodValue != null and $slotLengthValue != null then (($kesRemainingValue * $slotsPerKESPeriodValue * $slotLengthValue) | floor) else null end) as $resolvedKesExpirationSeconds |
         {
           type: "cardano-node",
+          role: "relay",
           blockHeight: nullable_number($blockHeight),
           epoch: nullable_number($epoch),
           slotNum: $slotNumValue,
