@@ -55,6 +55,3 @@ spec:
       {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) .Values.service.trpNodePort }}
       nodePort: {{ .Values.service.trpNodePort }}
       {{- end }}
-    {{- with .Values.service.extraPorts }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}

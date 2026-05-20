@@ -280,7 +280,7 @@ mod tests {
         assert_eq!(release.namespace, "cardano");
         assert_eq!(release.revision, 2);
         assert_eq!(release.status.as_deref(), Some("deployed"));
-        assert_eq!(release.chart.name.as_deref(), Some("cardano-node"));
+        assert_eq!(release.chart.name.as_deref(), Some("cardano-relay"));
         assert_eq!(release.chart.version.as_deref(), Some("0.1.0-rc1"));
         assert_eq!(release.app_version.as_deref(), Some("10.7.1"));
         assert_eq!(release.config, Some(json!({ "mustNotBeReturned": true })));
@@ -377,7 +377,7 @@ mod tests {
             },
             "chart": {
                 "metadata": {
-                    "name": if release_name == "control-plane" { "control-plane" } else { "cardano-node" },
+                    "name": if release_name == "control-plane" { "control-plane" } else { "cardano-relay" },
                     "version": "0.1.0-rc1",
                     "appVersion": "10.7.1"
                 }

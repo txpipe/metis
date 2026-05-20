@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Hydra Node Helm Values",
+  "description": "Supernode-opinionated Hydra node chart values. This schema is the public configuration interface for LLMs and MCP clients; pass values in this shape directly to Helm. Do not use arbitrary manual volume mounts for Cardano sockets; configure node.cardanoSocketProxy for online mode.",
+  "type": "object",
+  "required": ["persistence", "keys"],
+  "additionalProperties": false,
+  "properties": {
+    "nameOverride": {
+      "type": "string",
+      "description": "Advanced, usually not modified. Overrides the Kubernetes app name used by the chart.",
+      "default": "",
+      "x-supernodeCategory": "advanced"
+    },
+    "fullnameOverride": {
+      "type": "string",
+      "description": "Advanced, usually not modified. Overrides the full Kubernetes resource name. Leave empty so the release name controls resource names.",
+      "default": "",
+      "x-supernodeCategory": "advanced"
+    },
+    "displayName": {
+      "type": "string",
+      "description": "Optional. Human-readable workload name shown by Supernode tooling. MCP normally sets this from releaseName.",
+      "default": "",
+      "x-supernodeCategory": "optional"
+    },
+    "image": {
+      "type": "object",
+      "description": "Optional. Hydra node container image settings. Most installs only change image.tag when pinning a specific Hydra release.",
+      "x-supernodeCategory": "optional",
+      "additionalProperties": false,
+      "properties": {
+        "repository": { "type": "string", "description": "Advanced, usually not modified. Container image repository for hydra-node.", "default": "ghcr.io/cardano-scaling/hydra-node" },
+        "tag": { "type": "string", "description": "Optional. Hydra node image tag to deploy.", "default": "2.1.0" }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "description": "Optional. Kubernetes CPU and memory requests and limits for the Hydra node container. Defaults reserve 500m CPU and 1Gi memory, with a 2 CPU limit.",
+      "x-supernodeCategory": "optional",
+      "additionalProperties": false,
+      "properties": {
+        "requests": { "$ref": "#/definitions/resourceList" },
+        "limits": { "$ref": "#/definitions/resourceList" }
+      }
+    },
+    "service": {
+      "type": "object",
+      "description": "Optional. Kubernetes Service settings for Hydra API, peer, and monitoring ports. Keep ClusterIP for in-cluster access; use LoadBalancer only when external clients or peers need direct access.",
+      "x-supernodeCategory": "optional",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["ClusterIP", "NodePort", "LoadBalancer"], "default": "ClusterIP" },
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "labels": { "$ref": "#/definitions/stringMap" },
+        "clusterIP": { "type": "string", "default": "" },
+        "loadBalancerIP": { "type": "string", "default": "" },
+        "externalTrafficPolicy": { "type": "string", "enum": ["", "Cluster", "Local"], "default": "" },
+        "apiPort": { "type": "integer", "description": "Advanced, usually not modified. Hydra HTTP/WebSocket API Service and container port.", "default": 4001 },
+        "apiNodePort": { "type": ["integer", "null"], "default": null },
+        "p2pPort": { "type": "integer", "description": "Advanced, usually not modified. Hydra peer networking Service and container port.", "default": 5001 },
+        "p2pNodePort": { "type": ["integer", "null"], "default": null },
+        "monitoringPort": { "type": "integer", "description": "Advanced, usually not modified. Hydra Prometheus metrics Service and container port.", "default": 6001 },
+        "monitoringNodePort": { "type": ["integer", "null"], "default": null }
+      }
+    },
+    "persistence": {
+      "type": "object",
+      "description": "Required. Persistent storage for the Hydra persistence directory. Persistence is always enabled for this chart.",
+      "x-supernodeCategory": "required",
+      "required": ["storageClass"],
+      "additionalProperties": false,
+      "properties": {
+        "storageClass": { "type": "string", "description": "Required. Kubernetes StorageClass used for the Hydra state PVC.", "minLength": 1, "x-supernodeCategory": "required" },
+        "accessModes": { "type": "array", "description": "Advanced, usually not modified. PVC access modes.", "items": { "type": "string" }, "default": ["ReadWriteOnce"] },
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "size": { "type": "string", "description": "Optional. Requested Hydra persistence PVC size.", "pattern": "^[0-9]+(Mi|Gi|Ti)$", "default": "5Gi" },
+        "existingClaim": { "type": "string", "description": "Advanced, usually not modified. Existing PVC name to mount instead of creating a StatefulSet volumeClaimTemplate.", "default": "" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "description": "Optional. Hydra runtime settings. Offline mode is the default for local experiments. For online mode set offlineMode=false, enable keys.cardano, set hydraScriptsTxId, and configure node.cardanoSocketProxy to reach a Cardano relay. MCP does not auto-discover Hydra peers or Cardano upstreams; use workloads.list to inspect candidate workloads.",
+      "x-supernodeCategory": "optional",
+      "additionalProperties": false,
+      "properties": {
+        "replicas": { "type": "integer", "description": "Advanced, usually not modified. Number of Hydra node pods.", "minimum": 1, "default": 1 },
+        "offlineMode": { "type": "boolean", "description": "Optional. true runs without Cardano L1 connectivity using offline ledger state; false runs online against Cardano.", "default": true },
+        "offlineHeadSeed": { "type": "string", "description": "Required for offline mode. Hexadecimal offline head seed shared by offline participants.", "pattern": "^[0-9a-fA-F]+$", "default": "0001" },
+        "quiet": { "type": "boolean", "description": "Optional. Pass --quiet to hydra-node.", "default": true },
+        "nodeId": { "type": "string", "description": "Required for online mode. Unique Hydra node identifier; each participant must use a distinct node ID.", "default": "hydra-node-1" },
+        "network": { "type": "string", "description": "Optional. Cardano network passed to hydra-node in online mode.", "enum": ["", "mainnet", "preprod", "preview"], "default": "" },
+        "contestationPeriod": { "type": "string", "description": "Optional. Hydra contestation period, for example 43200s. Mainnet should use at least 12 hours.", "default": "" },
+        "depositPeriod": { "type": "string", "description": "Optional. Deposit period used for incremental commits, for example 7200s.", "default": "" },
+        "unsyncedPeriod": { "type": ["integer", "null"], "description": "Optional. Seconds after which the node considers itself out of sync with L1.", "minimum": 1, "default": null },
+        "startChainFrom": { "type": "string", "description": "Optional. Online mode chain point for starting chain synchronization.", "default": "" },
+        "hydraScriptsTxId": { "type": "string", "description": "Required for online mode. Transaction ID of the deployed Hydra scripts.", "default": "" },
+        "apiHost": { "type": "string", "description": "Advanced, usually not modified. API listen host.", "default": "0.0.0.0" },
+        "listenHost": { "type": "string", "description": "Advanced, usually not modified. Peer listener host.", "default": "0.0.0.0" },
+        "host": { "type": "string", "description": "Advanced, usually not modified. Fallback listen host.", "default": "0.0.0.0" },
+        "peers": { "type": "array", "description": "Optional. Static Hydra peer endpoints. Use workloads.list to inspect deployed Hydra outputs, then provide peers as host:port strings or host/port objects.", "items": { "oneOf": [{ "type": "string" }, { "$ref": "#/definitions/peer" }] }, "default": [] },
+        "persistenceSubPath": { "type": "string", "description": "Advanced, usually not modified. SubPath within the Hydra data PVC.", "default": "" },
+        "cardanoSocketProxy": { "$ref": "#/definitions/cardanoSocketProxy" }
+      }
+    },
+    "ledger": {
+      "type": "object",
+      "description": "Optional. Offline ledger configuration. Offline mode needs protocol parameters and initial UTxO from inline data or existing ConfigMaps.",
+      "x-supernodeCategory": "optional",
+      "additionalProperties": false,
+      "properties": {
+        "mountPath": { "type": "string", "description": "Advanced, usually not modified. Mount path for offline ledger ConfigMaps.", "default": "/etc/hydra" },
+        "protocolParameters": { "$ref": "#/definitions/configPayload", "description": "Offline ledger protocol parameters JSON or existing ConfigMap reference." },
+        "initialUtxo": { "$ref": "#/definitions/configPayload", "description": "Offline initial UTxO JSON or existing ConfigMap reference." }
+      }
+    },
+    "keys": {
+      "type": "object",
+      "description": "Required. Hydra and optional Cardano key references. Signing keys must come from VaultStaticSecret runtime paths; public verification keys may be inline or in ConfigMaps.",
+      "x-supernodeCategory": "required",
+      "required": ["hydraSigning", "hydraVerification"],
+      "additionalProperties": false,
+      "properties": {
+        "mountPath": { "type": "string", "description": "Advanced, usually not modified. Mount path for projected key material.", "default": "/etc/keys" },
+        "vaultAuth": { "$ref": "#/definitions/vaultAuth" },
+        "hydraSigning": { "$ref": "#/definitions/hydraSigning" },
+        "hydraVerification": { "$ref": "#/definitions/hydraVerification" },
+        "cardano": { "$ref": "#/definitions/cardanoKeys" }
+      }
+    },
+    "nodeSelector": { "type": "object", "description": "Advanced, usually not modified. Kubernetes nodeSelector for Hydra scheduling.", "additionalProperties": { "type": "string" }, "default": {}, "x-supernodeCategory": "advanced" },
+    "tolerations": { "type": "array", "description": "Advanced, usually not modified. Kubernetes tolerations for Hydra scheduling.", "items": { "type": "object", "additionalProperties": true }, "default": [], "x-supernodeCategory": "advanced" },
+    "affinity": { "type": "object", "description": "Advanced, usually not modified. Kubernetes affinity rules for Hydra pod placement.", "additionalProperties": true, "default": {}, "x-supernodeCategory": "advanced" },
+    "topologySpreadConstraints": { "type": "array", "description": "Advanced, usually not modified. Kubernetes topology spread constraints.", "items": { "type": "object", "additionalProperties": true }, "default": [], "x-supernodeCategory": "advanced" }
+  },
+  "definitions": {
+    "resourceList": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": { "type": "string", "description": "Kubernetes CPU quantity." },
+        "memory": { "type": "string", "description": "Kubernetes memory quantity." }
+      }
+    },
+    "stringMap": { "type": "object", "additionalProperties": { "type": "string" } },
+    "peer": {
+      "type": "object",
+      "required": ["host", "port"],
+      "additionalProperties": false,
+      "properties": {
+        "host": { "type": "string", "minLength": 1 },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    },
+    "configPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": { "type": "boolean", "description": "Create a chart-managed ConfigMap when name is empty.", "default": true },
+        "name": { "type": "string", "description": "Existing ConfigMap name. Set create=false and provide this to reuse pre-created ledger data.", "default": "" },
+        "filename": { "type": "string", "description": "File name mounted into ledger.mountPath.", "default": "protocol-parameters.json" },
+        "data": { "type": "string", "description": "Inline JSON payload used when the chart creates the ConfigMap." }
+      }
+    },
+    "vaultAuth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ref": { "type": "string", "description": "VaultAuth reference used by chart-managed VaultStaticSecret resources.", "default": "control-plane/default" },
+        "serviceAccount": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "create": { "type": "boolean", "description": "Create the service account referenced by VaultAuth.", "default": true },
+            "name": { "type": "string", "description": "ServiceAccount name expected by the VaultAuth resource.", "default": "vault-auth" }
+          }
+        }
+      }
+    },
+    "vaultStaticSecret": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mount": { "type": "string", "description": "Vault KV v2 mount name.", "default": "kv" },
+        "path": { "type": "string", "description": "Runtime Vault path without kv/data prefix, for example runtime/hydra/demo/hydra-signing." },
+        "refreshAfter": { "type": "string", "description": "VaultStaticSecret refresh interval.", "default": "1m" }
+      }
+    },
+    "hydraSigning": {
+      "type": "object",
+      "required": ["vaultStaticSecret"],
+      "additionalProperties": false,
+      "properties": {
+        "filename": { "type": "string", "description": "Secret key and mounted filename for this node's Hydra signing key.", "default": "hydra.sk" },
+        "vaultStaticSecret": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path"],
+          "properties": {
+            "mount": { "type": "string", "description": "Vault KV v2 mount name.", "default": "kv" },
+            "path": { "type": "string", "description": "Required. Runtime Vault path without kv/data prefix, for example runtime/hydra/demo/hydra-signing.", "minLength": 1 },
+            "refreshAfter": { "type": "string", "description": "VaultStaticSecret refresh interval.", "default": "1m" }
+          }
+        }
+      }
+    },
+    "hydraVerification": {
+      "type": "object",
+      "required": ["items"],
+      "additionalProperties": false,
+      "properties": {
+        "existingConfigMap": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "name": { "type": "string", "description": "Existing ConfigMap containing public Hydra verification key files.", "default": "" } }
+        },
+        "items": { "type": "array", "description": "Required. Hydra verification key files for all parties, including this node. Include value for chart-created ConfigMaps or filename only when using existingConfigMap.name.", "minItems": 1, "items": { "$ref": "#/definitions/verificationItem" } }
+      }
+    },
+    "verificationItem": {
+      "type": "object",
+      "required": ["filename"],
+      "additionalProperties": false,
+      "properties": {
+        "filename": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "description": "Public verification key payload. This is not secret material." }
+      }
+    },
+    "cardanoKeys": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "description": "Set true for online Hydra mode. When true, also provide Cardano signing and verification keys and socket access.", "default": false },
+        "socketPath": { "type": "string", "description": "Cardano node socket path used by hydra-node. With node.cardanoSocketProxy enabled, the proxy creates this socket inside the pod.", "default": "/ipc/node.socket" },
+        "signing": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "filename": { "type": "string", "description": "Secret key and mounted filename for the Cardano signing key.", "default": "cardano.sk" },
+            "vaultStaticSecret": { "$ref": "#/definitions/vaultStaticSecret" }
+          }
+        },
+        "verification": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "filename": { "type": "string", "description": "Mounted filename for the public Cardano verification key.", "default": "cardano.vk" },
+            "existingConfigMap": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": { "type": "string", "description": "Existing ConfigMap containing the Cardano verification key.", "default": "" },
+                "key": { "type": "string", "description": "Reserved for compatibility; the chart mounts the ConfigMap and uses filename for the mounted file name.", "default": "" }
+              }
+            },
+            "value": { "type": "string", "description": "Public Cardano verification key payload. This is not secret material." }
+          }
+        }
+      }
+    },
+    "cardanoSocketProxy": {
+      "type": "object",
+      "description": "Online mode socket proxy. Enable this to project a remote Cardano node's TCP endpoint into the Hydra pod as a Unix socket. MCP does not auto-select upstreams; use workloads.list to inspect Cardano relay outputs and set targetHost/targetPort explicitly.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "description": "Set true for online mode when the Cardano socket is reached through a remote relay TCP endpoint.", "default": false },
+        "socketPath": { "type": "string", "description": "Unix socket path created by the proxy inside the Hydra pod. Leave empty to use keys.cardano.socketPath.", "default": "" },
+        "listenOptions": { "type": "string", "description": "Advanced, usually not modified. socat UNIX-LISTEN options.", "default": "reuseaddr,fork,unlink-early" },
+        "targetScheme": { "type": "string", "description": "Advanced, usually not modified. socat target scheme for the upstream Cardano relay.", "default": "OPENSSL" },
+        "targetOptions": { "type": "string", "description": "Advanced, usually not modified. socat target options, for example verify=0 for test relays.", "default": "verify=0" },
+        "targetHost": { "type": "string", "description": "Required when enabled. Cardano upstream relay host. Use workloads.list to find same-network relay service endpoints.", "default": "" },
+        "targetPort": { "type": "integer", "description": "Required when enabled. Cardano upstream relay port, usually 3000 for node-to-node TCP endpoints.", "minimum": 0, "maximum": 65535, "default": 0 },
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repository": { "type": "string", "description": "Advanced, usually not modified. Container image repository for the socat proxy sidecar.", "default": "alpine/socat" },
+            "tag": { "type": "string", "description": "Advanced, usually not modified. Container image tag for the socat proxy sidecar.", "default": "1.7.4.4-r0" }
+          }
+        },
+        "resources": { "type": "object", "description": "Advanced, usually not modified. Kubernetes resources for the socat proxy sidecar.", "additionalProperties": true, "default": {} }
+      }
+    }
+  }
+}

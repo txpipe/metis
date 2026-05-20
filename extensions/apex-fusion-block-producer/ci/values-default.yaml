@@ -1,0 +1,13 @@
+persistence:
+  storageClass: standard
+
+relayPersistence:
+  storageClass: standard
+
+node:
+  network: vector-testnet
+
+blockProducer:
+  poolId: pool1exampleexampleexampleexampleexampleexampleexampleexample
+  vaultStaticSecret:
+    path: runtime/apex-fusion/example/block-producer

@@ -1,0 +1,15 @@
+{{- if not (has .Values.node.network (list "vector-testnet" "prime-testnet" "prime-mainnet")) }}
+{{- fail "node.network must be one of vector-testnet, prime-testnet, or prime-mainnet" }}
+{{- end }}
+{{- if not .Values.vaultAuth.ref }}
+{{- fail "vaultAuth.ref is required" }}
+{{- end }}
+{{- if not .Values.blockProducer.vaultStaticSecret.mount }}
+{{- fail "blockProducer.vaultStaticSecret.mount is required" }}
+{{- end }}
+{{- if not .Values.blockProducer.vaultStaticSecret.path }}
+{{- fail "blockProducer.vaultStaticSecret.path is required" }}
+{{- end }}
+{{- if and (eq (int .Values.relays.count) 0) (not .Values.relays.trusted) }}
+{{- fail "relays.trusted is required when relays.count=0" }}
+{{- end }}

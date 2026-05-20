@@ -1,0 +1,58 @@
+nameOverride: ""
+fullnameOverride: ""
+displayName: ""
+
+image:
+  repository: ghcr.io/blinklabs-io/cardano-node
+  tag: "11.0.1"
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 4Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+service:
+  type: ClusterIP
+  annotations: {}
+  labels: {}
+  clusterIP: ""
+  loadBalancerIP: ""
+  externalTrafficPolicy: ""
+  n2nPort: 3000
+  n2nNodePort: null
+  n2cPort: 3307
+  n2cNodePort: null
+  metricsPort: 12798
+  metricsNodePort: null
+
+persistence:
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  annotations: {}
+  size: 80Gi
+  existingClaim: ""
+
+node:
+  replicas: 1
+  network: preview
+  n2nPort: 3000
+  metricsPort: 12798
+  socketPath: /ipc/node.socket
+  topology:
+    mode: image-default
+    relayTargets: []
+    localRoots: []
+    publicRoots: []
+    useLedgerAfterSlot: 0
+
+proxy:
+  n2cPort: 3307
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []

@@ -1,0 +1,196 @@
+{{- $fullName := include "apex-fusion.fullname" . -}}
+{{- $proxyChecksum := include (print $.Template.BasePath "/configmap-proxy.yaml") . | sha256sum -}}
+{{- $topologyChecksum := include (print $.Template.BasePath "/configmap-topology.yaml") . | sha256sum -}}
+{{- $metricsConfigMapName := include "apex-fusion.metricsConfigMapName" . -}}
+{{- $networkMagic := include "apex-fusion.networkMagic" . -}}
+{{- $shelleyTransitionEpoch := include "apex-fusion.shelleyTransitionEpoch" . -}}
+{{- $blockProducer := .Values.blockProducer | default dict -}}
+{{- $blockProducerRuntimeEnabled := not (default false $blockProducer.debug) -}}
+{{- $mountPath := default "/block-producer" $blockProducer.mountPath -}}
+{{- $kesKeyFile := default "kes.skey" $blockProducer.kesKeyFile -}}
+{{- $vrfKeyFile := default "vrf.skey" $blockProducer.vrfKeyFile -}}
+{{- $opCertFile := default "op.cert" $blockProducer.operationalCertificateFile -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "apex-fusion.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+{{- include "apex-fusion.selectorLabels" . | nindent 6 }}
+  serviceName: {{ printf "%s-headless" $fullName }}
+  template:
+    metadata:
+      labels:
+{{- include "apex-fusion.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/proxy-config: {{ $proxyChecksum }}
+        checksum/topology: {{ $topologyChecksum }}
+    spec:
+      serviceAccountName: {{ $fullName }}
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: apex-fusion
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          args:
+            - run
+            - --database-path
+            - /data/db
+            - --socket-path
+            - /ipc/node.socket
+            - --port
+            - {{ .Values.node.n2nPort | quote }}
+            - --config
+            - {{ printf "/opt/cardano/config/%s/configuration.yaml" .Values.node.network | quote }}
+            {{- if $blockProducerRuntimeEnabled }}
+            - --shelley-kes-key
+            - {{ printf "%s/%s" $mountPath $kesKeyFile | quote }}
+            - --shelley-vrf-key
+            - {{ printf "%s/%s" $mountPath $vrfKeyFile | quote }}
+            - --shelley-operational-certificate
+            - {{ printf "%s/%s" $mountPath $opCertFile | quote }}
+            {{- end }}
+          env:
+            - name: CARDANO_NETWORK
+              value: {{ .Values.node.network | quote }}
+            - name: CARDANO_NODE_SOCKET_PATH
+              value: {{ .Values.node.socketPath | quote }}
+            {{- if $blockProducerRuntimeEnabled }}
+            - name: CARDANO_BLOCK_PRODUCER
+              value: "true"
+            {{- end }}
+            - name: METIS_NODE_ROLE
+              value: "block-producer"
+            - name: METIS_POOL_ID
+              value: {{ default "" $blockProducer.poolId | quote }}
+            - name: METIS_VRF_SKEY_PATH
+              value: {{ printf "%s/%s" $mountPath $vrfKeyFile | quote }}
+            - name: METIS_OP_CERT_PATH
+              value: {{ printf "%s/%s" $mountPath $opCertFile | quote }}
+            {{- if $networkMagic }}
+            - name: METIS_CARDANO_NETWORK_MAGIC
+              value: {{ $networkMagic | quote }}
+            - name: CARDANO_NODE_NETWORK_ID
+              value: {{ $networkMagic | quote }}
+            {{- end }}
+            - name: RESTORE_SNAPSHOT
+              value: "false"
+            - name: METIS_SHELLEY_GENESIS_PATH
+              value: {{ printf "/opt/cardano/config/%s/genesis/shelley/genesis.json" .Values.node.network | quote }}
+            - name: METIS_BYRON_GENESIS_PATH
+              value: {{ printf "/opt/cardano/config/%s/genesis/byron/genesis.json" .Values.node.network | quote }}
+            {{- if $shelleyTransitionEpoch }}
+            - name: METIS_SHELLEY_TRANSITION_EPOCH
+              value: {{ $shelleyTransitionEpoch | quote }}
+            {{- end }}
+          ports:
+            - name: n2n
+              containerPort: {{ .Values.node.n2nPort }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.node.metricsPort }}
+              protocol: TCP
+          volumeMounts:
+            - name: chain-data
+              mountPath: /data
+            - name: ipc
+              mountPath: /ipc
+            - name: block-producer-keys
+              mountPath: {{ $mountPath }}
+              readOnly: true
+            - name: topology
+              mountPath: {{ printf "/opt/cardano/config/%s/topology.json" .Values.node.network }}
+              subPath: topology.json
+              readOnly: true
+            - name: metrics-scripts
+              mountPath: /opt/metis/bin/metrics.sh
+              subPath: metrics.sh
+              readOnly: true
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - test -S /ipc/node.socket
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+        - name: proxy
+          image: "nginx:1.25.5"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: n2c
+              containerPort: {{ .Values.proxy.n2cPort }}
+              protocol: TCP
+          volumeMounts:
+            - name: ipc
+              mountPath: /ipc
+            - name: proxy-config
+              mountPath: /etc/nginx
+          resources:
+            limits:
+              memory: 100Mi
+            requests:
+              cpu: 10m
+              memory: 100Mi
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: ipc
+          emptyDir: {}
+        - name: proxy-config
+          configMap:
+            name: {{ include "apex-fusion.proxyConfigName" . }}
+        - name: topology
+          configMap:
+            name: {{ include "apex-fusion.topologyConfigMapName" . }}
+        - name: metrics-scripts
+          configMap:
+            name: {{ $metricsConfigMapName }}
+            defaultMode: 0555
+        - name: block-producer-keys
+          secret:
+            defaultMode: 0400
+            secretName: {{ include "apex-fusion.blockProducerSecretName" . }}
+        {{- if .Values.persistence.existingClaim }}
+        - name: chain-data
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim }}
+        {{- end }}
+  {{- if not .Values.persistence.existingClaim }}
+  volumeClaimTemplates:
+    - metadata:
+        name: chain-data
+        {{- with .Values.persistence.annotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.persistence.accessModes | nindent 10 }}
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+  {{- end }}

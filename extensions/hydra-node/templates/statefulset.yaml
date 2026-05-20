@@ -83,12 +83,10 @@
   {{- $cardanoSocketProxyTargetScheme = default "OPENSSL" $cardanoSocketProxy.targetScheme }}
   {{- $cardanoSocketProxyTargetOptions = default "" $cardanoSocketProxy.targetOptions }}
 {{- end }}
-{{- $args := .Values.node.args -}}
-{{- if not $args }}
-  {{- $args = list }}
+{{- $args := list -}}
   {{- $ledgerMount := trimSuffix "/" .Values.ledger.mountPath }}
   {{- $keysMount := trimSuffix "/" .Values.keys.mountPath }}
-  {{- $persistenceDir := .Values.persistence.mountPath | default "/var/lib/hydra" }}
+  {{- $persistenceDir := "/var/lib/hydra" }}
   {{- $hydraSigningPath := printf "%s/%s" $keysMount (default "hydra.sk" .Values.keys.hydraSigning.filename) }}
   {{- if .Values.node.offlineMode }}
     {{- if not $protocolConfigName }}
@@ -166,10 +164,6 @@
   {{- if .Values.node.quiet }}
     {{- $args = append $args "--quiet" }}
   {{- end }}
-  {{- range $extra := .Values.node.extraArgs }}
-    {{- $args = append $args $extra }}
-  {{- end }}
-{{- end }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -199,11 +193,6 @@ spec:
       {{- if $cardanoVerificationChecksum }}
       {{- $_ := set $annotations "checksum/cardano-verification" $cardanoVerificationChecksum }}
       {{- end }}
-      {{- with .Values.podAnnotations }}
-      {{- range $key, $val := . }}
-      {{- $_ := set $annotations $key $val }}
-      {{- end }}
-      {{- end }}
       {{- $_ := set $annotations "checksum/metrics" (include (print $.Template.BasePath "/configmap-metrics.yaml") . | sha256sum) }}
       {{- if gt (len $annotations) 0 }}
       annotations:
@@ -211,43 +200,14 @@ spec:
       {{- end }}
     spec:
       serviceAccountName: {{ $serviceAccountName }}
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.priorityClassName }}
-      priorityClassName: {{ . }}
-      {{- end }}
-      {{- with .Values.node.terminationGracePeriodSeconds }}
-      terminationGracePeriodSeconds: {{ . }}
-      {{- end }}
-      {{- with .Values.podSecurityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.node.initContainers }}
-      initContainers:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      terminationGracePeriodSeconds: 60
       containers:
         - name: hydra-node
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- with .Values.node.command }}
-          command:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+          imagePullPolicy: IfNotPresent
           {{- if $args }}
           args:
             {{- toYaml $args | nindent 12 }}
-          {{- end }}
-          {{- with .Values.node.env }}
-          env:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.node.envFrom }}
-          envFrom:
-            {{- toYaml . | nindent 12 }}
           {{- end }}
           ports:
             - name: api
@@ -261,7 +221,7 @@ spec:
               protocol: TCP
           volumeMounts:
             - name: data
-              mountPath: {{ .Values.persistence.mountPath | default "/var/lib/hydra" }}
+              mountPath: /var/lib/hydra
               {{- with .Values.node.persistenceSubPath }}
               subPath: {{ . }}
             {{- end }}
@@ -279,21 +239,16 @@ spec:
               mountPath: /opt/metis/bin/metrics.sh
               subPath: metrics.sh
               readOnly: true
-            {{- with .Values.node.extraVolumeMounts }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
-          {{- if .Values.livenessProbe.enabled }}
           livenessProbe:
-            {{- toYaml (omit .Values.livenessProbe "enabled") | nindent 12 }}
-          {{- end }}
-          {{- if .Values.readinessProbe.enabled }}
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 30
+            periodSeconds: 15
           readinessProbe:
-            {{- toYaml (omit .Values.readinessProbe "enabled") | nindent 12 }}
-          {{- end }}
-          {{- with .Values.securityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            tcpSocket:
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 10
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
         {{ if $cardanoSocketProxyEnabled }}
@@ -303,38 +258,21 @@ spec:
         {{- $cardanoSocketProxyTargetAddress := printf "%s:%s:%d%s" $cardanoSocketProxyTargetScheme $cardanoSocketProxyTargetHost (int $cardanoSocketProxyTargetPort) $cardanoSocketProxyTargetOptionsSuffix -}}
         - name: cardano-socket-proxy
           image: "{{ $cardanoSocketProxy.image.repository }}:{{ $cardanoSocketProxy.image.tag }}"
-          imagePullPolicy: {{ default "IfNotPresent" $cardanoSocketProxy.image.pullPolicy }}
+          imagePullPolicy: IfNotPresent
           command:
             - socat
           args:
-            {{- range $cardanoSocketProxy.extraArgs }}
-            - {{ . | quote }}
-            {{- end }}
             - {{ $cardanoSocketProxyListenAddress | quote }}
             - {{ $cardanoSocketProxyTargetAddress | quote }}
           volumeMounts:
             - name: cardano-node-socket
               mountPath: {{ $cardanoSocketDir }}
-          {{- with $cardanoSocketProxy.extraEnv }}
-          env:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with $cardanoSocketProxy.securityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
           {{- with $cardanoSocketProxy.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
         {{ end }}
-        {{- with .Values.node.extraContainers }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
       volumes:
-        {{- with .Values.node.extraVolumes }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
         {{- if $cardanoSocketProxyEnabled }}
         - name: cardano-node-socket
           emptyDir: {}
@@ -385,10 +323,7 @@ spec:
           configMap:
             name: {{ $metricsConfigMapName }}
             defaultMode: 0555
-        {{- if and (not .Values.persistence.enabled) (not .Values.persistence.existingClaim) }}
-        - name: data
-          emptyDir: {}
-        {{- else if and .Values.persistence.enabled .Values.persistence.existingClaim }}
+        {{- if .Values.persistence.existingClaim }}
         - name: data
           persistentVolumeClaim:
             claimName: {{ .Values.persistence.existingClaim }}
@@ -409,7 +344,7 @@ spec:
       topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-  {{- if and .Values.persistence.enabled (not .Values.persistence.existingClaim) }}
+  {{- if not .Values.persistence.existingClaim }}
   volumeClaimTemplates:
     - metadata:
         name: data

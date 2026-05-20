@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Cardano Block Producer Helm Values",
+  "description": "Supernode-opinionated Cardano block producer chart values. This chart deploys one private block producer and can also deploy zero, one, or many managed relays in the same release. This schema is the public configuration interface for LLMs and MCP clients.",
+  "type": "object",
+  "required": ["node", "persistence", "blockProducer", "relays"],
+  "additionalProperties": false,
+  "properties": {
+    "nameOverride": { "type": "string", "description": "Advanced, usually not modified. Overrides the Kubernetes app name used by the chart.", "default": "", "x-supernodeCategory": "advanced" },
+    "fullnameOverride": { "type": "string", "description": "Advanced, usually not modified. Overrides the full Kubernetes resource name. Leave empty so the release name controls resource names.", "default": "", "x-supernodeCategory": "advanced" },
+    "displayName": { "type": "string", "description": "Optional. Human-readable workload name shown by Supernode tooling. MCP normally sets this from releaseName.", "default": "", "x-supernodeCategory": "optional" },
+    "image": {
+      "type": "object",
+      "description": "Optional. Cardano node image settings shared by the producer and managed relays.",
+      "additionalProperties": false,
+      "properties": {
+        "repository": { "type": "string", "description": "Advanced, usually not modified. Container image repository for cardano-node.", "default": "ghcr.io/blinklabs-io/cardano-node" },
+        "tag": { "type": "string", "description": "Optional. Cardano node image tag to deploy.", "default": "11.0.1" }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "description": "Optional. Kubernetes CPU and memory requests and limits for the block producer container. Recommended limits are 4 CPU cores and 8Gi memory for mainnet, and 2 CPU cores and 4Gi memory for preview or preprod. Request little CPU, usually 500m, and set memory requests equal to memory limits.",
+      "additionalProperties": false,
+      "properties": { "requests": { "$ref": "#/definitions/resourceList" }, "limits": { "$ref": "#/definitions/resourceList" } }
+    },
+    "relayResources": {
+      "type": "object",
+      "description": "Optional. Kubernetes CPU and memory requests and limits for each managed relay. Use the same guidance as resources unless the relays have a different workload profile.",
+      "additionalProperties": false,
+      "properties": { "requests": { "$ref": "#/definitions/resourceList" }, "limits": { "$ref": "#/definitions/resourceList" } }
+    },
+    "service": {
+      "type": "object",
+      "description": "Optional. Producer Service settings and default ports used by managed relay Services. Keep ClusterIP for private producer deployments.",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["ClusterIP", "NodePort", "LoadBalancer"], "default": "ClusterIP" },
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "labels": { "$ref": "#/definitions/stringMap" },
+        "clusterIP": { "type": "string", "default": "" },
+        "loadBalancerIP": { "type": "string", "default": "" },
+        "externalTrafficPolicy": { "type": "string", "enum": ["", "Cluster", "Local"], "default": "" },
+        "n2nPort": { "type": "integer", "description": "Node-to-node Service port.", "default": 3000 },
+        "n2nNodePort": { "type": ["integer", "null"], "default": null },
+        "n2cPort": { "type": "integer", "description": "Node-to-client Service port exposed through the proxy sidecar.", "default": 3307 },
+        "n2cNodePort": { "type": ["integer", "null"], "default": null },
+        "metricsPort": { "type": "integer", "description": "Metrics Service port.", "default": 12798 },
+        "metricsNodePort": { "type": ["integer", "null"], "default": null }
+      }
+    },
+    "persistence": {
+      "type": "object",
+      "description": "Required. Persistent storage for the block producer chain database. Persistence is always enabled.",
+      "required": ["storageClass"],
+      "additionalProperties": false,
+      "properties": {
+        "storageClass": { "type": "string", "description": "Required. Kubernetes StorageClass used for the producer chain-data PVC.", "minLength": 1, "x-supernodeCategory": "required" },
+        "accessModes": { "type": "array", "items": { "type": "string" }, "default": ["ReadWriteOnce"] },
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "size": { "type": "string", "description": "Optional. Requested producer chain database PVC size. Use roughly 250Gi for mainnet and 80Gi to 120Gi for preview or preprod.", "pattern": "^[0-9]+(Mi|Gi|Ti)$", "default": "80Gi" },
+        "existingClaim": { "type": "string", "description": "Advanced, usually not modified. Existing PVC name to mount for the producer instead of creating a StatefulSet volumeClaimTemplate.", "default": "" }
+      }
+    },
+    "relayPersistence": {
+      "type": "object",
+      "description": "Required when relays.count is greater than zero. Persistent storage settings for each managed relay.",
+      "additionalProperties": false,
+      "properties": {
+        "storageClass": { "type": "string", "description": "StorageClass used for managed relay PVCs. Set this when relays.count > 0. Leave empty when relays.count=0 because no managed relay PVCs are created." },
+        "accessModes": { "type": "array", "items": { "type": "string" }, "default": ["ReadWriteOnce"] },
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "size": { "type": "string", "description": "Requested chain database PVC size for each managed relay.", "pattern": "^[0-9]+(Mi|Gi|Ti)$", "default": "80Gi" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "description": "Required. Shared Cardano node runtime settings for the producer and managed relays.",
+      "required": ["network"],
+      "additionalProperties": false,
+      "properties": {
+        "network": { "type": "string", "description": "Required. Cardano network to join. The chart derives network magic internally for preview and preprod.", "enum": ["mainnet", "preprod", "preview"], "default": "preview", "x-supernodeCategory": "required" },
+        "n2nPort": { "type": "integer", "description": "Advanced, usually not modified. Internal cardano-node node-to-node port.", "default": 3000 },
+        "metricsPort": { "type": "integer", "description": "Advanced, usually not modified. Internal cardano-node metrics port.", "default": 12798 },
+        "socketPath": { "type": "string", "description": "Advanced, usually not modified. Cardano node socket path shared with the proxy sidecar.", "default": "/ipc/node.socket" }
+      }
+    },
+    "blockProducer": {
+      "type": "object",
+      "description": "Required. Block producer runtime settings. debug=true mounts producer material and enables schedule metrics, but does not pass forging flags to cardano-node. debug=false runs as an active block producer.",
+      "required": ["poolId", "vaultStaticSecret"],
+      "additionalProperties": false,
+      "properties": {
+        "debug": { "type": "boolean", "description": "Optional. When true, do not pass KES/VRF/op-cert runtime flags, but still mount producer material and expose block producer schedule metrics.", "default": false },
+        "poolId": { "type": "string", "description": "Required. Stake pool ID used by metrics to compute leadership schedule.", "minLength": 1 },
+        "mountPath": { "type": "string", "description": "Advanced, usually not modified. Mount path for synced producer runtime material.", "default": "/block-producer" },
+        "kesKeyFile": { "type": "string", "description": "Advanced, usually not modified. KES signing key filename in the Vault-synced secret.", "default": "kes.skey" },
+        "vrfKeyFile": { "type": "string", "description": "Advanced, usually not modified. VRF signing key filename in the Vault-synced secret.", "default": "vrf.skey" },
+        "operationalCertificateFile": { "type": "string", "description": "Advanced, usually not modified. Operational certificate filename in the Vault-synced secret.", "default": "op.cert" },
+        "vaultStaticSecret": {
+          "type": "object",
+          "description": "Required. Vault KV v2 location containing kes.skey, vrf.skey, and op.cert. Only runtime block producer material should be stored here; cold keys and counters must stay outside the producer-mounted path.",
+          "required": ["path"],
+          "additionalProperties": false,
+          "properties": {
+            "mount": { "type": "string", "description": "Vault KV v2 mount name.", "default": "kv" },
+            "path": { "type": "string", "description": "Required. Runtime Vault path, for example runtime/cardano-block-producer/mainnet-pool/block-producer.", "minLength": 1 },
+            "refreshAfter": { "type": "string", "description": "Advanced, usually not modified. Vault Secrets Operator refresh interval.", "default": "1m" }
+          }
+        }
+      }
+    },
+    "relays": {
+      "type": "object",
+      "description": "Required. Managed relay topology for the producer. If count is greater than zero, the chart creates that many relay StatefulSets and points the producer topology at them. If count is zero, trusted must contain at least one trusted relay address. MCP does not auto-resolve trusted relays; run workloads.list and suggest same-network cardano-relay workloads to the user when available.",
+      "required": ["count"],
+      "additionalProperties": false,
+      "properties": {
+        "count": { "type": "integer", "description": "Number of managed relays to create in this release. Use 1 or more for the easiest private producer setup. Use 0 only when connecting to existing trusted relays.", "minimum": 0, "default": 1 },
+        "trusted": { "type": "array", "description": "Trusted relay targets used when count=0. Each address should be host-only, with port separate. If unknown, run workloads.list and inspect same-network cardano-relay services; a typical address is RELEASE.NAMESPACE.svc.cluster.local with port 3000.", "items": { "$ref": "#/definitions/trustedRelay" }, "default": [] },
+        "useLedgerAfterSlot": { "type": "integer", "description": "Producer topology useLedgerAfterSlot. Private producers should normally use -1 so they only trust configured relays.", "default": -1 }
+      }
+    },
+    "vaultAuth": {
+      "type": "object",
+      "description": "Advanced, usually not modified. Shared Vault auth created by the control-plane extension.",
+      "additionalProperties": false,
+      "properties": {
+        "ref": { "type": "string", "description": "VaultAuth reference used by VaultStaticSecret.", "default": "control-plane/default" },
+        "serviceAccount": { "type": "object", "additionalProperties": false, "properties": { "create": { "type": "boolean", "default": true }, "name": { "type": "string", "default": "vault-auth" } } }
+      }
+    },
+    "proxy": { "type": "object", "description": "Advanced, usually not modified. Node-to-client TCP proxy settings. The proxy is always enabled and uses nginx with fixed chart-owned configuration.", "additionalProperties": false, "properties": { "n2cPort": { "type": "integer", "default": 3307 } } },
+    "nodeSelector": { "type": "object", "description": "Advanced, usually not modified. Kubernetes nodeSelector for producer scheduling.", "additionalProperties": { "type": "string" }, "default": {}, "x-supernodeCategory": "advanced" },
+    "tolerations": { "type": "array", "description": "Advanced, usually not modified. Kubernetes tolerations for producer scheduling.", "items": { "type": "object", "additionalProperties": true }, "default": [], "x-supernodeCategory": "advanced" },
+    "affinity": { "type": "object", "description": "Advanced, usually not modified. Kubernetes affinity rules for producer pod placement.", "additionalProperties": true, "default": {}, "x-supernodeCategory": "advanced" },
+    "topologySpreadConstraints": { "type": "array", "description": "Advanced, usually not modified. Kubernetes topology spread constraints for producer pod placement.", "items": { "type": "object", "additionalProperties": true }, "default": [], "x-supernodeCategory": "advanced" }
+  },
+  "definitions": {
+    "resourceList": { "type": "object", "additionalProperties": false, "properties": { "cpu": { "type": "string", "description": "Kubernetes CPU quantity. Use 500m for requests; use 4 for mainnet limits and 2 for preview or preprod limits." }, "memory": { "type": "string", "description": "Kubernetes memory quantity. Set requests.memory equal to limits.memory: 8Gi for mainnet, 4Gi for preview or preprod." } } },
+    "stringMap": { "type": "object", "additionalProperties": { "type": "string" } },
+    "trustedRelay": { "type": "object", "required": ["address"], "additionalProperties": false, "properties": { "address": { "type": "string", "description": "Trusted relay hostname or IP address. Do not include the port here.", "minLength": 1 }, "port": { "type": "integer", "minimum": 1, "maximum": 65535, "default": 3000 }, "valency": { "type": "integer", "minimum": 1, "default": 1 } } }
+  }
+}

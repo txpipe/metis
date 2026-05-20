@@ -1,0 +1,14 @@
+persistence:
+  storageClass: standard
+
+relayPersistence:
+  storageClass: standard
+
+blockProducer:
+  debug: true
+  poolId: pool1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  vaultStaticSecret:
+    path: runtime/cardano-block-producer/example/block-producer
+
+relays:
+  count: 1

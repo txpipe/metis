@@ -37,9 +37,6 @@ app.kubernetes.io/name: {{ include "hydra-node.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- with .Values.extraLabels }}
-{{- toYaml . }}
-{{- end }}
 {{- end }}
 
 {{/*
@@ -55,11 +52,7 @@ app.kubernetes.io/component: hydra-node
 Service account name.
 */}}
 {{- define "hydra-node.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "hydra-node.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- include "hydra-node.fullname" . }}
 {{- end }}
 
 {{/*

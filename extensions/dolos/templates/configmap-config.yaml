@@ -1,13 +1,10 @@
-{{- if and .Values.config.create (not .Values.config.existingConfigMap) }}
 {{- $configName := include "dolos.configurationConfigMapName" . }}
 {{- $root := . }}
-{{- $effectivePreset := include "dolos.effectivePreset" . }}
-{{- $bundledGenesisNetwork := include "dolos.bundledGenesisNetwork" . }}
 {{- $contentDict := dict "value" "" }}
 {{- if .Values.config.customConfig }}
 {{- $_ := set $contentDict "value" (tpl .Values.config.customConfig $root) }}
-{{- else if and $effectivePreset (hasKey .Values.config.presets $effectivePreset) }}
-{{- $_ := set $contentDict "value" (tpl (index .Values.config.presets $effectivePreset) $root) }}
+{{- else }}
+{{- $_ := set $contentDict "value" (include "dolos.configPreset" .) }}
 {{- end }}
 apiVersion: v1
 kind: ConfigMap
@@ -16,22 +13,11 @@ metadata:
   labels:
     {{- include "dolos.labels" . | nindent 4 }}
 data:
-  {{ .Values.config.filename }}: |-
+  dolos.toml: |-
     {{- if $contentDict.value }}
     {{- $contentDict.value | nindent 4 }}
     {{- end }}
-  {{- if eq (include "dolos.usesBundledGenesis" .) "true" }}
-  byron.json: |-
-    {{- $.Files.Get (printf "files/genesis/%s/byron.json" $bundledGenesisNetwork) | nindent 4 }}
-  shelley.json: |-
-    {{- $.Files.Get (printf "files/genesis/%s/shelley.json" $bundledGenesisNetwork) | nindent 4 }}
-  alonzo.json: |-
-    {{- $.Files.Get (printf "files/genesis/%s/alonzo.json" $bundledGenesisNetwork) | nindent 4 }}
-  conway.json: |-
-    {{- $.Files.Get (printf "files/genesis/%s/conway.json" $bundledGenesisNetwork) | nindent 4 }}
-  {{- end }}
   {{- range $name, $template := .Values.config.extraFiles }}
   {{ $name }}: |-
     {{- tpl $template $root | nindent 4 }}
   {{- end }}
-{{- end }}

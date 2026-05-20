@@ -5,31 +5,14 @@ displayName: ""
 image:
   repository: ghcr.io/txpipe/dolos
   tag: "v1.1.1"
-  pullPolicy: IfNotPresent
-
-imagePullSecrets: []
-
-serviceAccount:
-  create: true
-  annotations: {}
-  name: ""
-
-podAnnotations: {}
-extraLabels: {}
-
-podSecurityContext: {}
-
-securityContext: {}
-
-priorityClassName: ""
 
 resources:
   requests:
-    cpu: 50m
-    memory: 2Gi
+    cpu: 500m
+    memory: 4Gi
   limits:
-    cpu: 1000m
-    memory: 2Gi
+    cpu: "2"
+    memory: 4Gi
 
 service:
   type: ClusterIP
@@ -48,10 +31,8 @@ service:
   minikupoNodePort: null
   trpPort: 8164
   trpNodePort: null
-  extraPorts: []
 
 persistence:
-  enabled: true
   storageClass: ""
   accessModes:
     - ReadWriteOnce
@@ -62,151 +43,22 @@ persistence:
 dolos:
   replicas: 1
   network: cardano-preview
-  configMountPath: /etc/config
-  configFileName: dolos.toml
   command: []
   args:
     - "-c"
     - "/etc/config/dolos.toml"
     - "daemon"
-  env: []
-  envFrom: []
-  extraVolumeMounts: []
-  extraVolumes: []
-  extraContainers: []
-  extraInitContainers: []
   bootstrap:
     enabled: true
     name: bootstrap
     command: []
     args: []
-    env: []
-  terminationGracePeriodSeconds: 180
 
 config:
-  create: true
-  existingConfigMap: ""
-  mountPath: /etc/config
-  filename: dolos.toml
-  preset: ""
   customConfig: ""
   # Must point to a trusted Cardano relay used for syncing.
   upstreamAddress: ""
   extraFiles: {}
-  presets:
-    cardano-mainnet: |-
-      [upstream]
-      peer_address = "{{ required "config.upstreamAddress must be set to a trusted Cardano relay address" .Values.config.upstreamAddress }}"
-
-      [storage]
-      version = "v3"
-      path = "/var/data/mainnet/db"
-
-      [genesis]
-      byron_path = "/etc/genesis/mainnet/byron.json"
-      shelley_path = "/etc/genesis/mainnet/shelley.json"
-      alonzo_path = "/etc/genesis/mainnet/alonzo.json"
-      conway_path = "/etc/genesis/mainnet/conway.json"
-
-      [sync]
-      max_rollback = 25920
-
-      [serve.grpc]
-      listen_address = "[::]:50051"
-
-      [serve.minibf]
-      listen_address = "[::]:3001"
-
-      [serve.minikupo]
-      listen_address = "[::]:1442"
-
-      [serve.trp]
-      listen_address = "[::]:8164"
-
-      [chain]
-      type = "cardano"
-      magic = 764824073
-      is_testnet = false
-    cardano-preprod: |-
-      [upstream]
-      peer_address = "{{ required "config.upstreamAddress must be set to a trusted Cardano relay address" .Values.config.upstreamAddress }}"
-
-      [storage]
-      version = "v3"
-      path = "/var/data/preprod/db"
-
-      [genesis]
-      byron_path = "/etc/genesis/preprod/byron.json"
-      shelley_path = "/etc/genesis/preprod/shelley.json"
-      alonzo_path = "/etc/genesis/preprod/alonzo.json"
-      conway_path = "/etc/genesis/preprod/conway.json"
-
-      [sync]
-      max_rollback = 25920
-
-      [serve.grpc]
-      listen_address = "[::]:50051"
-
-      [serve.minibf]
-      listen_address = "[::]:3001"
-
-      [serve.minikupo]
-      listen_address = "[::]:1442"
-
-      [serve.trp]
-      listen_address = "[::]:8164"
-
-      [chain]
-      type = "cardano"
-      magic = 1
-      is_testnet = true
-    cardano-preview: |-
-      [upstream]
-      peer_address = "{{ required "config.upstreamAddress must be set to a trusted Cardano relay address" .Values.config.upstreamAddress }}"
-
-      [storage]
-      version = "v3"
-      path = "/var/data/preview/db"
-
-      [genesis]
-      byron_path = "/etc/genesis/preview/byron.json"
-      shelley_path = "/etc/genesis/preview/shelley.json"
-      alonzo_path = "/etc/genesis/preview/alonzo.json"
-      conway_path = "/etc/genesis/preview/conway.json"
-
-      [sync]
-      max_rollback = 25920
-
-      [serve.grpc]
-      listen_address = "[::]:50051"
-
-      [serve.minibf]
-      listen_address = "[::]:3001"
-
-      [serve.minikupo]
-      listen_address = "[::]:1442"
-
-      [serve.trp]
-      listen_address = "[::]:8164"
-
-      [chain]
-      type = "cardano"
-      magic = 2
-      is_testnet = true
-
-livenessProbe:
-  enabled: false
-  tcpSocket:
-    port: grpc
-  initialDelaySeconds: 30
-  periodSeconds: 10
-
-readinessProbe:
-  enabled: true
-  tcpSocket:
-    port: grpc
-  initialDelaySeconds: 10
-  periodSeconds: 10
 
 nodeSelector: {}
 tolerations: []

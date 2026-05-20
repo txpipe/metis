@@ -1,4 +1,7 @@
-mod cardano_node_relay;
+mod apex_fusion_block_producer;
+mod apex_fusion_relay;
+mod cardano_block_producer;
+mod cardano_relay;
 mod dolos;
 pub mod extension;
 mod hydra_node;
@@ -12,6 +15,7 @@ pub use extension::ExtensionConfiguration;
 pub use extension::ExtensionDefinition;
 pub use extension::ExtensionId;
 pub use extension::ExtensionMetrics;
+pub use extension::ExtensionMetricsCollection;
 pub use extension::ExtensionOutputDefinition;
 pub use extension::ExtensionSecretDefinition;
 
@@ -23,7 +27,10 @@ pub struct ExtensionCatalog {
 impl ExtensionCatalog {
     pub fn embedded() -> Self {
         Self::from_extensions([
-            cardano_node_relay::definition(),
+            apex_fusion_block_producer::definition(),
+            apex_fusion_relay::definition(),
+            cardano_block_producer::definition(),
+            cardano_relay::definition(),
             dolos::definition(),
             hydra_node::definition(),
         ])
@@ -56,11 +63,14 @@ mod tests {
     use serde_json::{Value, json};
 
     #[test]
-    fn embedded_catalog_contains_cardano_node_relay_dolos_and_hydra() {
+    fn embedded_catalog_contains_cardano_extensions_dolos_and_hydra() {
         let catalog = ExtensionCatalog::embedded();
 
-        assert_eq!(catalog.len(), 3);
-        assert!(catalog.get("cardano-node-relay").is_some());
+        assert_eq!(catalog.len(), 6);
+        assert!(catalog.get("apex-fusion-relay").is_some());
+        assert!(catalog.get("apex-fusion-block-producer").is_some());
+        assert!(catalog.get("cardano-relay").is_some());
+        assert!(catalog.get("cardano-block-producer").is_some());
         assert!(catalog.get("cardano-node").is_none());
         assert!(catalog.get("dolos").is_some());
         assert!(catalog.get("hydra-node").is_some());
@@ -69,9 +79,9 @@ mod tests {
     #[test]
     fn relay_extension_exposes_domain_contract() {
         let catalog = ExtensionCatalog::embedded();
-        let extension = catalog.get("cardano-node-relay").unwrap();
+        let extension = catalog.get("cardano-relay").unwrap();
 
-        assert_eq!(extension.name, "Cardano Node Relay");
+        assert_eq!(extension.name, "Cardano Relay");
         assert_eq!(extension.default_version, "0.1.0");
         assert!(extension.versions.contains(&"0.1.0".to_string()));
         assert_eq!(extension.configuration.get("type"), Some(&json!("object")));
@@ -84,26 +94,58 @@ mod tests {
     #[test]
     fn relay_configuration_does_not_expose_power_user_config_override() {
         let catalog = ExtensionCatalog::embedded();
-        let properties = catalog
-            .get("cardano-node-relay")
-            .unwrap()
-            .configuration
+        let configuration = &catalog.get("cardano-relay").unwrap().configuration;
+        let properties = configuration
             .get("properties")
             .and_then(Value::as_object)
             .unwrap();
 
-        assert!(properties.contains_key("topology"));
-        assert!(properties.contains_key("exposeLoadBalancer"));
-        assert!(properties.contains_key("imageTag"));
+        assert!(properties.contains_key("node"));
+        assert!(properties.contains_key("service"));
+        assert!(properties.contains_key("persistence"));
         assert!(properties.contains_key("resources"));
-        assert!(properties.contains_key("pvcSize"));
-        assert!(!properties.contains_key("config"));
+        assert!(
+            configuration
+                .pointer("/properties/image/properties/pullPolicy")
+                .is_none()
+        );
+        assert!(
+            configuration
+                .pointer("/properties/persistence/properties/enabled")
+                .is_none()
+        );
+        assert!(
+            configuration
+                .pointer("/properties/node/properties/blockProducer")
+                .is_none()
+        );
+        assert!(!properties.contains_key("rawValues"));
+    }
+
+    #[test]
+    fn block_producer_configuration_exposes_debug_and_relays() {
+        let catalog = ExtensionCatalog::embedded();
+        let configuration = &catalog.get("cardano-block-producer").unwrap().configuration;
+
+        assert_eq!(
+            configuration.pointer("/properties/blockProducer/properties/debug/type"),
+            Some(&json!("boolean"))
+        );
+        assert_eq!(
+            configuration.pointer("/properties/relays/properties/count/type"),
+            Some(&json!("integer"))
+        );
+        assert!(
+            configuration
+                .pointer("/properties/node/properties/blockProducer")
+                .is_none()
+        );
     }
 
     #[test]
     fn relay_metrics_schema_describes_script_output_fields() {
         let catalog = ExtensionCatalog::embedded();
-        let metrics = &catalog.get("cardano-node-relay").unwrap().metrics;
+        let metrics = &catalog.get("cardano-relay").unwrap().metrics;
         let properties = metrics
             .get("properties")
             .and_then(Value::as_object)
@@ -116,6 +158,34 @@ mod tests {
         assert!(properties.contains_key("kesExpirationTime"));
         assert!(properties.contains_key("scheduledLeaderCount"));
         assert!(properties.contains_key("nextLeaderTimeRemainingSeconds"));
+    }
+
+    #[test]
+    fn extensions_define_metrics_collection_metadata() {
+        let catalog = ExtensionCatalog::embedded();
+        let cases = [
+            ("cardano-relay", "cardano-node"),
+            ("cardano-block-producer", "cardano-node"),
+            ("apex-fusion-relay", "apex-fusion"),
+            ("apex-fusion-block-producer", "apex-fusion"),
+            ("dolos", "dolos"),
+            ("hydra-node", "hydra-node"),
+        ];
+
+        for (extension_id, container) in cases {
+            let metrics_collection = catalog
+                .get(extension_id)
+                .unwrap()
+                .metrics_collection
+                .as_ref()
+                .unwrap();
+
+            assert_eq!(metrics_collection.container, container);
+            assert_eq!(
+                metrics_collection.command,
+                vec!["/opt/metis/bin/metrics.sh"]
+            );
+        }
     }
 
     #[test]
@@ -136,22 +206,53 @@ mod tests {
     #[test]
     fn dolos_configuration_only_exposes_safe_cardano_fields() {
         let catalog = ExtensionCatalog::embedded();
-        let properties = catalog
-            .get("dolos")
-            .unwrap()
-            .configuration
+        let configuration = &catalog.get("dolos").unwrap().configuration;
+        let properties = configuration
             .get("properties")
             .and_then(Value::as_object)
             .unwrap();
 
-        assert!(properties.contains_key("network"));
-        assert!(properties.contains_key("storageClass"));
-        assert!(properties.contains_key("upstreamAddress"));
-        assert!(properties.contains_key("imageTag"));
+        assert!(properties.contains_key("dolos"));
+        assert!(properties.contains_key("config"));
+        assert!(properties.contains_key("persistence"));
         assert!(properties.contains_key("resources"));
-        assert!(properties.contains_key("pvcSize"));
-        assert!(!properties.contains_key("bootstrapEnabled"));
-        assert!(!properties.contains_key("config"));
+        assert_eq!(
+            configuration.pointer("/properties/dolos/properties/network/type"),
+            Some(&json!("string"))
+        );
+        assert_eq!(
+            configuration.pointer("/properties/config/properties/upstreamAddress/type"),
+            Some(&json!("string"))
+        );
+        assert_eq!(
+            configuration.pointer("/properties/persistence/properties/storageClass/type"),
+            Some(&json!("string"))
+        );
+        assert!(
+            configuration
+                .pointer("/properties/config/properties/existingConfigMap")
+                .is_none()
+        );
+        assert!(
+            configuration
+                .pointer("/properties/dolos/properties/env")
+                .is_none()
+        );
+        assert!(
+            configuration
+                .pointer("/properties/image/properties/pullPolicy")
+                .is_none()
+        );
+        assert!(
+            configuration
+                .pointer("/properties/persistence/properties/enabled")
+                .is_none()
+        );
+        assert!(
+            configuration
+                .pointer("/properties/config/properties/presets")
+                .is_none()
+        );
         assert!(!properties.contains_key("rawValues"));
     }
 
@@ -183,7 +284,7 @@ mod tests {
         assert_eq!(extension.configuration.get("type"), Some(&json!("object")));
         assert_eq!(extension.metrics.get("type"), Some(&json!("object")));
         assert_eq!(extension.outputs.len(), 4);
-        assert_eq!(extension.secrets.len(), 4);
+        assert_eq!(extension.secrets.len(), 2);
         assert!(extension.dependencies.is_empty());
     }
 
@@ -227,7 +328,7 @@ mod tests {
     #[test]
     fn extension_outputs_describe_exposed_endpoints_for_llms() {
         let catalog = ExtensionCatalog::embedded();
-        let relay = catalog.get("cardano-node-relay").unwrap();
+        let relay = catalog.get("cardano-relay").unwrap();
         let dolos = catalog.get("dolos").unwrap();
         let hydra = catalog.get("hydra-node").unwrap();
 

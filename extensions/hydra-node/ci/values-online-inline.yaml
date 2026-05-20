@@ -1,3 +1,6 @@
+persistence:
+  storageClass: standard
+
 node:
   offlineMode: false
   hydraScriptsTxId: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef

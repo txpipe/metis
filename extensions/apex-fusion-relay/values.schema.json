@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Apex Fusion Relay Helm Values",
+  "description": "Supernode-opinionated Apex Fusion relay chart values. This schema is the public configuration interface for LLMs and MCP clients; pass values in this shape directly to Helm.",
+  "type": "object",
+  "required": ["node", "persistence"],
+  "additionalProperties": false,
+  "properties": {
+    "nameOverride": { "type": "string", "description": "Advanced, usually not modified. Overrides the Kubernetes app name used by the chart.", "default": "", "x-supernodeCategory": "advanced" },
+    "fullnameOverride": { "type": "string", "description": "Advanced, usually not modified. Overrides the full Kubernetes resource name. Leave empty so the release name controls resource names.", "default": "", "x-supernodeCategory": "advanced" },
+    "displayName": { "type": "string", "description": "Optional. Human-readable workload name shown by Supernode tooling. MCP normally sets this from releaseName.", "default": "", "x-supernodeCategory": "optional" },
+    "image": {
+      "type": "object",
+      "description": "Optional. Apex Fusion node container image settings. Most installs only change image.tag when pinning a specific release.",
+      "additionalProperties": false,
+      "properties": {
+        "repository": { "type": "string", "description": "Advanced, usually not modified. Container image repository for the Apex Fusion compatible node image.", "default": "ghcr.io/blinklabs-io/cardano-node" },
+        "tag": { "type": "string", "description": "Optional. Node image tag to deploy.", "default": "10.1.4" }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "description": "Optional. Kubernetes CPU and memory requests and limits for the relay container. Start with 500m CPU requested, 2 CPU limit, and 4Gi memory for test networks; increase memory for larger networks.",
+      "additionalProperties": false,
+      "properties": { "requests": { "$ref": "#/definitions/resourceList" }, "limits": { "$ref": "#/definitions/resourceList" } }
+    },
+    "service": {
+      "type": "object",
+      "description": "Optional. Kubernetes Service settings. Keep ClusterIP for in-cluster access; use LoadBalancer only when external node-to-node access is required.",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["ClusterIP", "NodePort", "LoadBalancer"], "default": "ClusterIP" },
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "labels": { "$ref": "#/definitions/stringMap" },
+        "clusterIP": { "type": "string", "default": "" },
+        "loadBalancerIP": { "type": "string", "default": "" },
+        "externalTrafficPolicy": { "type": "string", "enum": ["", "Cluster", "Local"], "default": "" },
+        "n2nPort": { "type": "integer", "description": "Advanced, usually not modified. Node-to-node Service port.", "default": 3000 },
+        "n2nNodePort": { "type": ["integer", "null"], "default": null },
+        "n2cPort": { "type": "integer", "description": "Advanced, usually not modified. Node-to-client Service port exposed through the proxy sidecar.", "default": 3307 },
+        "n2cNodePort": { "type": ["integer", "null"], "default": null },
+        "metricsPort": { "type": "integer", "description": "Advanced, usually not modified. Metrics Service port.", "default": 12789 },
+        "metricsNodePort": { "type": ["integer", "null"], "default": null }
+      }
+    },
+    "persistence": {
+      "type": "object",
+      "description": "Required. Persistent storage for the Apex Fusion chain database. Persistence is always enabled for this chart.",
+      "required": ["storageClass"],
+      "additionalProperties": false,
+      "properties": {
+        "storageClass": { "type": "string", "description": "Required. Kubernetes StorageClass used for the chain-data PVC.", "minLength": 1, "x-supernodeCategory": "required" },
+        "accessModes": { "type": "array", "description": "Advanced, usually not modified. PVC access modes.", "items": { "type": "string" }, "default": ["ReadWriteOnce"] },
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "size": { "type": "string", "description": "Optional. Requested chain database PVC size.", "pattern": "^[0-9]+(Mi|Gi|Ti)$", "default": "20Gi" },
+        "existingClaim": { "type": "string", "description": "Advanced, usually not modified. Existing PVC name to mount instead of creating a StatefulSet volumeClaimTemplate.", "default": "" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "description": "Required. Apex Fusion relay runtime settings. Set node.network and usually leave ports and topology defaults unchanged.",
+      "required": ["network"],
+      "additionalProperties": false,
+      "properties": {
+        "replicas": { "type": "integer", "description": "Advanced, usually not modified. Number of relay pods.", "minimum": 1, "default": 1 },
+        "network": { "type": "string", "description": "Required. Apex Fusion network to join.", "enum": ["vector-testnet", "prime-testnet", "prime-mainnet"], "default": "vector-testnet", "x-supernodeCategory": "required" },
+        "networkMagic": { "type": ["integer", "null"], "description": "Advanced, usually not modified. Overrides derived testnet magic. vector-testnet derives 1 and prime-testnet derives 3311.", "default": null },
+        "n2nPort": { "type": "integer", "description": "Advanced, usually not modified. Internal node-to-node port.", "default": 3000 },
+        "metricsPort": { "type": "integer", "description": "Advanced, usually not modified. Internal node metrics port.", "default": 12789 },
+        "socketPath": { "type": "string", "description": "Advanced, usually not modified. Node socket path shared with the proxy sidecar.", "default": "/ipc/node.socket" },
+        "topology": { "$ref": "#/definitions/topology" }
+      }
+    },
+    "proxy": { "type": "object", "description": "Advanced, usually not modified. Node-to-client TCP proxy settings. The proxy is always enabled and uses chart-owned nginx configuration.", "additionalProperties": false, "properties": { "n2cPort": { "type": "integer", "description": "Internal proxy listener port for node-to-client traffic.", "default": 3307 } } },
+    "nodeSelector": { "type": "object", "description": "Advanced, usually not modified. Kubernetes nodeSelector for relay scheduling.", "additionalProperties": { "type": "string" }, "default": {}, "x-supernodeCategory": "advanced" },
+    "tolerations": { "type": "array", "description": "Advanced, usually not modified. Kubernetes tolerations for relay scheduling.", "items": { "type": "object", "additionalProperties": true }, "default": [], "x-supernodeCategory": "advanced" },
+    "affinity": { "type": "object", "description": "Advanced, usually not modified. Kubernetes affinity rules for relay pod placement.", "additionalProperties": true, "default": {}, "x-supernodeCategory": "advanced" },
+    "topologySpreadConstraints": { "type": "array", "description": "Advanced, usually not modified. Kubernetes topology spread constraints.", "items": { "type": "object", "additionalProperties": true }, "default": [], "x-supernodeCategory": "advanced" }
+  },
+  "definitions": {
+    "resourceList": { "type": "object", "additionalProperties": false, "properties": { "cpu": { "type": "string" }, "memory": { "type": "string" } } },
+    "stringMap": { "type": "object", "additionalProperties": { "type": "string" } },
+    "topology": {
+      "type": "object",
+      "description": "Optional. Relay topology configuration. Leave mode=image-default for normal public relay behavior. Use relay-service to peer with specific in-cluster relay Services or custom for explicit topology.json roots.",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "type": "string", "enum": ["image-default", "relay-service", "custom"], "default": "image-default" },
+        "relayTargets": { "type": "array", "description": "Internal relay services to use when mode=relay-service.", "items": { "$ref": "#/definitions/relayTarget" }, "default": [] },
+        "localRoots": { "type": "array", "description": "Custom topology localRoots when mode=custom.", "items": { "type": "object", "additionalProperties": true }, "default": [] },
+        "publicRoots": { "type": "array", "description": "Custom topology publicRoots when mode=custom.", "items": { "type": "object", "additionalProperties": true }, "default": [] },
+        "useLedgerAfterSlot": { "type": "integer", "description": "Topology useLedgerAfterSlot value. Public relays typically use 0.", "default": 0 }
+      }
+    },
+    "relayTarget": { "type": "object", "required": ["releaseName"], "additionalProperties": false, "properties": { "releaseName": { "type": "string", "minLength": 1 }, "namespace": { "type": "string", "minLength": 1 }, "chart": { "type": "string", "minLength": 1, "default": "apex-fusion-relay" }, "port": { "type": "integer", "minimum": 1, "maximum": 65535, "default": 3000 }, "valency": { "type": "integer", "minimum": 1, "default": 1 } } }
+  }
+}

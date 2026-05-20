@@ -172,9 +172,9 @@ mod tests {
     #[test]
     fn relay_outputs_include_internal_n2n_and_n2c() {
         let catalog = ExtensionCatalog::embedded();
-        let release = helm_release(Some("cardano-node"));
+        let release = helm_release(Some("cardano-relay"));
         let service = service_with_ports(
-            "relay-preview-cardano-node",
+            "relay-preview-cardano-relay",
             "cardano",
             "relay-preview",
             "ClusterIP",
@@ -194,11 +194,11 @@ mod tests {
         assert!(outputs.iter().any(|output| {
             output.name == "n2n"
                 && output.scope == "internal"
-                && output.url == "tcp://relay-preview-cardano-node.cardano.svc.cluster.local:3000"
+                && output.url == "tcp://relay-preview-cardano-relay.cardano.svc.cluster.local:3000"
         }));
         assert!(outputs.iter().any(|output| {
             output.name == "n2c"
-                && output.url == "tcp://relay-preview-cardano-node.cardano.svc.cluster.local:3307"
+                && output.url == "tcp://relay-preview-cardano-relay.cardano.svc.cluster.local:3307"
         }));
     }
 
@@ -337,9 +337,9 @@ mod tests {
     #[test]
     fn load_balancer_hostname_is_used_for_external_outputs() {
         let catalog = ExtensionCatalog::embedded();
-        let release = helm_release(Some("cardano-node"));
+        let release = helm_release(Some("cardano-relay"));
         let service = service_with_ports(
-            "relay-preview-cardano-node",
+            "relay-preview-cardano-relay",
             "cardano",
             "relay-preview",
             "LoadBalancer",

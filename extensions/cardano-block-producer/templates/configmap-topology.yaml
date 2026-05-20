@@ -1,0 +1,24 @@
+{{- $configMapName := include "cardano-node.topologyConfigMapName" . -}}
+{{- $localRoots := list -}}
+{{- if gt (int .Values.relays.count) 0 }}
+{{- range $index := until (int .Values.relays.count) }}
+{{- $serviceName := include "cardano-node.relayName" (dict "context" $ "index" $index) -}}
+{{- $accessPoint := dict "address" (printf "%s.%s.svc.cluster.local" $serviceName $.Release.Namespace) "port" $.Values.service.n2nPort -}}
+{{- $localRoots = append $localRoots (dict "accessPoints" (list $accessPoint) "advertise" false "valency" 1) -}}
+{{- end }}
+{{- else }}
+{{- range $target := .Values.relays.trusted }}
+{{- $accessPoint := dict "address" $target.address "port" (default 3000 $target.port) -}}
+{{- $localRoots = append $localRoots (dict "accessPoints" (list $accessPoint) "advertise" false "valency" (default 1 $target.valency)) -}}
+{{- end }}
+{{- end }}
+{{- $topology := dict "localRoots" $localRoots "publicRoots" (list) "useLedgerAfterSlot" (default -1 .Values.relays.useLedgerAfterSlot) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configMapName }}
+  labels:
+    {{- include "cardano-node.labels" . | nindent 4 }}
+data:
+  topology.json: |
+{{ toPrettyJson $topology | indent 4 }}

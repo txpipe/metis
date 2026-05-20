@@ -1,0 +1,18 @@
+apiVersion: v2
+name: apex-fusion-relay
+description: Supernode-opinionated Apex Fusion relay node extension
+type: application
+version: 0.1.0
+appVersion: "10.1.4"
+keywords:
+  - apex
+  - prime
+  - vector
+  - relay
+  - metis
+  - supernode
+annotations:
+  displayName: Apex Fusion Relay
+  icon: /images/workloads/apex-fusion.png
+  category: layer-1
+  networkPath: node.network

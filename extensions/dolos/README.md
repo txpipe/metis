@@ -6,28 +6,35 @@ This chart deploys [Dolos](https://github.com/txpipe/dolos).
 
 - StatefulSet with persistent storage for the Dolos data directory.
 - ConfigMap based configuration with presets for Cardano `cardano-mainnet`,
-  `cardano-preprod`, `cardano-preview`, `prime-testnet`, and `prime-mainnet`.
-- Override support for supplying custom Dolos configuration content or an
-  existing ConfigMap.
-- Tunable resources, tolerations, topology constraints, and probe configuration.
+  `cardano-preprod`, and `cardano-preview`.
+- Opinionated Supernode deployment shape: generated ServiceAccount, generated
+  ConfigMap at `/etc/config/dolos.toml`, fixed readiness probe, and fixed
+  termination grace period.
+- Optional override support for supplying complete custom Dolos configuration
+  content.
+- Tunable resources, storage, service exposure, tolerations, and topology
+  constraints.
 - Service exposure for `grpc`, `minibf`, `minikupo`, and `trp`.
   `ouroboros` remains internal-only.
 
 ## Configuration
 
-By default the chart resolves the preset from `dolos.network` and writes it to
-`/etc/config/dolos.toml`. For the existing Cardano presets, you still need to
-provide `config.upstreamAddress` with the address of a trusted Cardano relay.
-Adjust as needed:
+The chart values are the public configuration interface. By default the chart
+resolves the preset from `dolos.network` and writes it to
+`/etc/config/dolos.toml`. For all built-in Cardano presets, you must provide
+`config.upstreamAddress` with the address of a trusted Cardano relay. MCP does
+not auto-resolve this value; use `workloads.list` to inspect installed
+same-network relay workloads and derive a candidate address.
+
+Minimal values:
 
 ```yaml
 dolos:
-  network: cardano-mainnet
-```
+  network: cardano-preview
 
-Override the trusted upstream relay if needed:
+persistence:
+  storageClass: standard
 
-```yaml
 config:
   upstreamAddress: "trusted-relay.example.org:3000"
 ```
@@ -36,7 +43,7 @@ To inject a completely custom configuration set `config.customConfig`:
 
 ```yaml
 config:
-  preset: ""
+  upstreamAddress: "trusted-relay.example.org:3000"
   customConfig: |-
     [upstream]
     peer_address = "custom-relay:3000"
@@ -44,16 +51,15 @@ config:
     is_testnet = true
 ```
 
-If you already manage configuration elsewhere, disable generation and reference
-your own ConfigMap:
-
-```yaml
-config:
-  create: false
-  existingConfigMap: my-dolos-config
-```
-
 ### Persistence
 
-Persistent volume claims are provisioned unless `persistence.enabled` is set to
-`false`. Supply `persistence.existingClaim` to reuse an existing claim.
+Persistent storage is always enabled for Dolos. Set `persistence.storageClass`
+for normal Supernode installs. Supply `persistence.existingClaim` only when
+reusing an existing initialized claim.
+
+### Resources
+
+Use `resources.requests.cpu: 500m` for all networks. For memory, set requests
+and limits to the same value: `8Gi` for `cardano-mainnet`, and `4Gi` for
+`cardano-preview` or `cardano-preprod`. CPU limits should usually be `4` for
+mainnet and `2` for preview or preprod.

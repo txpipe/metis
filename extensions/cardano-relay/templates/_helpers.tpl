@@ -1,0 +1,115 @@
+{{/*
+Expand the name of the chart.
+*/}}
+{{- define "cardano-node.name" -}}
+{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Create a default fully qualified app name.
+*/}}
+{{- define "cardano-node.fullname" -}}
+{{- if .Values.fullnameOverride }}
+{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- $name := default .Chart.Name .Values.nameOverride }}
+{{- if contains $name .Release.Name }}
+{{- .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+Create chart name and version label.
+*/}}
+{{- define "cardano-node.chart" -}}
+{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Common labels for resources.
+*/}}
+{{- define "cardano-node.labels" -}}
+helm.sh/chart: {{ include "cardano-node.chart" . }}
+app.kubernetes.io/name: {{ include "cardano-node.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+Selector labels for the StatefulSet and Service.
+*/}}
+{{- define "cardano-node.selectorLabels" -}}
+{{- include "cardano-node.selectorLabelsFor" (dict "context" . "component" "cardano-node") }}
+{{- end }}
+
+{{/*
+Selector labels helper for a specific component.
+*/}}
+{{- define "cardano-node.selectorLabelsFor" -}}
+{{- $ctx := .context -}}
+app.kubernetes.io/name: {{ include "cardano-node.name" $ctx }}
+app.kubernetes.io/instance: {{ $ctx.Release.Name }}
+app.kubernetes.io/component: {{ .component }}
+{{- end }}
+
+{{/*
+Service account name.
+*/}}
+{{- define "cardano-node.serviceAccountName" -}}
+{{- include "cardano-node.fullname" . }}
+{{- end }}
+
+{{/*
+Resolve the ConfigMap name that holds the proxy configuration.
+*/}}
+{{- define "cardano-node.proxyConfigName" -}}
+{{- printf "%s-proxy" (include "cardano-node.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Resolve the ConfigMap name for Metis metrics scripts.
+*/}}
+{{- define "cardano-node.metricsConfigMapName" -}}
+{{- printf "%s-metrics" (include "cardano-node.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Resolve the ConfigMap name for managed topology.json.
+*/}}
+{{- define "cardano-node.topologyConfigMapName" -}}
+{{- if ne (default "image-default" .Values.node.topology.mode) "image-default" }}
+{{- printf "%s-topology" (include "cardano-node.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- "" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Resolve a service fullname for another release/chart pair.
+*/}}
+{{- define "cardano-node.releaseFullnameFor" -}}
+{{- $releaseName := required "releaseName is required" .releaseName -}}
+{{- $chartName := required "chartName is required" .chartName -}}
+{{- if contains $chartName $releaseName -}}
+{{- $releaseName | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-%s" $releaseName $chartName | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Resolve the network magic for test networks.
+*/}}
+{{- define "cardano-node.networkMagic" -}}
+{{- if eq .Values.node.network "preprod" -}}
+1
+{{- else if eq .Values.node.network "preview" -}}
+2
+{{- else -}}
+{{- "" -}}
+{{- end -}}
+{{- end }}

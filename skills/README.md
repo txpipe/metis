@@ -1,42 +1,38 @@
 # Skills
 
-These files are intended for agents guiding users through Metis cluster operations.
+These skills are MCP-only operating guides for agents working with Metis.
 
-All skills assume the repository in this workspace is the source of truth for the Helm charts and expected behavior.
+## Rule
 
-Use these skills as follows:
+Use MCP tools only. Do not tell the user to run `kubectl`, `helm`, `vault`, `cardano-cli`, `curl`, Docker, or local port-forward commands from these skills.
 
-- `kubernetes-extension-discovery.md`: discover which Metis extensions are already installed and whether prerequisites like `control-plane` are missing.
-- `kubernetes-storage-and-prereqs.md`: validate storage classes, PVC behavior, node readiness, and scheduling prerequisites before installs or upgrades.
-- `cardano-relay-setup.md`: install and validate a Cardano relay workload first through the MCP catalog-driven workload lifecycle.
-- `cardano-stake-pool-from-scratch.md`: guide a human operator through creating a new Cardano stake pool on any supported network, including key custody, metadata, pool registration, Vault runtime upload, and debug-first producer activation.
-- `cardano-block-producer-upgrade.md`: upgrade an existing relay to block-producer mode from an existing pool, using debug mode first, with explicit producer topology guidance.
-- `cardano-spo-maintenance-overview.md`: choose the right ongoing SPO maintenance workflow, understand custody boundaries, and apply dry-run rules before touching live Vault or the live ledger.
-- `cardano-spo-kes-rotation.md`: rotate `KES` keys and issue a new `op.cert`, with explicit offline custody boundaries and Vault-backed producer rollout guidance.
-- `cardano-spo-pool-update.md`: update an existing stake pool registration, including metadata, relays, pledge, cost, margin, reward account, owner set, and optional VRF changes.
-- `cardano-spo-pool-retirement.md`: retire a stake pool with a deliberate epoch choice and offline signing flow.
-- `cardano-block-producer-verification.md`: explain what can be verified today from the dashboard and what still requires external confirmation.
-- `cardano-block-producer-troubleshooting.md`: diagnose cases where a producer looks healthy locally but recent pool blocks are missing from the canonical external chain view.
-- `dolos-supernode-deployment.md`: deploy Dolos on the supernode cluster through MCP, including storage-class validation, internal relay upstream resolution, and basic Dolos metrics checks.
-- `hydra-node-deployment.md`: deploy a Hydra node through MCP using catalog configuration, `hydra.keys.generate`, runtime secret references, and offline or online mode guidance.
-- `hydra-head-operations.md`: interact directly with the Hydra HTTP/WebSocket API after discovering and port-forwarding workload outputs.
-- `hydra-node-troubleshooting.md`: diagnose Hydra startup, metrics, topology, peer, sync, and stuck-snapshot issues.
-- `workload-output-port-forward.md`: expose a discovered workload output locally with `kubectl port-forward` using the Kubernetes context that maps to the Supernode cluster.
-- `cardano-node-metrics-access.md`: read raw node metrics and the derived Metis metrics payload directly from a running pod via `kubectl exec`.
-- `supernode-dashboard-port-forward.md`: expose the user-facing `supernode-dashboard` locally with `kubectl port-forward`, with Grafana and Prometheus as supporting debug paths.
+If a requested action cannot be completed with the MCP tools below, say that MCP does not currently expose that operation and stop for operator direction.
 
-Operational assumptions:
+## MCP Tools
 
-- `control-plane` is expected to exist for normal workflows.
-- Agents should still verify cluster state rather than assume it blindly.
-- Cold keys stay offline.
-- Runtime block-producer material belongs in-cluster through Vault under `kv/runtime/...`; related online maintenance artifacts can live in the same Vault record, but cold/payment/stake signing keys should stay outside by default.
-- The required producer runtime set is only `kes.skey`, `vrf.skey`, and `op.cert`; additional public/reference artifacts in the same Vault record are optional convenience for operators and agents.
-- If an operator wants semi-cold storage in Vault, use a salted `kv/operator/<workload>/<network>-<pool-slug>-<hex-salt>/...` path rather than the producer-mounted `VaultStaticSecret` path.
-- Agents should explain that Vault operator storage is safer than leaving sensitive files on an unprotected workstation filesystem, but that cold keys are still best kept on separate offline or air-gapped devices.
-- New pool creation must start from an explicit network profile; do not silently assume Preview, Preprod, or mainnet.
-- If `cardano-cli` is missing locally, use the chart's Cardano node image through Docker with a narrow key-workspace mount.
-- Dry runs should stop before live `vault kv put`, `helm upgrade`, or transaction submission unless the operator explicitly asks for a staged mutation test.
-- Set explicit Cardano-node resource requests and limits as a normal Kubernetes practice.
-- On GKE Autopilot specifically, watch for memory evictions and autoscaler delays during Mithril restore/sync.
-- Relay topology can start on `image-default`, but once a producer is attached the relay should also be explicit: producer in `localRoots`, public relays in `publicRoots`. Producer topology should remain explicit, relay-only, and private.
+- `supernode.status.get`
+- `extensions.catalog.list`
+- `extensions.catalog.get`
+- `cluster.storage_classes.list`
+- `cluster.events.list`
+- `workloads.list`
+- `workloads.get`
+- `workloads.logs.get`
+- `workloads.metrics.get`
+- `workloads.install`
+- `workloads.upgrade`
+- `workloads.delete`
+- `vault.runtime.metadata.get`
+- `vault.runtime.write`
+- `vault.runtime.patch`
+- `hydra.keys.generate`
+- `dolos.snapshot.refresh`
+
+## Workload Rules
+
+- Use split extension IDs for new installs: `cardano-relay`, `cardano-block-producer`, `apex-fusion-relay`, `apex-fusion-block-producer`, `dolos`, and `hydra-node`.
+- Use `extensions.catalog.get` as the source of truth for configuration shape.
+- Pass direct chart values to `workloads.install` and `workloads.upgrade`.
+- Start mutating tools with `dryRun: true`; run live only after the operator approves the returned plan.
+- Do not auto-resolve trusted relays or upstreams. Use `workloads.list`, propose same-network candidates, and pass the operator-approved address explicitly.
+- Do not ask users to paste secret values in chat. If runtime material must be written, use `vault.runtime.write` or `vault.runtime.patch` through the MCP client.

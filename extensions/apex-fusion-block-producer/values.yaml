@@ -1,0 +1,90 @@
+nameOverride: ""
+fullnameOverride: ""
+displayName: ""
+
+image:
+  repository: ghcr.io/blinklabs-io/cardano-node
+  tag: "10.1.4"
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 4Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+relayResources:
+  requests:
+    cpu: 500m
+    memory: 4Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+service:
+  type: ClusterIP
+  annotations: {}
+  labels: {}
+  clusterIP: ""
+  loadBalancerIP: ""
+  externalTrafficPolicy: ""
+  n2nPort: 3000
+  n2nNodePort: null
+  n2cPort: 3307
+  n2cNodePort: null
+  metricsPort: 12789
+  metricsNodePort: null
+
+persistence:
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  annotations: {}
+  size: 20Gi
+  existingClaim: ""
+
+relayPersistence:
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  annotations: {}
+  size: 20Gi
+
+node:
+  network: vector-testnet
+  networkMagic: null
+  n2nPort: 3000
+  metricsPort: 12789
+  socketPath: /ipc/node.socket
+
+blockProducer:
+  debug: false
+  poolId: ""
+  mountPath: /block-producer
+  kesKeyFile: kes.skey
+  vrfKeyFile: vrf.skey
+  operationalCertificateFile: op.cert
+  vaultStaticSecret:
+    mount: kv
+    path: ""
+    refreshAfter: 1m
+
+relays:
+  count: 1
+  trusted: []
+  useLedgerAfterSlot: -1
+
+vaultAuth:
+  ref: control-plane/default
+  serviceAccount:
+    create: true
+    name: vault-auth
+
+proxy:
+  n2cPort: 3307
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []

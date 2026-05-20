@@ -1,2 +1,8 @@
+dolos:
+  network: cardano-preview
+
+persistence:
+  storageClass: standard
+
 config:
   upstreamAddress: trusted-relay.example.org:3000

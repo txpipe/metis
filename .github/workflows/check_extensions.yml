@@ -37,20 +37,32 @@ jobs:
             valuesArgs: "-f midnight/ci/values-managed-dbsync.yaml"
             dir: midnight
           - name: default
-            valuesArgs: ""
-            dir: cardano-node
-          - name: block-producer
-            valuesArgs: "-f cardano-node/ci/values-block-producer.yaml"
-            dir: cardano-node
+            valuesArgs: "-f cardano-relay/ci/values-default.yaml"
+            dir: cardano-relay
+          - name: default
+            valuesArgs: "-f cardano-block-producer/ci/values-default.yaml"
+            dir: cardano-block-producer
+          - name: debug
+            valuesArgs: "-f cardano-block-producer/ci/values-debug.yaml"
+            dir: cardano-block-producer
+          - name: trusted-relay
+            valuesArgs: "-f cardano-block-producer/ci/values-trusted-relay.yaml"
+            dir: cardano-block-producer
           - name: default
             valuesArgs: ""
             dir: control-plane
           - name: default
-            valuesArgs: ""
-            dir: apex-fusion
-          - name: block-producer
-            valuesArgs: "-f apex-fusion/ci/values-block-producer.yaml"
-            dir: apex-fusion
+            valuesArgs: "-f apex-fusion-relay/ci/values-default.yaml"
+            dir: apex-fusion-relay
+          - name: default
+            valuesArgs: "-f apex-fusion-block-producer/ci/values-default.yaml"
+            dir: apex-fusion-block-producer
+          - name: debug
+            valuesArgs: "-f apex-fusion-block-producer/ci/values-debug.yaml"
+            dir: apex-fusion-block-producer
+          - name: trusted-relay
+            valuesArgs: "-f apex-fusion-block-producer/ci/values-trusted-relay.yaml"
+            dir: apex-fusion-block-producer
           - name: default
             valuesArgs: "-f dolos/ci/values-default.yaml"
             dir: dolos

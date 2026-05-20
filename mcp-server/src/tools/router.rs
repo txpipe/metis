@@ -13,7 +13,7 @@ use crate::{
 use super::{
     ToolDefinition, common::kube_error, common::pod_exec_error, common::success,
     common::tool_error, common::vault_error, hydra, k8s_summaries, supernode, vault, workloads,
-    workloads::install, workloads::logs, workloads::metrics, workloads::outputs,
+    workloads::install, workloads::logs, workloads::outputs, workloads::registry,
 };
 
 #[derive(Debug, Clone)]
@@ -271,7 +271,16 @@ async fn workloads_install(
         return error;
     }
 
-    if configuration.get("namespace").and_then(Value::as_str) != Some(namespace.as_str()) {
+    if !matches!(
+        extension.id.as_str(),
+        workloads::registry::DOLOS_EXTENSION_ID
+            | workloads::registry::CARDANO_RELAY_EXTENSION_ID
+            | workloads::registry::CARDANO_BLOCK_PRODUCER_EXTENSION_ID
+            | workloads::registry::APEX_FUSION_RELAY_EXTENSION_ID
+            | workloads::registry::APEX_FUSION_BLOCK_PRODUCER_EXTENSION_ID
+            | workloads::registry::HYDRA_NODE_EXTENSION_ID
+    ) && configuration.get("namespace").and_then(Value::as_str) != Some(namespace.as_str())
+    {
         return tool_error(
             "invalid_arguments",
             "configuration.namespace must match namespace",
@@ -607,15 +616,30 @@ async fn workloads_metrics_get(
             );
         }
     };
-    let target = match metrics::target_for_release(&helm_release, catalog) {
-        Some(target) => target,
+    let extension = match registry::extension_for_release(&helm_release, catalog) {
+        Some(extension) => extension,
         None => {
             return tool_error(
                 "unsupported_metrics_workload",
-                "metrics are only supported for catalog-managed Cardano node relay, Dolos, and Hydra node workloads",
+                "metrics are only supported for catalog-managed workloads",
                 json!({
                     "namespace": namespace,
                     "workload": workload,
+                    "chart": helm_release.chart,
+                }),
+            );
+        }
+    };
+    let metrics_collection = match extension.metrics_collection.as_ref() {
+        Some(metrics_collection) => metrics_collection,
+        None => {
+            return tool_error(
+                "unsupported_metrics_workload",
+                "this extension does not define metrics collection metadata",
+                json!({
+                    "namespace": namespace,
+                    "workload": workload,
+                    "extensionId": extension.id,
                     "chart": helm_release.chart,
                 }),
             );
@@ -632,12 +656,17 @@ async fn workloads_metrics_get(
         }
         Err(error) => return kube_error("workloads.metrics.get", error),
     };
+    let command = metrics_collection
+        .command
+        .iter()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
     let output = match client
         .pod_exec_capture(
             &namespace,
             &pod_name,
-            target.container,
-            &[metrics::SCRIPT_PATH],
+            &metrics_collection.container,
+            &command,
         )
         .await
     {
@@ -654,7 +683,7 @@ async fn workloads_metrics_get(
                     "namespace": namespace,
                     "workload": workload,
                     "pod": pod_name,
-                    "container": target.container,
+                    "container": metrics_collection.container,
                 }),
             );
         }
@@ -664,16 +693,16 @@ async fn workloads_metrics_get(
         "namespace": namespace,
         "workload": workload,
         "pod": pod_name,
-        "container": target.container,
-        "source": format!("pod-exec:{}", metrics::SCRIPT_PATH),
+        "container": metrics_collection.container,
+        "source": format!("pod-exec:{}", metrics_collection.command.join(" ")),
         "extension": {
-            "id": target.extension.id,
-            "name": target.extension.name,
-            "version": target.extension.default_version,
+            "id": extension.id,
+            "name": extension.name,
+            "version": extension.default_version,
         },
         "helmRelease": helm_release,
         "metrics": metrics,
-        "metricsSchema": target.extension.metrics,
+        "metricsSchema": extension.metrics,
         "stderr": if output.stderr.trim().is_empty() { Value::Null } else { Value::String(output.stderr) },
     }))
 }
@@ -814,6 +843,16 @@ fn validate_configuration_schema(
     values: &JsonObject,
     schema: &Value,
 ) -> Result<(), CallToolResult> {
+    validate_object_value("", values, schema, schema)
+}
+
+fn validate_object_value(
+    path: &str,
+    values: &JsonObject,
+    schema: &Value,
+    root_schema: &Value,
+) -> Result<(), CallToolResult> {
+    let schema = dereference_schema(schema, root_schema);
     let schema = schema.as_object().ok_or_else(|| {
         tool_error(
             "catalog_schema_error",
@@ -821,24 +860,17 @@ fn validate_configuration_schema(
             json!({}),
         )
     })?;
-    let properties = schema
-        .get("properties")
-        .and_then(Value::as_object)
-        .ok_or_else(|| {
-            tool_error(
-                "catalog_schema_error",
-                "extension configuration schema must define properties",
-                json!({}),
-            )
-        })?;
+    let properties = schema.get("properties").and_then(Value::as_object);
 
-    if schema.get("additionalProperties").and_then(Value::as_bool) == Some(false) {
+    let additional_properties = schema.get("additionalProperties");
+    if additional_properties.and_then(Value::as_bool) == Some(false) {
         for key in values.keys() {
-            if !properties.contains_key(key) {
+            if !properties.is_some_and(|properties| properties.contains_key(key)) {
+                let field = field_path(path, key);
                 return Err(tool_error(
                     "invalid_extension_configuration",
-                    format!("unknown extension configuration value: {key}"),
-                    json!({ "field": key }),
+                    format!("unknown extension configuration value: {field}"),
+                    json!({ "field": field }),
                 ));
             }
         }
@@ -847,6 +879,7 @@ fn validate_configuration_schema(
     if let Some(required) = schema.get("required").and_then(Value::as_array) {
         for field in required.iter().filter_map(Value::as_str) {
             if !values.contains_key(field) {
+                let field = field_path(path, field);
                 return Err(tool_error(
                     "invalid_extension_configuration",
                     format!("missing required extension configuration value: {field}"),
@@ -857,8 +890,16 @@ fn validate_configuration_schema(
     }
 
     for (key, value) in values {
-        if let Some(property_schema) = properties.get(key) {
-            validate_property_value(key, value, property_schema)?;
+        let field = field_path(path, key);
+        if let Some(property_schema) = properties.and_then(|properties| properties.get(key)) {
+            validate_property_value(&field, value, property_schema, root_schema)?;
+        } else if let Some(additional_schema) = additional_properties.and_then(Value::as_object) {
+            validate_property_value(
+                &field,
+                value,
+                &Value::Object(additional_schema.clone()),
+                root_schema,
+            )?;
         }
     }
 
@@ -869,16 +910,11 @@ fn validate_property_value(
     name: &str,
     value: &Value,
     schema: &Value,
+    root_schema: &Value,
 ) -> Result<(), CallToolResult> {
-    if let Some(expected_type) = schema.get("type").and_then(Value::as_str) {
-        let matches = match expected_type {
-            "boolean" => value.is_boolean(),
-            "integer" => value.as_i64().is_some(),
-            "number" => value.as_f64().is_some(),
-            "object" => value.is_object(),
-            "string" => value.is_string(),
-            _ => true,
-        };
+    let schema = dereference_schema(schema, root_schema);
+    if let Some(expected_type) = schema.get("type") {
+        let matches = expected_type_matches(value, expected_type);
 
         if !matches {
             return Err(tool_error(
@@ -907,7 +943,82 @@ fn validate_property_value(
         ));
     }
 
+    if let (Some(value), Some(min_length)) = (
+        value.as_str(),
+        schema.get("minLength").and_then(Value::as_u64),
+    ) && value.chars().count() < min_length as usize
+    {
+        return Err(tool_error(
+            "invalid_extension_configuration",
+            format!("extension configuration value is too short: {name}"),
+            json!({
+                "field": name,
+                "minLength": min_length,
+            }),
+        ));
+    }
+
+    if let Some(values) = value.as_object() {
+        validate_object_value(name, values, schema, root_schema)?;
+    } else if let (Some(items), Some(item_schema)) = (value.as_array(), schema.get("items")) {
+        for (index, item) in items.iter().enumerate() {
+            validate_property_value(&format!("{name}[{index}]"), item, item_schema, root_schema)?;
+        }
+    }
+
     Ok(())
+}
+
+fn dereference_schema<'a>(schema: &'a Value, root_schema: &'a Value) -> &'a Value {
+    let Some(reference) = schema.get("$ref").and_then(Value::as_str) else {
+        return schema;
+    };
+    let Some(name) = reference
+        .strip_prefix("#/definitions/")
+        .or_else(|| reference.strip_prefix("#/$defs/"))
+    else {
+        return schema;
+    };
+
+    root_schema
+        .get("definitions")
+        .or_else(|| root_schema.get("$defs"))
+        .and_then(|definitions| definitions.get(name))
+        .unwrap_or(schema)
+}
+
+fn expected_type_matches(value: &Value, expected_type: &Value) -> bool {
+    if let Some(expected_type) = expected_type.as_str() {
+        return single_type_matches(value, expected_type);
+    }
+
+    expected_type.as_array().is_none_or(|types| {
+        types
+            .iter()
+            .filter_map(Value::as_str)
+            .any(|ty| single_type_matches(value, ty))
+    })
+}
+
+fn single_type_matches(value: &Value, expected_type: &str) -> bool {
+    match expected_type {
+        "array" => value.is_array(),
+        "boolean" => value.is_boolean(),
+        "integer" => value.as_i64().is_some(),
+        "null" => value.is_null(),
+        "number" => value.as_f64().is_some(),
+        "object" => value.is_object(),
+        "string" => value.is_string(),
+        _ => true,
+    }
+}
+
+fn field_path(parent: &str, child: &str) -> String {
+    if parent.is_empty() {
+        child.to_string()
+    } else {
+        format!("{parent}.{child}")
+    }
 }
 
 fn value_type_name(value: &Value) -> &'static str {
@@ -1089,7 +1200,7 @@ mod tests {
         let mut arguments = JsonObject::new();
         arguments.insert(
             "extensionId".to_string(),
-            Value::String("cardano-node-relay".to_string()),
+            Value::String("cardano-relay".to_string()),
         );
 
         let result = router.call(definition, Some(&arguments), &catalog).await;
@@ -1100,7 +1211,7 @@ mod tests {
                 .structured_content
                 .as_ref()
                 .and_then(|value| value.pointer("/extension/id")),
-            Some(&Value::String("cardano-node-relay".to_string()))
+            Some(&Value::String("cardano-relay".to_string()))
         );
     }
 
@@ -1170,7 +1281,7 @@ mod tests {
         let mut arguments = JsonObject::new();
         arguments.insert(
             "extensionId".to_string(),
-            Value::String("cardano-node-relay".to_string()),
+            Value::String("cardano-relay".to_string()),
         );
         arguments.insert(
             "releaseName".to_string(),
@@ -1184,9 +1295,13 @@ mod tests {
         arguments.insert(
             "configuration".to_string(),
             json!({
-                "network": "preview",
-                "namespace": "cardano",
-                "storageClass": "standard",
+                "node": {
+                    "network": "preview",
+                },
+                "persistence": {
+                    "storageClass": "standard",
+                    "size": "80Gi",
+                },
             }),
         );
 
@@ -1197,21 +1312,17 @@ mod tests {
         assert_eq!(content.pointer("/wouldMutate"), Some(&Value::Bool(false)));
         assert_eq!(
             content.pointer("/extension/id"),
-            Some(&Value::String("cardano-node-relay".to_string()))
+            Some(&Value::String("cardano-relay".to_string()))
         );
         assert_eq!(
             content.pointer("/chart/chart"),
             Some(&Value::String(
-                "oci://oci.supernode.store/extensions/cardano-node".to_string()
+                "oci://oci.supernode.store/extensions/cardano-relay".to_string()
             ))
         );
         assert_eq!(
             content.pointer("/helmValues/node/network"),
             Some(&Value::String("preview".to_string()))
-        );
-        assert_eq!(
-            content.pointer("/helmValues/node/blockProducer/enabled"),
-            Some(&Value::Bool(false))
         );
         assert_eq!(
             content.pointer("/helmValues/persistence/size"),
@@ -1227,7 +1338,7 @@ mod tests {
         let mut arguments = JsonObject::new();
         arguments.insert(
             "extensionId".to_string(),
-            Value::String("cardano-node-relay".to_string()),
+            Value::String("cardano-relay".to_string()),
         );
         arguments.insert(
             "releaseName".to_string(),
@@ -1240,9 +1351,12 @@ mod tests {
         arguments.insert(
             "configuration".to_string(),
             json!({
-                "network": "preview",
-                "namespace": "cardano",
-                "storageClass": "standard",
+                "node": {
+                    "network": "preview",
+                },
+                "persistence": {
+                    "storageClass": "standard",
+                },
                 "rawValues": { "node": { "replicas": 10 } },
             }),
         );
@@ -1283,10 +1397,16 @@ mod tests {
         arguments.insert(
             "configuration".to_string(),
             json!({
-                "network": "cardano-preview",
-                "namespace": "cardano",
-                "storageClass": "standard",
-                "upstreamAddress": "relay-preview-cardano-node.cardano.svc.cluster.local:3000",
+                "dolos": {
+                    "network": "cardano-preview",
+                },
+                "persistence": {
+                    "storageClass": "standard",
+                    "size": "50Gi",
+                },
+                "config": {
+                    "upstreamAddress": "relay-preview-cardano-relay.cardano.svc.cluster.local:3000",
+                },
             }),
         );
 
@@ -1307,17 +1427,78 @@ mod tests {
         assert_eq!(
             content.pointer("/helmValues/config/upstreamAddress"),
             Some(&json!(
-                "relay-preview-cardano-node.cardano.svc.cluster.local:3000"
+                "relay-preview-cardano-relay.cardano.svc.cluster.local:3000"
             ))
         );
         assert_eq!(
-            content.pointer("/helmValues/image/tag"),
-            Some(&json!("v1.1.1"))
+            content.pointer("/helmValues/persistence/storageClass"),
+            Some(&json!("standard"))
         );
         assert_eq!(
             content.pointer("/helmValues/persistence/size"),
             Some(&json!("50Gi"))
         );
+    }
+
+    #[tokio::test]
+    async fn hydra_install_dry_run_passes_chart_values_directly() {
+        let router = ToolRouter::new();
+        let catalog = ExtensionCatalog::embedded();
+        let definition = router.get_with_dynamic("workloads.install", &[]).unwrap();
+        let mut arguments = JsonObject::new();
+        arguments.insert(
+            "extensionId".to_string(),
+            Value::String("hydra-node".to_string()),
+        );
+        arguments.insert(
+            "releaseName".to_string(),
+            Value::String("hydra-offline".to_string()),
+        );
+        arguments.insert("namespace".to_string(), Value::String("hydra".to_string()));
+        arguments.insert("dryRun".to_string(), Value::Bool(true));
+        arguments.insert(
+            "configuration".to_string(),
+            json!({
+                "persistence": {
+                    "storageClass": "standard",
+                    "size": "5Gi"
+                },
+                "keys": {
+                    "hydraSigning": {
+                        "vaultStaticSecret": {
+                            "path": "runtime/hydra/offline/hydra-signing"
+                        }
+                    },
+                    "hydraVerification": {
+                        "items": [
+                            {
+                                "filename": "hydra.vk",
+                                "value": "public-hydra-verification-key"
+                            }
+                        ]
+                    }
+                }
+            }),
+        );
+
+        let result = router.call(definition, Some(&arguments), &catalog).await;
+
+        assert_eq!(result.is_error, Some(false));
+        let content = result.structured_content.as_ref().unwrap();
+        assert_eq!(content.pointer("/extension/id"), Some(&json!("hydra-node")));
+        assert_eq!(
+            content.pointer("/helmValues/displayName"),
+            Some(&json!("hydra-offline"))
+        );
+        assert_eq!(
+            content.pointer("/helmValues/persistence/storageClass"),
+            Some(&json!("standard"))
+        );
+        assert_eq!(
+            content.pointer("/helmValues/keys/hydraSigning/vaultStaticSecret/path"),
+            Some(&json!("runtime/hydra/offline/hydra-signing"))
+        );
+        assert_eq!(content.pointer("/helmValues/namespace"), None);
     }
 
     #[test]

@@ -7,6 +7,26 @@ pub type ExtensionMetrics = Value;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ExtensionMetricsCollection {
+    pub container: String,
+    pub command: Vec<String>,
+}
+
+impl ExtensionMetricsCollection {
+    pub fn new(container: &str, command: Vec<&str>) -> Self {
+        Self {
+            container: container.to_string(),
+            command: command.into_iter().map(str::to_string).collect(),
+        }
+    }
+
+    pub fn metrics_script(container: &str) -> Self {
+        Self::new(container, vec!["/opt/metis/bin/metrics.sh"])
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExtensionSecretDefinition {
     pub name: String,
     pub description: String,
@@ -75,6 +95,8 @@ pub struct ExtensionDefinition {
     pub secrets: Vec<ExtensionSecretDefinition>,
     pub dependencies: Vec<ExtensionId>,
     pub metrics: ExtensionMetrics,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metrics_collection: Option<ExtensionMetricsCollection>,
     pub outputs: Vec<ExtensionOutputDefinition>,
     pub chart: String,
 }
@@ -104,8 +126,14 @@ impl ExtensionDefinition {
             secrets,
             dependencies: dependencies.into_iter().map(str::to_string).collect(),
             metrics,
+            metrics_collection: None,
             outputs,
             chart,
         }
+    }
+
+    pub fn with_metrics_collection(mut self, collection: ExtensionMetricsCollection) -> Self {
+        self.metrics_collection = Some(collection);
+        self
     }
 }

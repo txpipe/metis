@@ -1,0 +1,13 @@
+persistence:
+  storageClass: standard
+
+blockProducer:
+  poolId: pool1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  vaultStaticSecret:
+    path: runtime/cardano-block-producer/example/block-producer
+
+relays:
+  count: 0
+  trusted:
+    - address: trusted-relay.cardano.svc.cluster.local
+      port: 3000

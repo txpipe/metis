@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Apex Fusion Block Producer Helm Values",
+  "description": "Supernode-opinionated Apex Fusion block producer chart values. This schema is the public configuration interface for LLMs and MCP clients; pass values in this shape directly to Helm. Producer runtime material must be sourced from Vault.",
+  "type": "object",
+  "required": ["node", "persistence", "relayPersistence", "blockProducer"],
+  "additionalProperties": false,
+  "properties": {
+    "nameOverride": { "type": "string", "description": "Advanced, usually not modified. Overrides the Kubernetes app name used by the chart.", "default": "", "x-supernodeCategory": "advanced" },
+    "fullnameOverride": { "type": "string", "description": "Advanced, usually not modified. Overrides the full Kubernetes resource name. Leave empty so the release name controls resource names.", "default": "", "x-supernodeCategory": "advanced" },
+    "displayName": { "type": "string", "description": "Optional. Human-readable workload name shown by Supernode tooling. MCP normally sets this from releaseName.", "default": "", "x-supernodeCategory": "optional" },
+    "image": { "type": "object", "description": "Optional. Apex Fusion node container image settings.", "additionalProperties": false, "properties": { "repository": { "type": "string", "default": "ghcr.io/blinklabs-io/cardano-node" }, "tag": { "type": "string", "default": "10.1.4" } } },
+    "resources": { "$ref": "#/definitions/resources", "description": "Optional. Kubernetes CPU and memory requests and limits for the private block producer container." },
+    "relayResources": { "$ref": "#/definitions/resources", "description": "Optional. Kubernetes CPU and memory requests and limits for managed relay containers." },
+    "service": { "$ref": "#/definitions/service" },
+    "persistence": { "$ref": "#/definitions/persistence", "description": "Required. Persistent storage for the block producer chain database." },
+    "relayPersistence": { "$ref": "#/definitions/persistence", "description": "Required. Persistent storage for each managed relay chain database." },
+    "node": {
+      "type": "object",
+      "description": "Required. Apex Fusion block producer runtime settings. Set node.network and usually leave low-level ports unchanged.",
+      "required": ["network"],
+      "additionalProperties": false,
+      "properties": {
+        "network": { "type": "string", "description": "Required. Apex Fusion network to join.", "enum": ["vector-testnet", "prime-testnet", "prime-mainnet"], "default": "vector-testnet", "x-supernodeCategory": "required" },
+        "networkMagic": { "type": ["integer", "null"], "description": "Advanced, usually not modified. Overrides derived testnet magic. vector-testnet derives 1 and prime-testnet derives 3311.", "default": null },
+        "n2nPort": { "type": "integer", "description": "Advanced, usually not modified. Internal node-to-node port.", "default": 3000 },
+        "metricsPort": { "type": "integer", "description": "Advanced, usually not modified. Internal node metrics port.", "default": 12789 },
+        "socketPath": { "type": "string", "description": "Advanced, usually not modified. Node socket path shared with the proxy sidecar.", "default": "/ipc/node.socket" }
+      }
+    },
+    "blockProducer": {
+      "type": "object",
+      "description": "Required. Private producer runtime settings. Only kes.skey, vrf.skey, and op.cert runtime material should be synced into this pod from Vault; keep cold keys and counters outside the cluster.",
+      "required": ["vaultStaticSecret"],
+      "additionalProperties": false,
+      "properties": {
+        "debug": { "type": "boolean", "description": "Optional. Mount producer material and emit block-producer metrics env, but do not pass forging flags to the node.", "default": false },
+        "poolId": { "type": "string", "description": "Optional but recommended. Pool ID used by metrics for leader schedule calculations.", "default": "" },
+        "mountPath": { "type": "string", "description": "Advanced, usually not modified. Mount path for producer runtime material.", "default": "/block-producer" },
+        "kesKeyFile": { "type": "string", "description": "Advanced, usually not modified. KES signing key filename in the Vault-synced Secret.", "default": "kes.skey" },
+        "vrfKeyFile": { "type": "string", "description": "Advanced, usually not modified. VRF signing key filename in the Vault-synced Secret.", "default": "vrf.skey" },
+        "operationalCertificateFile": { "type": "string", "description": "Advanced, usually not modified. Operational certificate filename in the Vault-synced Secret.", "default": "op.cert" },
+        "vaultStaticSecret": { "$ref": "#/definitions/vaultStaticSecret" }
+      }
+    },
+    "relays": {
+      "type": "object",
+      "description": "Required. Relay topology for the private block producer. relays.count creates managed relays inside this release. If relays.count=0, provide relays.trusted explicitly. MCP does not auto-resolve trusted relays; use workloads.list to inspect candidate apex-fusion-relay workloads.",
+      "additionalProperties": false,
+      "properties": {
+        "count": { "type": "integer", "description": "Number of managed relays to create inside this release. Use 0 only when relays.trusted is provided.", "minimum": 0, "default": 1 },
+        "trusted": { "type": "array", "description": "Explicit trusted relay endpoints used when count=0.", "items": { "$ref": "#/definitions/trustedRelay" }, "default": [] },
+        "useLedgerAfterSlot": { "type": "integer", "description": "Topology useLedgerAfterSlot value. Private producers typically use -1.", "default": -1 }
+      }
+    },
+    "vaultAuth": { "$ref": "#/definitions/vaultAuth" },
+    "proxy": { "type": "object", "description": "Advanced, usually not modified. Node-to-client TCP proxy settings. The proxy is always enabled and uses chart-owned nginx configuration.", "additionalProperties": false, "properties": { "n2cPort": { "type": "integer", "default": 3307 } } },
+    "nodeSelector": { "type": "object", "description": "Advanced, usually not modified. Kubernetes nodeSelector for producer scheduling.", "additionalProperties": { "type": "string" }, "default": {}, "x-supernodeCategory": "advanced" },
+    "tolerations": { "type": "array", "description": "Advanced, usually not modified. Kubernetes tolerations for producer scheduling.", "items": { "type": "object", "additionalProperties": true }, "default": [], "x-supernodeCategory": "advanced" },
+    "affinity": { "type": "object", "description": "Advanced, usually not modified. Kubernetes affinity rules for producer pod placement.", "additionalProperties": true, "default": {}, "x-supernodeCategory": "advanced" },
+    "topologySpreadConstraints": { "type": "array", "description": "Advanced, usually not modified. Kubernetes topology spread constraints.", "items": { "type": "object", "additionalProperties": true }, "default": [], "x-supernodeCategory": "advanced" }
+  },
+  "definitions": {
+    "resourceList": { "type": "object", "additionalProperties": false, "properties": { "cpu": { "type": "string" }, "memory": { "type": "string" } } },
+    "resources": { "type": "object", "additionalProperties": false, "properties": { "requests": { "$ref": "#/definitions/resourceList" }, "limits": { "$ref": "#/definitions/resourceList" } } },
+    "stringMap": { "type": "object", "additionalProperties": { "type": "string" } },
+    "service": { "type": "object", "description": "Optional. Kubernetes Service settings for the private producer Service. Managed relays are always ClusterIP.", "additionalProperties": false, "properties": { "type": { "type": "string", "enum": ["ClusterIP", "NodePort", "LoadBalancer"], "default": "ClusterIP" }, "annotations": { "$ref": "#/definitions/stringMap" }, "labels": { "$ref": "#/definitions/stringMap" }, "clusterIP": { "type": "string", "default": "" }, "loadBalancerIP": { "type": "string", "default": "" }, "externalTrafficPolicy": { "type": "string", "enum": ["", "Cluster", "Local"], "default": "" }, "n2nPort": { "type": "integer", "default": 3000 }, "n2nNodePort": { "type": ["integer", "null"], "default": null }, "n2cPort": { "type": "integer", "default": 3307 }, "n2cNodePort": { "type": ["integer", "null"], "default": null }, "metricsPort": { "type": "integer", "default": 12789 }, "metricsNodePort": { "type": ["integer", "null"], "default": null } } },
+    "persistence": { "type": "object", "required": ["storageClass"], "additionalProperties": false, "properties": { "storageClass": { "type": "string", "description": "Required. Kubernetes StorageClass used for the chain-data PVC.", "minLength": 1, "x-supernodeCategory": "required" }, "accessModes": { "type": "array", "items": { "type": "string" }, "default": ["ReadWriteOnce"] }, "annotations": { "$ref": "#/definitions/stringMap" }, "size": { "type": "string", "pattern": "^[0-9]+(Mi|Gi|Ti)$", "default": "20Gi" }, "existingClaim": { "type": "string", "description": "Advanced, usually not modified. Existing PVC name for the producer. Managed relay persistence always creates PVCs.", "default": "" } } },
+    "vaultStaticSecret": { "type": "object", "required": ["path"], "additionalProperties": false, "properties": { "mount": { "type": "string", "default": "kv" }, "path": { "type": "string", "description": "Required. Runtime Vault path without kv/data prefix, for example runtime/apex-fusion/prime-mainnet-bp/block-producer.", "minLength": 1 }, "refreshAfter": { "type": "string", "default": "1m" } } },
+    "vaultAuth": { "type": "object", "additionalProperties": false, "properties": { "ref": { "type": "string", "description": "VaultAuth reference used by chart-managed VaultStaticSecret resources.", "default": "control-plane/default" }, "serviceAccount": { "type": "object", "additionalProperties": false, "properties": { "create": { "type": "boolean", "default": true }, "name": { "type": "string", "default": "vault-auth" } } } } },
+    "trustedRelay": { "type": "object", "required": ["address"], "additionalProperties": false, "properties": { "address": { "type": "string", "minLength": 1 }, "port": { "type": "integer", "minimum": 1, "maximum": 65535, "default": 3000 }, "valency": { "type": "integer", "minimum": 1, "default": 1 } } }
+  }
+}

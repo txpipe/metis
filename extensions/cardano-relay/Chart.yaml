@@ -1,0 +1,15 @@
+apiVersion: v2
+name: cardano-relay
+description: A Supernode-opinionated Helm chart for deploying a Cardano relay node.
+type: application
+version: 0.1.0
+appVersion: "11.0.1"
+keywords:
+  - cardano
+  - metis
+  - supernode
+annotations:
+  displayName: Cardano Relay
+  icon: /images/workloads/cardano-node.svg
+  category: layer-1
+  networkPath: node.network

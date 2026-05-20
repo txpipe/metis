@@ -2,77 +2,25 @@
 
 ## Goal
 
-Validate cluster readiness before a relay install or a producer upgrade.
+Validate cluster readiness before installs or upgrades using MCP tools only.
 
-## Storage Class Checks
+## Workflow
 
-Always inspect available storage classes before building the Helm command:
+1. Call `supernode.status.get`.
+2. Call `cluster.storage_classes.list`.
+3. Call `cluster.events.list` for recent scheduling, provisioning, image, probe, or mount problems.
+4. Call `workloads.list` to understand existing releases.
+5. Call `workloads.get` for any workload involved in the planned operation.
 
-```bash
-kubectl get storageclass
-```
+## Checks
 
-If needed, inspect a specific class:
+- The MCP server can reach Kubernetes.
+- A real storage class is selected from `cluster.storage_classes.list`.
+- Existing workloads are healthy enough to use as dependencies.
+- Recent events do not show unresolved scheduling or PVC failures.
 
-```bash
-kubectl describe storageclass <storage-class-name>
-```
+## Rules
 
-Do not assume names like `gp`, `standard`, or cloud-provider defaults exist in every cluster.
-
-## PVC Checks
-
-Before installation:
-
-- pick the storage class deliberately
-- confirm the target cluster supports dynamic provisioning for it
-
-After installation:
-
-```bash
-kubectl get pvc -A
-kubectl describe pvc -n <namespace> <pvc-name>
-```
-
-What to look for:
-
-- PVC is `Bound`
-- no repeated provisioning failures
-- no access-mode mismatch
-- no topology restriction preventing scheduling
-
-## Scheduling And Node Checks
-
-Use these when pods are pending or behaving unexpectedly:
-
-```bash
-kubectl get nodes
-kubectl describe node <node-name>
-kubectl get events -A --sort-by=.lastTimestamp
-kubectl describe pod -n <namespace> <pod-name>
-```
-
-Check for:
-
-- insufficient CPU or memory
-- taints that require matching tolerations
-- missing storage topology
-- image pull issues
-- namespace quota issues
-
-## Control-Plane And Shared Infra Checks
-
-For workflows that depend on the shared Metis base:
-
-```bash
-kubectl get pods -n control-plane
-kubectl get vaultauth -n control-plane
-kubectl get vaultconnection -n control-plane
-```
-
-## Best Practices
-
-- Validate storage classes before writing the Helm install command.
-- Treat PVC binding problems as first-line install failures, not chart bugs.
-- Validate node readiness and scheduling constraints before changing chart values blindly.
-- Prefer concrete cluster evidence from `kubectl describe` and `kubectl get events` over assumptions.
+- Do not assume storage class names.
+- Do not proceed with install or upgrade when MCP reports unresolved PVC, scheduling, or control-plane failures.
+- Do not use non-MCP cluster commands from this skill.

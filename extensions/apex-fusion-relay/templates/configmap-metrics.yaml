@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "apex-fusion.metricsConfigMapName" . }}
+  labels:
+    {{- include "apex-fusion.labels" . | nindent 4 }}
+data:
+  metrics.sh: |-
+    #!/usr/bin/env sh
+    set -u
+    metrics="$(curl -s --fail "http://127.0.0.1:{{ .Values.node.metricsPort }}/metrics" || wget -qO- "http://127.0.0.1:{{ .Values.node.metricsPort }}/metrics" || true)"
+    metric_value() { printf '%s\n' "$metrics" | awk -v key="$1" '$1 == key { print $2; exit }'; }
+    json_number_or_null() { if printf '%s' "$1" | grep -Eq '^-?[0-9]+([.][0-9]+)?$'; then printf '%s' "$1"; else printf 'null'; fi; }
+    errors="[]"
+    if [ -z "$metrics" ]; then errors='["failed to read node metrics"]'; fi
+    block_height="$(metric_value cardano_node_metrics_blockNum_int)"
+    epoch="$(metric_value cardano_node_metrics_epoch_int)"
+    slot_num="$(metric_value cardano_node_metrics_slotNum_int)"
+    peers_incoming="$(metric_value cardano_node_metrics_connectionManager_incomingConns_int)"
+    peers_outgoing="$(metric_value cardano_node_metrics_connectionManager_outgoingConns_int)"
+    printf '{"type":"apex-fusion","blockHeight":%s,"epoch":%s,"slotNum":%s,"peersIncoming":%s,"peersOutgoing":%s,"errors":%s}\n' \
+      "$(json_number_or_null "$block_height")" \
+      "$(json_number_or_null "$epoch")" \
+      "$(json_number_or_null "$slot_num")" \
+      "$(json_number_or_null "$peers_incoming")" \
+      "$(json_number_or_null "$peers_outgoing")" \
+      "$errors"

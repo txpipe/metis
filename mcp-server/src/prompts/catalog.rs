@@ -51,7 +51,7 @@ const PROMPTS: &[PromptSpec] = &[
         name: "cardano-relay-setup",
         title: "Cardano Relay Setup",
         description: "Plan a Cardano relay install through the catalog workflow.",
-        text: "Use the catalog-driven lifecycle workflow for a Cardano relay. Read supernode://extensions/catalog/cardano-node-relay, validate required extension configuration values, and use workloads.install when tool execution is available. Do not use extension-specific install tools or raw Helm values.",
+        text: "Use the catalog-driven lifecycle workflow for a Cardano relay. Read supernode://extensions/catalog/cardano-relay, validate required extension configuration values, and use workloads.install when tool execution is available. Do not use extension-specific install tools or raw Helm values.",
     },
     PromptSpec {
         name: "dashboard-access",
@@ -101,7 +101,7 @@ mod tests {
             panic!("expected text prompt");
         };
         assert!(text.contains("workloads.install"));
-        assert!(text.contains("cardano-node-relay"));
+        assert!(text.contains("cardano-relay"));
         assert!(!text.contains("cardano.relay.install"));
     }
 

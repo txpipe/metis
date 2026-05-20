@@ -1,5 +1,0 @@
-node:
-  blockProducer:
-    enabled: true
-    vaultStaticSecret:
-      path: runtime/apex-fusion/example/block-producer

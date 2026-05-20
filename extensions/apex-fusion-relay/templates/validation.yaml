@@ -1,0 +1,13 @@
+{{- if not (has .Values.node.network (list "vector-testnet" "prime-testnet" "prime-mainnet")) }}
+{{- fail "node.network must be one of vector-testnet, prime-testnet, or prime-mainnet" }}
+{{- end }}
+{{- if eq (default "image-default" .Values.node.topology.mode) "relay-service" }}
+{{- if not .Values.node.topology.relayTargets }}
+{{- fail "node.topology.relayTargets is required when node.topology.mode=relay-service" }}
+{{- end }}
+{{- end }}
+{{- if eq (default "image-default" .Values.node.topology.mode) "custom" }}
+{{- if and (not .Values.node.topology.localRoots) (not .Values.node.topology.publicRoots) }}
+{{- fail "node.topology.localRoots or node.topology.publicRoots is required when node.topology.mode=custom" }}
+{{- end }}
+{{- end }}

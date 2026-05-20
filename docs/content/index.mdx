@@ -87,15 +87,7 @@ This quickstart follows the canonical Supernode path:
 
    The canonical Supernode model is to install supported workloads on top of the control-plane. For example, a Cardano relay:
 
-   ```sh
-   helm install preview-relay ./extensions/cardano-node \
-     --namespace preview-relay \
-     --create-namespace \
-     --set displayName="Preview Relay" \
-     --set node.network=preview \
-     --set node.networkMagic=2 \
-     --set extraLabels.supernode/status=ready
-   ```
+   Use the `cardano-relay` MCP catalog entry for Cardano relay installs.
 
    You can also install workloads through the dashboard once it is running in-cluster.
 

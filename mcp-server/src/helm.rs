@@ -300,7 +300,7 @@ mod tests {
             release_name: "cardano-preview".to_string(),
             namespace: "cardano-preview".to_string(),
             chart: HelmChartRef {
-                chart: "oci://oci.supernode.store/extensions/cardano-node".to_string(),
+                chart: "oci://oci.supernode.store/extensions/cardano-relay".to_string(),
                 version: "0.1.0-rc1".to_string(),
             },
             values: json!({ "node": { "network": "preview" } }),

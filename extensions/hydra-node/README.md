@@ -16,7 +16,7 @@ head suitable for rapid experiments.
 - Separate Services for identity (headless) and access (ClusterIP/NodePort/LoadBalancer).
 - Mandatory PodMonitor and a Metis `/opt/metis/bin/metrics.sh` script for
   Prometheus and MCP metrics collection.
-- Tunable probes, resources, tolerations, and topology settings.
+- Opinionated probes and workload wiring with tunable resources, tolerations, and topology settings.
 
 ## Prerequisites
 
@@ -35,12 +35,12 @@ Required key material:
   protocol parameters, and an initial `utxo.json`. Inline defaults are included
   to match quick experiments, but override them with your own content before
   sharing a head with peers.
-- For online heads set `keys.cardano.enabled=true` and supply a Cardano signing
-  key, verification key, remote node address, and a `node.hydraScriptsTxId`
-  value. The chart can launch a `socat` sidecar via
-  `node.cardanoSocketProxy` to project the remote Cardano socket into the pod,
-  or you can disable the proxy and mount a socket path manually using
-  `node.extraVolumes` / `node.extraVolumeMounts`.
+- For online heads set `node.offlineMode=false`, `keys.cardano.enabled=true`,
+  and supply a Cardano signing key, verification key, remote node address, and
+  a `node.hydraScriptsTxId` value. The chart launches an optional `socat`
+  sidecar via `node.cardanoSocketProxy` to project the remote Cardano socket
+  into the pod. Generic manual volume mounts are intentionally not part of this
+  chart interface.
 
 Write the required signing key material into Vault ahead of time and let the
 chart render VaultStaticSecret resources that sync Kubernetes Secret
@@ -59,6 +59,7 @@ kubectl create configmap hydra-verification \
 
 ```shell
 helm install hydra-node ./hydra-node \
+  --set persistence.storageClass=standard \
   --set keys.hydraSigning.vaultStaticSecret.path=runtime/hydra/demo/hydra-signing \
   --set keys.hydraVerification.existingConfigMap.name=hydra-verification \
   --set keys.hydraVerification.items[0].filename=hydra.vk
@@ -97,17 +98,13 @@ have a Hydra key pair available on disk.
      --from-file=hydra.vk=/path/to/hydra.vk
    ```
 
-3. (Optional) Write a values file with tweaks that make local runs easier to
-   iterate on, such as disabling persistence or reducing probe delays:
+3. Write a values file with the required persistence class for your kind
+   cluster:
 
    ```shell
    cat <<'EOF' > hydra-kind-values.yaml
-   persistence:
-     enabled: false
-   livenessProbe:
-     initialDelaySeconds: 10
-   readinessProbe:
-     initialDelaySeconds: 5
+    persistence:
+      storageClass: standard
    EOF
    ```
 
@@ -179,9 +176,10 @@ keys:
 
 With the proxy enabled the chart injects a `socat` sidecar that listens on the
 Unix socket at `/ipc/node.socket` and forwards data to the specified remote node
-address. If you already mount a socket into the pod (for example via a shared
-PVC), disable the proxy (`node.cardanoSocketProxy.enabled=false`) and use
-`node.extraVolumes` / `node.extraVolumeMounts` instead.
+address. The chart does not expose arbitrary manual volume mounts for Cardano
+sockets; use `node.cardanoSocketProxy` and choose the upstream explicitly. MCP
+does not auto-discover upstream relays, so use `workloads.list` to inspect
+candidate Cardano relay outputs.
 
 ## Metrics
 
@@ -271,4 +269,5 @@ helm template hydra-vault . -f ci/values-vault-static-secret.yaml > /tmp/hydra-v
 | `service.monitoringPort` | Hydra Prometheus metrics port scraped by the mandatory PodMonitor | `6001` |
 | `persistence.size` | Persistent volume claim size for the Hydra state | `5Gi` |
 
-Consult `values.yaml` for the full matrix of options and tailoring knobs.
+Consult `values.schema.json` for the public configuration contract used by Helm,
+MCP, and LLM clients.

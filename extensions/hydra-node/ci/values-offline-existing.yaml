@@ -1,3 +1,6 @@
+persistence:
+  storageClass: standard
+
 ledger:
   protocolParameters:
     create: false

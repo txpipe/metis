@@ -5,21 +5,6 @@ displayName: ""
 image:
   repository: ghcr.io/cardano-scaling/hydra-node
   tag: "2.1.0"
-  pullPolicy: IfNotPresent
-
-imagePullSecrets: []
-
-serviceAccount:
-  create: true
-  annotations: {}
-  name: ""
-
-podAnnotations: {}
-extraLabels: {}
-
-podSecurityContext: {}
-
-securityContext: {}
 
 resources:
   limits:
@@ -28,8 +13,6 @@ resources:
   requests:
     cpu: 500m
     memory: 1Gi
-
-priorityClassName: ""
 
 service:
   type: ClusterIP
@@ -44,30 +27,17 @@ service:
   p2pNodePort: null
   monitoringPort: 6001
   monitoringNodePort: null
-  extraPorts: []
 
 persistence:
-  enabled: true
   storageClass: ""
   accessModes:
     - ReadWriteOnce
   annotations: {}
   size: 5Gi
   existingClaim: ""
-  mountPath: /var/lib/hydra
 
 node:
   replicas: 1
-  command: []
-  args: []
-  extraArgs: []
-  env: []
-  envFrom: []
-  extraVolumeMounts: []
-  extraVolumes: []
-  extraContainers: []
-  initContainers: []
-  terminationGracePeriodSeconds: 60
   offlineMode: true
   offlineHeadSeed: "0001"
   quiet: true
@@ -94,11 +64,7 @@ node:
     image:
       repository: alpine/socat
       tag: "1.7.4.4-r0"
-      pullPolicy: IfNotPresent
-    extraArgs: []
-    extraEnv: []
     resources: {}
-    securityContext: {}
 
 ledger:
   mountPath: /etc/hydra
@@ -161,20 +127,6 @@ keys:
         name: ""
         key: ""
       value: ""
-
-livenessProbe:
-  enabled: true
-  tcpSocket:
-    port: api
-  initialDelaySeconds: 30
-  periodSeconds: 15
-
-readinessProbe:
-  enabled: true
-  tcpSocket:
-    port: api
-  initialDelaySeconds: 10
-  periodSeconds: 10
 
 nodeSelector: {}
 tolerations: []

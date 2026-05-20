@@ -1,0 +1,176 @@
+{{- $fullName := include "cardano-node.fullname" . -}}
+{{- $selectorLabels := include "cardano-node.selectorLabels" . -}}
+{{- $proxyConfigName := include "cardano-node.proxyConfigName" . -}}
+{{- $metricsConfigMapName := include "cardano-node.metricsConfigMapName" . -}}
+{{- $topologyConfigMapName := include "cardano-node.topologyConfigMapName" . -}}
+{{- $proxyChecksum := include (print $.Template.BasePath "/configmap-proxy.yaml") . | sha256sum -}}
+{{- $topologyChecksum := "" -}}
+{{- if $topologyConfigMapName }}
+{{- $topologyChecksum = include (print $.Template.BasePath "/configmap-topology.yaml") . | sha256sum -}}
+{{- end }}
+{{- $networkMagic := include "cardano-node.networkMagic" . -}}
+{{- $shelleyTransitionEpochByNetwork := dict "preview" 0 "preprod" 0 "mainnet" 208 -}}
+{{- $effectiveShelleyTransitionEpoch := get $shelleyTransitionEpochByNetwork .Values.node.network -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "cardano-node.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.node.replicas | int }}
+  selector:
+    matchLabels:
+{{- $selectorLabels | nindent 6 }}
+  serviceName: {{ printf "%s-headless" $fullName }}
+  template:
+    metadata:
+      labels:
+{{- $selectorLabels | nindent 8 }}
+      annotations:
+        checksum/proxy-config: {{ $proxyChecksum }}
+        {{- if $topologyChecksum }}
+        checksum/topology: {{ $topologyChecksum }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ $fullName }}
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: cardano-node
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          args:
+            - run
+            - --database-path
+            - /data/db
+            - --socket-path
+            - /ipc/node.socket
+            - --port
+            - {{ .Values.node.n2nPort | quote }}
+          env:
+            - name: CARDANO_NETWORK
+              value: {{ .Values.node.network | quote }}
+            - name: CARDANO_NODE_SOCKET_PATH
+              value: {{ .Values.node.socketPath | quote }}
+            - name: METIS_NODE_ROLE
+              value: "relay"
+            {{- if $networkMagic }}
+            - name: METIS_CARDANO_NETWORK_MAGIC
+              value: {{ $networkMagic | quote }}
+            - name: CARDANO_NODE_NETWORK_ID
+              value: {{ $networkMagic | quote }}
+            {{- end }}
+            - name: RESTORE_SNAPSHOT
+              value: "true"
+            - name: METIS_SHELLEY_GENESIS_PATH
+              value: {{ printf "/opt/cardano/config/%s/shelley-genesis.json" .Values.node.network | quote }}
+            - name: METIS_BYRON_GENESIS_PATH
+              value: {{ printf "/opt/cardano/config/%s/byron-genesis.json" .Values.node.network | quote }}
+            {{- if eq .Values.node.network "mainnet" }}
+            - name: METIS_SHELLEY_TRANSITION_EPOCH
+              value: {{ printf "%v" $effectiveShelleyTransitionEpoch | quote }}
+            {{- end }}
+          ports:
+            - name: n2n
+              containerPort: {{ .Values.node.n2nPort }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.node.metricsPort }}
+              protocol: TCP
+          volumeMounts:
+            - name: chain-data
+              mountPath: /data
+            - name: ipc
+              mountPath: /ipc
+            {{- if $topologyConfigMapName }}
+            - name: topology
+              mountPath: {{ printf "/opt/cardano/config/%s/topology.json" .Values.node.network }}
+              subPath: topology.json
+              readOnly: true
+            {{- end }}
+            - name: metrics-scripts
+              mountPath: /opt/metis/bin/metrics.sh
+              subPath: metrics.sh
+              readOnly: true
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - test -S /ipc/node.socket
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+        - name: proxy
+          image: "nginx:1.25.5"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: n2c
+              containerPort: {{ .Values.proxy.n2cPort }}
+              protocol: TCP
+          volumeMounts:
+            - name: ipc
+              mountPath: /ipc
+            - name: proxy-config
+              mountPath: /etc/nginx
+          resources:
+            limits:
+              memory: 100Mi
+            requests:
+              cpu: 10m
+              memory: 100Mi
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: ipc
+          emptyDir: {}
+        - name: proxy-config
+          configMap:
+            name: {{ $proxyConfigName }}
+        {{- if $topologyConfigMapName }}
+        - name: topology
+          configMap:
+            name: {{ $topologyConfigMapName }}
+        {{- end }}
+        - name: metrics-scripts
+          configMap:
+            name: {{ $metricsConfigMapName }}
+            defaultMode: 0555
+        {{- if .Values.persistence.existingClaim }}
+        - name: chain-data
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim }}
+        {{- end }}
+  {{- if not .Values.persistence.existingClaim }}
+  volumeClaimTemplates:
+    - metadata:
+        name: chain-data
+        {{- with .Values.persistence.annotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.persistence.accessModes | nindent 10 }}
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+  {{- end }}

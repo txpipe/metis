@@ -145,9 +145,9 @@ mod tests {
                 .any(|resource| resource.uri == EXTENSION_CATALOG_URI)
         );
         assert!(
-            resources.iter().any(|resource| {
-                resource.uri == extension_catalog_entry_uri("cardano-node-relay")
-            })
+            resources
+                .iter()
+                .any(|resource| { resource.uri == extension_catalog_entry_uri("cardano-relay") })
         );
     }
 
@@ -167,7 +167,7 @@ mod tests {
             panic!("expected text resource");
         };
         assert_eq!(mime_type.as_deref(), Some(JSON_MIME_TYPE));
-        assert!(text.contains("cardano-node-relay"));
+        assert!(text.contains("cardano-relay"));
         assert!(!text.contains("secret-value"));
     }
 
@@ -177,7 +177,7 @@ mod tests {
 
         let result = router
             .read(
-                &extension_catalog_entry_uri("cardano-node-relay"),
+                &extension_catalog_entry_uri("cardano-relay"),
                 &AuthContext::trusted(),
             )
             .unwrap();
@@ -185,7 +185,7 @@ mod tests {
         let ResourceContents::TextResourceContents { text, .. } = &result.contents[0] else {
             panic!("expected text resource");
         };
-        assert!(text.contains("Cardano Node Relay"));
+        assert!(text.contains("Cardano Relay"));
         assert!(text.contains("configuration"));
     }
 

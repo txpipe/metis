@@ -1,5 +1,0 @@
-node:
-  blockProducer:
-    enabled: true
-    vaultStaticSecret:
-      path: runtime/cardano-node/example/block-producer

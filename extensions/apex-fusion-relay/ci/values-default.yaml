@@ -1,0 +1,5 @@
+persistence:
+  storageClass: standard
+
+node:
+  network: vector-testnet

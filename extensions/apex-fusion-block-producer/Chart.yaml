@@ -1,0 +1,18 @@
+apiVersion: v2
+name: apex-fusion-block-producer
+description: Supernode-opinionated Apex Fusion block producer extension with optional managed relays
+type: application
+version: 0.1.0
+appVersion: "10.1.4"
+keywords:
+  - apex
+  - prime
+  - vector
+  - block-producer
+  - metis
+  - supernode
+annotations:
+  displayName: Apex Fusion Block Producer
+  icon: /images/workloads/apex-fusion.png
+  category: layer-1
+  networkPath: node.network

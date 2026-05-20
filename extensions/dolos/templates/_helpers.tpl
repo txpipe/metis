@@ -37,9 +37,6 @@ app.kubernetes.io/name: {{ include "dolos.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{ with .Values.extraLabels }}
-{{- toYaml . }}
-{{- end }}
 {{- end }}
 
 {{/*
@@ -63,22 +60,14 @@ app.kubernetes.io/component: {{ .component }}
 Service account name.
 */}}
 {{- define "dolos.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "dolos.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- include "dolos.fullname" . }}
 {{- end }}
 
 {{/*
 Resolve the ConfigMap name for Dolos configuration.
 */}}
 {{- define "dolos.configurationConfigMapName" -}}
-{{- if and .Values.config.create (not .Values.config.existingConfigMap) }}
 {{- printf "%s-config" (include "dolos.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- .Values.config.existingConfigMap | default "" }}
-{{- end }}
 {{- end }}
 
 {{/*
@@ -89,31 +78,52 @@ Resolve the ConfigMap name for Metis metrics scripts.
 {{- end }}
 
 {{/*
-Resolve the effective config preset.
+Render the opinionated built-in Dolos TOML config for the selected network.
 */}}
-{{- define "dolos.effectivePreset" -}}
-{{- default .Values.dolos.network .Values.config.preset -}}
-{{- end }}
-
-{{/*
-Whether the selected network uses bundled genesis files.
-*/}}
-{{- define "dolos.usesBundledGenesis" -}}
-{{- if or (eq (include "dolos.effectivePreset" .) "prime-testnet") (eq (include "dolos.effectivePreset" .) "prime-mainnet") -}}
-true
-{{- else -}}
-false
+{{- define "dolos.configPreset" -}}
+{{- $network := .Values.dolos.network -}}
+{{- $upstreamAddress := required "config.upstreamAddress must be set to a trusted Cardano relay address" .Values.config.upstreamAddress -}}
+{{- $genesisNetwork := "preview" -}}
+{{- $magic := "2" -}}
+{{- $isTestnet := "true" -}}
+{{- if eq $network "cardano-mainnet" -}}
+{{- $genesisNetwork = "mainnet" -}}
+{{- $magic = "764824073" -}}
+{{- $isTestnet = "false" -}}
+{{- else if eq $network "cardano-preprod" -}}
+{{- $genesisNetwork = "preprod" -}}
+{{- $magic = "1" -}}
 {{- end -}}
-{{- end }}
+[upstream]
+peer_address = "{{ $upstreamAddress }}"
 
-{{/*
-Resolve bundled genesis network directory.
-*/}}
-{{- define "dolos.bundledGenesisNetwork" -}}
-{{- $preset := include "dolos.effectivePreset" . -}}
-{{- if or (eq $preset "prime-testnet") (eq $preset "prime-mainnet") -}}
-{{- $preset -}}
-{{- else -}}
-{{- "" -}}
-{{- end -}}
+[storage]
+version = "v3"
+path = "/var/data/{{ $genesisNetwork }}/db"
+
+[genesis]
+byron_path = "/etc/genesis/{{ $genesisNetwork }}/byron.json"
+shelley_path = "/etc/genesis/{{ $genesisNetwork }}/shelley.json"
+alonzo_path = "/etc/genesis/{{ $genesisNetwork }}/alonzo.json"
+conway_path = "/etc/genesis/{{ $genesisNetwork }}/conway.json"
+
+[sync]
+max_rollback = 25920
+
+[serve.grpc]
+listen_address = "[::]:50051"
+
+[serve.minibf]
+listen_address = "[::]:3001"
+
+[serve.minikupo]
+listen_address = "[::]:1442"
+
+[serve.trp]
+listen_address = "[::]:8164"
+
+[chain]
+type = "cardano"
+magic = {{ $magic }}
+is_testnet = {{ $isTestnet }}
 {{- end }}

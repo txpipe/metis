@@ -49,9 +49,9 @@ mod tests {
             Some(SupernodeResourceUri::ExtensionCatalog)
         );
         assert_eq!(
-            SupernodeResourceUri::parse("supernode://extensions/catalog/cardano-node-relay"),
+            SupernodeResourceUri::parse("supernode://extensions/catalog/cardano-relay"),
             Some(SupernodeResourceUri::ExtensionCatalogEntry {
-                extension_id: "cardano-node-relay"
+                extension_id: "cardano-relay"
             })
         );
     }
@@ -64,9 +64,7 @@ mod tests {
             None
         );
         assert_eq!(
-            SupernodeResourceUri::parse(
-                "supernode://extensions/catalog/cardano-node-relay/profile"
-            ),
+            SupernodeResourceUri::parse("supernode://extensions/catalog/cardano-relay/profile"),
             None
         );
     }

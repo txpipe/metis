@@ -1,0 +1,191 @@
+{{- $metricsConfigMapName := include "cardano-node.metricsConfigMapName" . -}}
+{{- $proxyConfigName := include "cardano-node.proxyConfigName" . -}}
+{{- $proxyChecksum := include (print $.Template.BasePath "/configmap-proxy.yaml") . | sha256sum -}}
+{{- $networkMagic := include "cardano-node.networkMagic" . -}}
+{{- range $index := until (int .Values.relays.count) }}
+{{- $relayName := include "cardano-node.relayName" (dict "context" $ "index" $index) -}}
+{{- $component := printf "relay-%v" $index -}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $relayName }}
+  labels:
+    {{- include "cardano-node.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: {{ include "cardano-node.name" $ }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: {{ $component }}
+  ports:
+    - name: n2n
+      port: {{ $.Values.service.n2nPort }}
+      targetPort: n2n
+      protocol: TCP
+    - name: n2c
+      port: {{ $.Values.service.n2cPort }}
+      targetPort: n2c
+      protocol: TCP
+    - name: metrics
+      port: {{ $.Values.service.metricsPort }}
+      targetPort: metrics
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ printf "%s-headless" $relayName | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "cardano-node.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: {{ include "cardano-node.name" $ }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: {{ $component }}
+  ports:
+    - name: n2n
+      port: {{ $.Values.service.n2nPort }}
+      targetPort: n2n
+      protocol: TCP
+    - name: n2c
+      port: {{ $.Values.service.n2cPort }}
+      targetPort: n2c
+      protocol: TCP
+    - name: metrics
+      port: {{ $.Values.service.metricsPort }}
+      targetPort: metrics
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $relayName }}
+  labels:
+    {{- include "cardano-node.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "cardano-node.name" $ }}
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      app.kubernetes.io/component: {{ $component }}
+  serviceName: {{ printf "%s-headless" $relayName | trunc 63 | trimSuffix "-" }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "cardano-node.name" $ }}
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: {{ $component }}
+      annotations:
+        checksum/proxy-config: {{ $proxyChecksum }}
+    spec:
+      serviceAccountName: {{ include "cardano-node.fullname" $ }}
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: cardano-node
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          args:
+            - run
+            - --database-path
+            - /data/db
+            - --socket-path
+            - /ipc/node.socket
+            - --port
+            - {{ $.Values.node.n2nPort | quote }}
+          env:
+            - name: CARDANO_NETWORK
+              value: {{ $.Values.node.network | quote }}
+            - name: CARDANO_NODE_SOCKET_PATH
+              value: {{ $.Values.node.socketPath | quote }}
+            - name: METIS_NODE_ROLE
+              value: "relay"
+            {{- if $networkMagic }}
+            - name: METIS_CARDANO_NETWORK_MAGIC
+              value: {{ $networkMagic | quote }}
+            - name: CARDANO_NODE_NETWORK_ID
+              value: {{ $networkMagic | quote }}
+            {{- end }}
+            - name: RESTORE_SNAPSHOT
+              value: "true"
+            - name: METIS_SHELLEY_GENESIS_PATH
+              value: {{ printf "/opt/cardano/config/%s/shelley-genesis.json" $.Values.node.network | quote }}
+            - name: METIS_BYRON_GENESIS_PATH
+              value: {{ printf "/opt/cardano/config/%s/byron-genesis.json" $.Values.node.network | quote }}
+          ports:
+            - name: n2n
+              containerPort: {{ $.Values.node.n2nPort }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ $.Values.node.metricsPort }}
+              protocol: TCP
+          volumeMounts:
+            - name: chain-data
+              mountPath: /data
+            - name: ipc
+              mountPath: /ipc
+            - name: metrics-scripts
+              mountPath: /opt/metis/bin/metrics.sh
+              subPath: metrics.sh
+              readOnly: true
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - test -S /ipc/node.socket
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml $.Values.relayResources | nindent 12 }}
+        - name: proxy
+          image: "nginx:1.25.5"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: n2c
+              containerPort: {{ $.Values.proxy.n2cPort }}
+              protocol: TCP
+          volumeMounts:
+            - name: ipc
+              mountPath: /ipc
+            - name: proxy-config
+              mountPath: /etc/nginx
+          resources:
+            limits:
+              memory: 100Mi
+            requests:
+              cpu: 10m
+              memory: 100Mi
+      volumes:
+        - name: ipc
+          emptyDir: {}
+        - name: proxy-config
+          configMap:
+            name: {{ $proxyConfigName }}
+        - name: metrics-scripts
+          configMap:
+            name: {{ $metricsConfigMapName }}
+            defaultMode: 0555
+  volumeClaimTemplates:
+    - metadata:
+        name: chain-data
+        {{- with $.Values.relayPersistence.annotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes:
+          {{- toYaml $.Values.relayPersistence.accessModes | nindent 10 }}
+        {{- if $.Values.relayPersistence.storageClass }}
+        storageClassName: {{ $.Values.relayPersistence.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $.Values.relayPersistence.size }}
+{{- end }}

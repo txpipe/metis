@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "apex-fusion.fullname" . }}
+  labels:
+    app.kubernetes.io/component: o11y
+    {{- include "apex-fusion.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+{{- include "apex-fusion.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
