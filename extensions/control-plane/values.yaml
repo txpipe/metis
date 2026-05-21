@@ -166,8 +166,8 @@ supernodeMcp:
   enabled: true
   replicaCount: 1
   image:
-    repository: ghcr.io/txpipe/metis-supernode-mcp
-    tag: "0.1.0"
+    repository: ghcr.io/txpipe/metis-mcp
+    tag: 8892dfba4267bc7159dfd7644c203496ffbf3d90
     pullPolicy: IfNotPresent
   auth:
     mode: trusted
