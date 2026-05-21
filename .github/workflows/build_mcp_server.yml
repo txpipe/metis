@@ -48,13 +48,13 @@ jobs:
 
       - name: rename binaries
         run: |
-          mv target/${{ matrix.target }}/release/mcp-server${{ matrix.ext }} supernode-mcp-${{ matrix.release_for }}${{ matrix.ext }}
+          mv target/${{ matrix.target }}/release/supernode-mcp supernode-mcp-${{ matrix.release_for }}
 
       - name: upload
         uses: actions/upload-artifact@v4
         with:
           name: binaries-supernode-mcp-${{ matrix.release_for }}
-          path: supernode-mcp-${{ matrix.release_for }}${{ matrix.ext }}
+          path: supernode-mcp-${{ matrix.release_for }}
 
   docker:
     runs-on: ubuntu-latest
