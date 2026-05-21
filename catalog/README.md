@@ -4,7 +4,7 @@ This directory contains the catalog documents consumed by the Supernode MCP serv
 
 - `extension-catalog.json`: installable extension contracts and chart references.
 - `skill-catalog.manifest.json`: editable metadata for operational skill guides.
-- `skill-catalog.json`: generated, gitignored skill catalog payload with embedded markdown content.
+- `skill-catalog.json`: generated, tracked skill catalog payload with embedded markdown content.
 
 Run this after editing `skill-catalog.manifest.json` or `../skills/*.md`:
 
@@ -12,7 +12,7 @@ Run this after editing `skill-catalog.manifest.json` or `../skills/*.md`:
 node catalog/scripts/generate-skill-catalog.mjs
 ```
 
-`skill-catalog.json` is intentionally not committed. Generate it locally before building MCP from source or publishing the skill catalog artifact.
+`skill-catalog.json` is committed so MCP builds and catalog consumers have a ready-to-use bundled skill catalog. Regenerate it locally after editing skill metadata or markdown, then commit the updated artifact with the source changes.
 
 ## Extension Catalog Contract
 
@@ -58,7 +58,7 @@ Each skill entry describes one operational guide:
 - `tools`: MCP tools used by the guide.
 - `content`: markdown guide content embedded from `../skills/*.md`.
 
-Edit `skill-catalog.manifest.json` rather than `skill-catalog.json` directly. The manifest stores the same metadata plus `contentPath`; the generator embeds the referenced markdown into the publishable JSON document. Because `skill-catalog.json` is generated and gitignored, changes to skill metadata or markdown are published only after regenerating it.
+Edit `skill-catalog.manifest.json` rather than `skill-catalog.json` directly. The manifest stores the same metadata plus `contentPath`; the generator embeds the referenced markdown into the publishable JSON document. Because `skill-catalog.json` is generated and tracked, changes to skill metadata or markdown should include the regenerated catalog artifact.
 
 ## Trusted Sources
 

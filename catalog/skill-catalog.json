@@ -5,14 +5,22 @@
       "id": "apex-fusion-block-producer-deployment",
       "title": "Apex Fusion Block Producer Deployment",
       "description": "Deploy or update an Apex Fusion block producer.",
-      "tags": ["apex-fusion", "block-producer", "deploy"],
-      "extensions": ["apex-fusion-block-producer"],
+      "tags": [
+        "apex-fusion",
+        "block-producer",
+        "deploy"
+      ],
+      "extensions": [
+        "apex-fusion-block-producer"
+      ],
       "tools": [
         "supernode.status.get",
         "extensions.catalog.get",
         "cluster.storage_classes.list",
         "workloads.list",
         "vault.runtime.metadata.get",
+        "vault.runtime.write",
+        "vault.runtime.patch",
         "workloads.install",
         "workloads.upgrade",
         "workloads.get",
@@ -26,8 +34,14 @@
       "id": "apex-fusion-relay-setup",
       "title": "Apex Fusion Relay Setup",
       "description": "Install and validate an Apex Fusion relay.",
-      "tags": ["apex-fusion", "relay", "install"],
-      "extensions": ["apex-fusion-relay"],
+      "tags": [
+        "apex-fusion",
+        "relay",
+        "install"
+      ],
+      "extensions": [
+        "apex-fusion-relay"
+      ],
       "tools": [
         "supernode.status.get",
         "extensions.catalog.get",
@@ -45,14 +59,20 @@
       "id": "cardano-block-producer-troubleshooting",
       "title": "Cardano Block Producer Troubleshooting",
       "description": "Troubleshoot Cardano block producer health.",
-      "tags": ["cardano", "block-producer", "troubleshooting"],
-      "extensions": ["cardano-block-producer"],
+      "tags": [
+        "cardano",
+        "block-producer",
+        "troubleshooting"
+      ],
+      "extensions": [
+        "cardano-block-producer"
+      ],
       "tools": [
         "workloads.get",
         "workloads.logs.get",
         "workloads.metrics.get",
         "cluster.events.list",
-        "vault.runtime.metadata.get"
+        "dolos.snapshot.refresh"
       ],
       "content": "# Cardano Block Producer Troubleshooting\n\n## Goal\n\nTroubleshoot a Cardano block producer using MCP tools only.\n\n## Workflow\n\n1. Call `workloads.get` for the producer.\n2. Call `workloads.metrics.get` for producer metrics.\n3. Call `workloads.logs.get` for bounded recent logs.\n4. Call `cluster.events.list` for the producer namespace.\n5. Call `workloads.get` and `workloads.metrics.get` for trusted relay workloads.\n6. If Dolos is installed for the same network, call `dolos.snapshot.refresh` when an external chain-view refresh is needed.\n\n## Check From MCP\n\n- producer mode and debug/active state\n- sync health\n- peer health\n- KES and op-cert status\n- schedule fields\n- local forging/adoption fields when exposed\n- relay workload health\n- recent Kubernetes events returned by MCP\n\n## Limits\n\nIf MCP does not expose raw sockets, raw topology files, or canonical block outcome tracking, state that limitation and stop instead of giving shell commands.\n\n## Rules\n\n- Do not exec into pods.\n- Do not query external HTTP APIs directly.\n- Do not use non-MCP commands.\n"
     },
@@ -60,14 +80,25 @@
       "id": "cardano-block-producer-upgrade",
       "title": "Cardano Block Producer Upgrade",
       "description": "Upgrade a Cardano block producer through catalog-backed MCP workflows.",
-      "tags": ["cardano", "block-producer", "upgrade"],
-      "extensions": ["cardano-block-producer"],
+      "tags": [
+        "cardano",
+        "block-producer",
+        "upgrade"
+      ],
+      "extensions": [
+        "cardano-block-producer"
+      ],
       "tools": [
         "supernode.status.get",
         "extensions.catalog.get",
+        "cluster.storage_classes.list",
+        "workloads.list",
         "workloads.get",
         "workloads.metrics.get",
         "vault.runtime.metadata.get",
+        "vault.runtime.write",
+        "vault.runtime.patch",
+        "workloads.install",
         "workloads.upgrade",
         "workloads.logs.get",
         "cluster.events.list"
@@ -78,13 +109,20 @@
       "id": "cardano-block-producer-verification",
       "title": "Cardano Block Producer Verification",
       "description": "Verify Cardano block producer readiness and health.",
-      "tags": ["cardano", "block-producer", "verify"],
-      "extensions": ["cardano-block-producer"],
+      "tags": [
+        "cardano",
+        "block-producer",
+        "verify"
+      ],
+      "extensions": [
+        "cardano-block-producer"
+      ],
       "tools": [
         "workloads.get",
         "workloads.logs.get",
         "workloads.metrics.get",
-        "cluster.events.list"
+        "cluster.events.list",
+        "dolos.snapshot.refresh"
       ],
       "content": "# Cardano Block Producer Verification\n\n## Goal\n\nVerify block-producer readiness using MCP tools only.\n\n## Workflow\n\n1. Call `workloads.get` for the producer.\n2. Call `workloads.metrics.get` for producer metrics.\n3. Call `workloads.logs.get` for recent producer logs if metrics show errors.\n4. Call `cluster.events.list` for namespace events if the workload is not healthy.\n5. If Dolos is installed for the same network, use `dolos.snapshot.refresh` when external chain-view refresh is needed.\n\n## Verify From MCP\n\n- workload is healthy\n- Vault-backed runtime material is mounted according to workload status\n- debug-mode or active forging mode is as expected\n- KES and op-cert fields are present when exposed by metrics\n- peer and sync fields are healthy\n- schedule fields are present when exposed by metrics\n\n## Limits\n\nMCP metrics can show readiness and local producer signals. If MCP does not expose canonical block outcome confirmation, say so and do not claim the pool produced accepted blocks.\n\n## Rules\n\n- Do not use non-MCP commands.\n- Do not overstate what MCP metrics prove.\n"
     },
@@ -92,17 +130,34 @@
       "id": "cardano-node-metrics-access",
       "title": "Cardano Node Metrics Access",
       "description": "Inspect Cardano node metrics through MCP tools only.",
-      "tags": ["cardano", "metrics"],
-      "extensions": ["cardano-relay", "cardano-block-producer"],
-      "tools": ["workloads.get", "workloads.metrics.get", "workloads.logs.get"],
+      "tags": [
+        "cardano",
+        "metrics"
+      ],
+      "extensions": [
+        "cardano-relay",
+        "cardano-block-producer"
+      ],
+      "tools": [
+        "workloads.get",
+        "workloads.metrics.get",
+        "workloads.logs.get",
+        "cluster.events.list"
+      ],
       "content": "# Cardano Node Metrics Access\n\n## Goal\n\nRead Cardano or Apex Fusion workload metrics using MCP tools only.\n\n## Workflow\n\n1. Ask for namespace and workload name if unknown.\n2. Call `workloads.get` to confirm the workload and status.\n3. Call `workloads.metrics.get`.\n4. If metrics are missing or stale, call `workloads.logs.get` and `cluster.events.list`.\n\n## Interpretation\n\n- Use returned sync, resource, peer, KES, op-cert, and forging fields as the MCP source of truth.\n- If raw Prometheus text is needed but `workloads.metrics.get` does not expose it, state that MCP does not currently expose raw metric scraping and stop.\n\n## Rules\n\n- Do not exec into pods.\n- Do not query local container ports.\n- Do not use non-MCP commands.\n"
     },
     {
       "id": "cardano-relay-setup",
       "title": "Cardano Relay Setup",
       "description": "Install and validate a Cardano relay.",
-      "tags": ["cardano", "relay", "install"],
-      "extensions": ["cardano-relay"],
+      "tags": [
+        "cardano",
+        "relay",
+        "install"
+      ],
+      "extensions": [
+        "cardano-relay"
+      ],
       "tools": [
         "supernode.status.get",
         "extensions.catalog.get",
@@ -120,12 +175,20 @@
       "id": "cardano-spo-kes-rotation",
       "title": "Cardano SPO KES Rotation",
       "description": "Guide MCP-supported checks and deployment steps for KES rotation.",
-      "tags": ["cardano", "spo", "kes"],
-      "extensions": ["cardano-block-producer"],
+      "tags": [
+        "cardano",
+        "spo",
+        "kes"
+      ],
+      "extensions": [
+        "cardano-block-producer"
+      ],
       "tools": [
         "workloads.get",
         "workloads.metrics.get",
         "vault.runtime.metadata.get",
+        "vault.runtime.patch",
+        "vault.runtime.write",
         "workloads.upgrade",
         "workloads.logs.get",
         "cluster.events.list"
@@ -136,8 +199,15 @@
       "id": "cardano-spo-maintenance-overview",
       "title": "Cardano SPO Maintenance Overview",
       "description": "Summarize MCP-supported and unsupported Cardano SPO maintenance actions.",
-      "tags": ["cardano", "spo", "maintenance"],
-      "extensions": ["cardano-relay", "cardano-block-producer"],
+      "tags": [
+        "cardano",
+        "spo",
+        "maintenance"
+      ],
+      "extensions": [
+        "cardano-relay",
+        "cardano-block-producer"
+      ],
       "tools": [
         "workloads.list",
         "workloads.get",
@@ -145,8 +215,9 @@
         "workloads.metrics.get",
         "cluster.events.list",
         "vault.runtime.metadata.get",
-        "workloads.upgrade",
-        "workloads.delete"
+        "vault.runtime.write",
+        "vault.runtime.patch",
+        "workloads.upgrade"
       ],
       "content": "# Cardano SPO Maintenance Overview\n\n## Goal\n\nRoute Cardano SPO maintenance work through MCP-supported operations only.\n\n## Supported MCP Actions\n\n- inspect workloads with `workloads.list` and `workloads.get`\n- inspect logs with `workloads.logs.get`\n- inspect metrics with `workloads.metrics.get`\n- inspect events with `cluster.events.list`\n- inspect runtime secret metadata with `vault.runtime.metadata.get`\n- update runtime secret records with `vault.runtime.write` or `vault.runtime.patch`\n- apply workload changes with `workloads.upgrade`\n\n## Not Supported By MCP\n\n- Cardano transaction construction\n- Cardano transaction signing\n- stake pool registration updates\n- stake pool retirement certificate generation\n- KES key generation\n- operational certificate issuance\n- local port-forward sessions\n\nIf the operator requests one of these, say MCP does not currently expose that operation and stop for operator direction.\n\n## Rules\n\n- Start live-changing operations with `dryRun=true` where the tool supports it.\n- Do not ask users to paste signing keys or runtime secret values in chat.\n- Do not use non-MCP commands.\n"
     },
@@ -154,11 +225,19 @@
       "id": "cardano-spo-pool-retirement",
       "title": "Cardano SPO Pool Retirement",
       "description": "Guide MCP-supported workload checks for Cardano pool retirement.",
-      "tags": ["cardano", "spo", "retirement"],
-      "extensions": ["cardano-relay", "cardano-block-producer"],
+      "tags": [
+        "cardano",
+        "spo",
+        "retirement"
+      ],
+      "extensions": [
+        "cardano-relay",
+        "cardano-block-producer"
+      ],
       "tools": [
         "workloads.get",
         "workloads.metrics.get",
+        "workloads.upgrade",
         "workloads.list",
         "workloads.logs.get",
         "cluster.events.list",
@@ -170,12 +249,22 @@
       "id": "cardano-spo-pool-update",
       "title": "Cardano SPO Pool Update",
       "description": "Guide MCP-supported checks around Cardano pool publication updates.",
-      "tags": ["cardano", "spo", "pool-update"],
-      "extensions": ["cardano-relay", "cardano-block-producer"],
+      "tags": [
+        "cardano",
+        "spo",
+        "pool-update"
+      ],
+      "extensions": [
+        "cardano-relay",
+        "cardano-block-producer"
+      ],
       "tools": [
         "workloads.get",
         "workloads.metrics.get",
         "vault.runtime.metadata.get",
+        "vault.runtime.patch",
+        "vault.runtime.write",
+        "workloads.upgrade",
         "workloads.logs.get",
         "cluster.events.list"
       ],
@@ -185,8 +274,15 @@
       "id": "cardano-stake-pool-from-scratch",
       "title": "Cardano Stake Pool From Scratch",
       "description": "Guide the MCP-supported Metis deployment portion of a new Cardano stake pool.",
-      "tags": ["cardano", "stake-pool", "deploy"],
-      "extensions": ["cardano-relay", "cardano-block-producer"],
+      "tags": [
+        "cardano",
+        "stake-pool",
+        "deploy"
+      ],
+      "extensions": [
+        "cardano-relay",
+        "cardano-block-producer"
+      ],
       "tools": [
         "supernode.status.get",
         "extensions.catalog.get",
@@ -207,8 +303,13 @@
       "id": "dolos-supernode-deployment",
       "title": "Dolos Supernode Deployment",
       "description": "Install and validate a Dolos supernode.",
-      "tags": ["dolos", "deploy"],
-      "extensions": ["dolos"],
+      "tags": [
+        "dolos",
+        "deploy"
+      ],
+      "extensions": [
+        "dolos"
+      ],
       "tools": [
         "supernode.status.get",
         "extensions.catalog.get",
@@ -218,7 +319,8 @@
         "workloads.get",
         "workloads.logs.get",
         "workloads.metrics.get",
-        "cluster.events.list"
+        "cluster.events.list",
+        "dolos.snapshot.refresh"
       ],
       "content": "# Dolos Supernode Deployment\n\n## Goal\n\nDeploy and validate Dolos with MCP tools only.\n\n## Required Inputs\n\n- release name\n- namespace\n- network\n- storage class selected from MCP\n- explicit upstream relay address\n\n## Workflow\n\n1. Call `supernode.status.get`.\n2. Call `extensions.catalog.get` with `extensionId=dolos`.\n3. Call `cluster.storage_classes.list` and ask the operator to choose one.\n4. Call `workloads.list` to inspect same-network relay candidates.\n5. Ask the operator to approve the exact `config.upstreamAddress`.\n6. Call `workloads.install` with `dryRun=true` and direct Dolos chart values.\n7. Review the dry-run result with the operator.\n8. Call `workloads.install` with `dryRun=false` only after approval.\n9. Validate with `workloads.get`, `workloads.logs.get`, `workloads.metrics.get`, and `cluster.events.list`.\n10. Use `dolos.snapshot.refresh` when the operator needs a Dolos snapshot refresh.\n\n## Minimal Configuration\n\n```json\n{\n  \"dolos\": {\n    \"network\": \"cardano-preview\"\n  },\n  \"persistence\": {\n    \"storageClass\": \"<storage-class>\",\n    \"size\": \"50Gi\"\n  },\n  \"config\": {\n    \"upstreamAddress\": \"<relay-service>.<namespace>.svc.cluster.local:3000\"\n  }\n}\n```\n\n## Rules\n\n- MCP does not auto-resolve Dolos upstreams.\n- Do not use old flat Dolos fields.\n- Do not use non-MCP commands.\n"
     },
@@ -226,23 +328,39 @@
       "id": "hydra-head-operations",
       "title": "Hydra Head Operations",
       "description": "Guide MCP-supported inspection for Hydra head operations.",
-      "tags": ["hydra", "operations"],
-      "extensions": ["hydra-node"],
-      "tools": ["workloads.get", "workloads.metrics.get", "workloads.logs.get"],
+      "tags": [
+        "hydra",
+        "operations"
+      ],
+      "extensions": [
+        "hydra-node"
+      ],
+      "tools": [
+        "workloads.get",
+        "workloads.metrics.get",
+        "workloads.logs.get",
+        "hydra.keys.generate"
+      ],
       "content": "# Hydra Head Operations\n\n## Goal\n\nDefine the MCP boundary for Hydra head operations.\n\n## Boundary\n\nMCP currently exposes Hydra deployment, discovery, logs, metrics, events, Vault runtime operations, and `hydra.keys.generate`. It does not expose direct Hydra head lifecycle tools such as init, commit, close, contest, fanout, decommit, or transaction submission.\n\n## Workflow\n\n1. Call `workloads.get` for the Hydra workload.\n2. Call `workloads.metrics.get` for head status and snapshot-related fields.\n3. Call `workloads.logs.get` for recent Hydra logs.\n4. Present the MCP-observed state to the operator.\n5. If the operator asks for a direct head lifecycle action, state that MCP does not currently expose that operation and stop.\n\n## Rules\n\n- Do not call Hydra HTTP or WebSocket APIs directly.\n- Do not generate port-forward commands.\n- Do not use non-MCP commands.\n"
     },
     {
       "id": "hydra-node-deployment",
       "title": "Hydra Node Deployment",
       "description": "Install and validate a Hydra node.",
-      "tags": ["hydra", "deploy"],
-      "extensions": ["hydra-node"],
+      "tags": [
+        "hydra",
+        "deploy"
+      ],
+      "extensions": [
+        "hydra-node"
+      ],
       "tools": [
         "supernode.status.get",
         "extensions.catalog.get",
         "cluster.storage_classes.list",
+        "hydra.keys.generate",
         "workloads.list",
-        "vault.runtime.metadata.get",
+        "vault.runtime.write",
         "workloads.install",
         "workloads.get",
         "workloads.logs.get",
@@ -255,8 +373,13 @@
       "id": "hydra-node-troubleshooting",
       "title": "Hydra Node Troubleshooting",
       "description": "Troubleshoot Hydra node startup, networking, metrics, and head progress.",
-      "tags": ["hydra", "troubleshooting"],
-      "extensions": ["hydra-node"],
+      "tags": [
+        "hydra",
+        "troubleshooting"
+      ],
+      "extensions": [
+        "hydra-node"
+      ],
       "tools": [
         "workloads.get",
         "workloads.logs.get",
@@ -270,7 +393,10 @@
       "id": "kubernetes-extension-discovery",
       "title": "Kubernetes Extension Discovery",
       "description": "Discover installed catalog-managed workloads.",
-      "tags": ["kubernetes", "discovery"],
+      "tags": [
+        "kubernetes",
+        "discovery"
+      ],
       "extensions": [],
       "tools": [
         "supernode.status.get",
@@ -285,12 +411,18 @@
       "id": "kubernetes-storage-and-prereqs",
       "title": "Kubernetes Storage And Prereqs",
       "description": "Inspect Kubernetes storage and prerequisites.",
-      "tags": ["kubernetes", "storage", "prereqs"],
+      "tags": [
+        "kubernetes",
+        "storage",
+        "prereqs"
+      ],
       "extensions": [],
       "tools": [
         "supernode.status.get",
         "cluster.storage_classes.list",
-        "cluster.events.list"
+        "cluster.events.list",
+        "workloads.list",
+        "workloads.get"
       ],
       "content": "# Kubernetes Storage And Prereqs\n\n## Goal\n\nValidate cluster readiness before installs or upgrades using MCP tools only.\n\n## Workflow\n\n1. Call `supernode.status.get`.\n2. Call `cluster.storage_classes.list`.\n3. Call `cluster.events.list` for recent scheduling, provisioning, image, probe, or mount problems.\n4. Call `workloads.list` to understand existing releases.\n5. Call `workloads.get` for any workload involved in the planned operation.\n\n## Checks\n\n- The MCP server can reach Kubernetes.\n- A real storage class is selected from `cluster.storage_classes.list`.\n- Existing workloads are healthy enough to use as dependencies.\n- Recent events do not show unresolved scheduling or PVC failures.\n\n## Rules\n\n- Do not assume storage class names.\n- Do not proceed with install or upgrade when MCP reports unresolved PVC, scheduling, or control-plane failures.\n- Do not use non-MCP cluster commands from this skill.\n"
     },
@@ -298,18 +430,29 @@
       "id": "supernode-dashboard-port-forward",
       "title": "Supernode Dashboard Port Forward",
       "description": "Describe the current MCP boundary for dashboard access.",
-      "tags": ["dashboard", "access"],
+      "tags": [
+        "dashboard",
+        "access"
+      ],
       "extensions": [],
-      "tools": ["supernode.status.get"],
+      "tools": [
+        "workloads.list",
+        "workloads.get"
+      ],
       "content": "# Supernode Dashboard Discovery\n\n## Goal\n\nFind dashboard-related control-plane outputs using MCP tools only.\n\n## Workflow\n\n1. Call `workloads.list` with `includeControlPlane=true`.\n2. Find the `control-plane` workload or dashboard-related workload returned by MCP.\n3. Call `workloads.get` for that workload.\n4. Present any dashboard, Grafana, or Prometheus outputs returned by MCP.\n5. If the user asks to open a local tunnel, explain that MCP does not currently provide a long-running port-forward tool and stop.\n\n## Rules\n\n- Do not generate local port-forward commands.\n- Do not use non-MCP cluster commands.\n"
     },
     {
       "id": "workload-output-port-forward",
       "title": "Workload Output Port Forward",
       "description": "Inspect workload outputs and describe current MCP access limits.",
-      "tags": ["workload", "access"],
+      "tags": [
+        "workload",
+        "access"
+      ],
       "extensions": [],
-      "tools": ["workloads.get"],
+      "tools": [
+        "workloads.get"
+      ],
       "content": "# Workload Output Discovery\n\n## Goal\n\nDiscover workload outputs using MCP tools only.\n\n## Workflow\n\n1. Ask for namespace and workload name if unknown.\n2. Call `workloads.get`.\n3. Present the returned outputs by name, protocol, scope, service, port, and URL.\n4. If the user asks to expose an output locally, explain that MCP does not currently provide a long-running port-forward tool and stop.\n\n## Rules\n\n- Do not generate local port-forward commands.\n- Do not use non-MCP networking commands.\n- Use only the output data returned by `workloads.get`.\n"
     }
   ]
