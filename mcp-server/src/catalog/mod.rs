@@ -260,9 +260,7 @@ fn strip_oci_reference_suffix(repository: &str) -> &str {
 }
 
 fn chart_basename(chart: &str) -> Option<&str> {
-    chart
-        .strip_prefix("oci://")?
-        .trim_end_matches('/')
+    strip_oci_reference_suffix(chart.strip_prefix("oci://")?.trim_end_matches('/'))
         .rsplit('/')
         .next()
         .filter(|name| !name.is_empty())
@@ -330,6 +328,35 @@ mod tests {
         let error = ExtensionCatalog::from_document_with_trust(document, false).unwrap_err();
 
         assert!(matches!(error, CatalogLoadError::InvalidCatalog(_)));
+    }
+
+    #[test]
+    fn catalog_json_accepts_chart_basename_with_tag() {
+        let mut extension = ExtensionCatalog::testing().get("dolos").unwrap().clone();
+        extension.chart = "oci://oci.supernode.store/extensions/dolos:1.2.3".to_string();
+        let document = ExtensionCatalogDocument {
+            schema_version: CATALOG_SCHEMA_VERSION.to_string(),
+            extensions: vec![extension],
+        };
+
+        let catalog = ExtensionCatalog::from_document_with_trust(document, false).unwrap();
+
+        assert!(catalog.get("dolos").is_some());
+    }
+
+    #[test]
+    fn catalog_json_accepts_chart_basename_with_digest() {
+        let mut extension = ExtensionCatalog::testing().get("dolos").unwrap().clone();
+        extension.chart =
+            "oci://oci.supernode.store/extensions/dolos@sha256:0123456789abcdef".to_string();
+        let document = ExtensionCatalogDocument {
+            schema_version: CATALOG_SCHEMA_VERSION.to_string(),
+            extensions: vec![extension],
+        };
+
+        let catalog = ExtensionCatalog::from_document_with_trust(document, false).unwrap();
+
+        assert!(catalog.get("dolos").is_some());
     }
 
     #[test]

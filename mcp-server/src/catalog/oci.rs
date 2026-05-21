@@ -1,6 +1,7 @@
 use reqwest::header::ACCEPT;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use std::time::Duration;
 
 const CATALOG_LAYER_MEDIA_TYPE: &str = "application/vnd.supernode.extension-catalog.v1+json";
 const JSON_MEDIA_TYPE: &str = "application/json";
@@ -16,7 +17,10 @@ pub(super) async fn fetch_catalog_json(
     max_bytes: usize,
 ) -> Result<Vec<u8>, OciCatalogError> {
     let reference = OciReference::parse(reference)?;
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(30))
+        .build()?;
     let manifest = fetch_manifest(&client, &reference).await?;
     let descriptor = select_catalog_descriptor(&manifest)
         .ok_or_else(|| OciCatalogError::MissingCatalogLayer(reference.original.clone()))?;
