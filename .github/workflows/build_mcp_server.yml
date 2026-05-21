@@ -47,6 +47,7 @@ jobs:
         working-directory: mcp-server
 
       - name: rename binaries
+        working-directory: mcp-server
         run: |
           mv target/${{ matrix.target }}/release/supernode-mcp supernode-mcp-${{ matrix.release_for }}
 
