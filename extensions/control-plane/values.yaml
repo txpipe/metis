@@ -175,7 +175,7 @@ supernodeMcp:
   bindAddr: 0.0.0.0:8443
   extensionCatalog:
     source: oci
-    ociRef: oci://oci.supernode.store/extension-catalog:0.1.0
+    ociRef: oci://oci.supernode.store/extension-catalog@sha256:623004147b13c18ffa6fdbb701da9001304518d8fd4a1988cc667f8ebd3e0419
     maxBytes: 1048576
     allowUntrusted: false
   sessionStore:
