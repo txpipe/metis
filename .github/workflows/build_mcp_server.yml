@@ -63,7 +63,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - tags: ghcr.io/txpipe/metis-supernode-mcp,ghcr.io/txpipe/metis-supernode-mcp:${{ github.sha }}
+          - tags: ghcr.io/txpipe/metis-mcp,ghcr.io/txpipe/metis-mcp:${{ github.sha }}
             binary: supernode-mcp
 
     permissions:
