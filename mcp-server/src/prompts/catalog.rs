@@ -45,7 +45,7 @@ const PROMPTS: &[PromptSpec] = &[
         name: "bootstrap-and-discovery",
         title: "Bootstrap And Discovery",
         description: "Discover an existing Supernode cluster before making changes.",
-        text: "Inspect the Supernode through read-only resources and discovery tools first. Use supernode://status, supernode://control-plane/status, and supernode://extensions/catalog to understand the environment. Do not bootstrap infrastructure from MCP, do not shell out, and do not request raw Kubernetes, Vault, or Helm proxy access.",
+        text: "Inspect the Supernode through read-only resources and discovery tools first. Use supernode://status, supernode://control-plane/status, and supernode://extensions/catalog for extension summaries and outputs. Read a specific supernode://extensions/catalog/{extensionId} entry only when full configuration or metrics schemas are needed. Do not bootstrap infrastructure from MCP, do not shell out, and do not request raw Kubernetes, Vault, or Helm proxy access.",
     },
     PromptSpec {
         name: "cardano-relay-setup",

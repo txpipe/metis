@@ -166,13 +166,18 @@ supernodeMcp:
   enabled: true
   replicaCount: 1
   image:
-    repository: ghcr.io/txpipe/metis-supernode-mcp
-    tag: "0.1.0"
+    repository: ghcr.io/txpipe/metis-mcp
+    tag: 8892dfba4267bc7159dfd7644c203496ffbf3d90
     pullPolicy: IfNotPresent
   auth:
     mode: trusted
   logLevel: info
   bindAddr: 0.0.0.0:8443
+  extensionCatalog:
+    source: oci
+    ociRef: oci://oci.supernode.store/extension-catalog@sha256:623004147b13c18ffa6fdbb701da9001304518d8fd4a1988cc667f8ebd3e0419
+    maxBytes: 1048576
+    allowUntrusted: false
   sessionStore:
     type: sqlite
     sqlitePath: /var/lib/supernode-mcp/sessions.sqlite3

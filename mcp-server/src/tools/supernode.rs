@@ -38,7 +38,7 @@ pub fn definitions() -> &'static [ToolDefinition] {
         ToolDefinition {
             name: "extensions.catalog.list",
             title: "List Extension Catalog",
-            description: "List supported embedded extension catalog entries.",
+            description: "List supported extension summaries, including outputs. Does not include configuration or metrics schemas.",
             required_scope: Scope::Discover,
             approval_class: ApprovalClass::Discovery,
             read_only: true,
@@ -48,7 +48,7 @@ pub fn definitions() -> &'static [ToolDefinition] {
         ToolDefinition {
             name: "extensions.catalog.get",
             title: "Get Extension Catalog Entry",
-            description: "Get one extension's configuration and metrics schemas.",
+            description: "Get one extension's full catalog entry, including configuration and metrics schemas.",
             required_scope: Scope::Discover,
             approval_class: ApprovalClass::Discovery,
             read_only: true,

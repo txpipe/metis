@@ -4,7 +4,7 @@ use rmcp::model::{CallToolResult, JsonObject, ListToolsResult, Meta, Tool, ToolA
 use serde_json::{Value, json};
 
 use crate::{
-    catalog::ExtensionCatalog,
+    catalog::{ExtensionCatalog, extension_summary},
     helm::{self, HelmChartRef, HelmInstallPlan},
     k8s::{HelmReleaseDiscovery, KubernetesClient, ResourceListParams},
     vault::{SecretObject, VaultClient, VaultError, VaultPath, WriteMode},
@@ -214,7 +214,7 @@ async fn events_list(arguments: Option<&JsonObject>) -> CallToolResult {
 
 fn catalog_list(catalog: &ExtensionCatalog) -> CallToolResult {
     success(json!({
-        "extensions": catalog.list().collect::<Vec<_>>(),
+        "extensions": catalog.list().map(extension_summary).collect::<Vec<_>>(),
     }))
 }
 
@@ -399,7 +399,6 @@ async fn workloads_list(
 ) -> CallToolResult {
     let namespace = optional_string(arguments, "namespace");
     let include_control_plane = optional_bool(arguments, "includeControlPlane").unwrap_or(false);
-    let params = list_params(arguments, Some(200));
     let client = match KubernetesClient::try_default().await {
         Ok(client) => client,
         Err(error) => return kube_error("workloads.list", error),
@@ -418,58 +417,32 @@ async fn workloads_list(
         }
     };
 
-    let deployments = match client.list_deployments(namespace.as_deref(), &params).await {
-        Ok(items) => k8s_summaries::deployment_summaries(items, include_control_plane),
-        Err(error) => return kube_error("workloads.list", error),
-    };
-    let stateful_sets = match client
-        .list_stateful_sets(namespace.as_deref(), &params)
-        .await
-    {
-        Ok(items) => k8s_summaries::stateful_set_summaries(items, include_control_plane),
-        Err(error) => return kube_error("workloads.list", error),
-    };
-    let pods = match client.list_pods(namespace.as_deref(), &params).await {
-        Ok(items) => k8s_summaries::pod_summaries(items, include_control_plane),
-        Err(error) => return kube_error("workloads.list", error),
-    };
-    let services = match client.list_services(namespace.as_deref(), &params).await {
-        Ok(items) => items,
-        Err(error) => return kube_error("workloads.list", error),
-    };
-    let workload_outputs = helm_releases
+    let workloads = helm_releases
         .iter()
-        .map(|release| {
-            json!({
-                "namespace": release.namespace,
-                "name": release.name,
-                "outputs": outputs::outputs_for_release(
-                    &release.namespace,
-                    &release.name,
-                    Some(release),
-                    &services.items,
-                    catalog,
-                ),
-            })
-        })
-        .filter(|entry| {
-            entry
-                .pointer("/outputs")
-                .and_then(Value::as_array)
-                .is_some_and(|outputs| !outputs.is_empty())
-        })
+        .map(|release| workload_summary(release, catalog))
         .collect::<Vec<_>>();
 
     success(json!({
         "namespace": namespace,
         "source": "kubernetes-api+helm-secrets",
-        "helmReleases": helm_releases,
-        "deployments": deployments,
-        "statefulSets": stateful_sets,
-        "pods": pods,
-        "services": k8s_summaries::service_summaries(services, include_control_plane),
-        "workloadOutputs": workload_outputs,
+        "workloads": workloads,
     }))
+}
+
+fn workload_summary(release: &crate::k8s::HelmReleaseSummary, catalog: &ExtensionCatalog) -> Value {
+    let catalog_extension =
+        registry::extension_for_release(release, catalog).map(extension_summary);
+
+    json!({
+        "namespace": release.namespace,
+        "name": release.name,
+        "status": release.status,
+        "revision": release.revision,
+        "chart": release.chart,
+        "appVersion": release.app_version,
+        "updated": release.updated,
+        "catalogExtension": catalog_extension,
+    })
 }
 
 async fn workloads_get(
@@ -702,7 +675,6 @@ async fn workloads_metrics_get(
         },
         "helmRelease": helm_release,
         "metrics": metrics,
-        "metricsSchema": extension.metrics,
         "stderr": if output.stderr.trim().is_empty() { Value::Null } else { Value::String(output.stderr) },
     }))
 }
@@ -1102,6 +1074,7 @@ impl Default for ToolRouter {
 #[cfg(test)]
 mod tests {
     use crate::catalog::ExtensionCatalog;
+    use crate::k8s::{HelmChartSummary, HelmReleaseSummary};
 
     use super::*;
 
@@ -1193,7 +1166,7 @@ mod tests {
     #[tokio::test]
     async fn executes_catalog_get_tool() {
         let router = ToolRouter::new();
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let definition = router
             .get_with_dynamic("extensions.catalog.get", &[])
             .unwrap();
@@ -1213,12 +1186,92 @@ mod tests {
                 .and_then(|value| value.pointer("/extension/id")),
             Some(&Value::String("cardano-relay".to_string()))
         );
+        let content = result.structured_content.as_ref().unwrap();
+        assert!(content.pointer("/extension/configuration").is_some());
+        assert!(content.pointer("/extension/metrics").is_some());
+    }
+
+    #[tokio::test]
+    async fn catalog_list_returns_summaries_without_large_schemas() {
+        let router = ToolRouter::new();
+        let catalog = ExtensionCatalog::testing();
+        let definition = router
+            .get_with_dynamic("extensions.catalog.list", &[])
+            .unwrap();
+
+        let result = router.call(definition, None, &catalog).await;
+
+        assert_eq!(result.is_error, Some(false));
+        let content = result.structured_content.as_ref().unwrap();
+        let dolos = content
+            .pointer("/extensions")
+            .and_then(Value::as_array)
+            .unwrap()
+            .iter()
+            .find(|extension| extension.pointer("/id") == Some(&json!("dolos")))
+            .unwrap();
+        assert_eq!(dolos.pointer("/name"), Some(&json!("Dolos")));
+        assert!(dolos.get("configuration").is_none());
+        assert!(dolos.get("metrics").is_none());
+        assert!(dolos.get("metricsCollection").is_none());
+        assert!(dolos.get("secrets").is_none());
+        assert!(
+            dolos
+                .pointer("/outputs")
+                .and_then(Value::as_array)
+                .is_some_and(|outputs| outputs
+                    .iter()
+                    .any(|output| { output.pointer("/name") == Some(&json!("kupo")) }))
+        );
+    }
+
+    #[test]
+    fn workload_summary_uses_catalog_extension_summary() {
+        let catalog = ExtensionCatalog::testing();
+        let release = HelmReleaseSummary {
+            name: "dolos-preview".to_string(),
+            namespace: "cardano".to_string(),
+            revision: 1,
+            status: Some("deployed".to_string()),
+            chart: HelmChartSummary {
+                name: Some("dolos".to_string()),
+                version: Some("0.1.0".to_string()),
+            },
+            app_version: Some("1.1.1".to_string()),
+            description: None,
+            updated: None,
+            secret_name: None,
+            config: None,
+        };
+
+        let summary = workload_summary(&release, &catalog);
+
+        assert_eq!(summary.pointer("/name"), Some(&json!("dolos-preview")));
+        assert_eq!(
+            summary.pointer("/catalogExtension/id"),
+            Some(&json!("dolos"))
+        );
+        assert!(summary.pointer("/catalogExtension/configuration").is_none());
+        assert!(summary.pointer("/catalogExtension/metrics").is_none());
+        assert!(
+            summary
+                .pointer("/catalogExtension/metricsCollection")
+                .is_none()
+        );
+        assert!(
+            summary
+                .pointer("/catalogExtension/outputs")
+                .and_then(Value::as_array)
+                .is_some_and(|outputs| outputs
+                    .iter()
+                    .any(|output| { output.pointer("/name") == Some(&json!("kupo")) }))
+        );
     }
 
     #[tokio::test]
     async fn missing_required_argument_returns_tool_error() {
         let router = ToolRouter::new();
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let definition = router
             .get_with_dynamic("extensions.catalog.get", &[])
             .unwrap();
@@ -1238,7 +1291,7 @@ mod tests {
     #[tokio::test]
     async fn workloads_metrics_get_dispatches_to_argument_validation() {
         let router = ToolRouter::new();
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let definition = router
             .get_with_dynamic("workloads.metrics.get", &[])
             .unwrap();
@@ -1258,7 +1311,7 @@ mod tests {
     #[tokio::test]
     async fn workloads_upgrade_dispatches_to_argument_validation() {
         let router = ToolRouter::new();
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let definition = router.get_with_dynamic("workloads.upgrade", &[]).unwrap();
 
         let result = router.call(definition, None, &catalog).await;
@@ -1276,7 +1329,7 @@ mod tests {
     #[tokio::test]
     async fn workloads_install_dry_run_returns_validated_plan() {
         let router = ToolRouter::new();
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let definition = router.get_with_dynamic("workloads.install", &[]).unwrap();
         let mut arguments = JsonObject::new();
         arguments.insert(
@@ -1333,7 +1386,7 @@ mod tests {
     #[tokio::test]
     async fn workloads_install_rejects_unknown_raw_helm_values() {
         let router = ToolRouter::new();
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let definition = router.get_with_dynamic("workloads.install", &[]).unwrap();
         let mut arguments = JsonObject::new();
         arguments.insert(
@@ -1378,7 +1431,7 @@ mod tests {
     #[tokio::test]
     async fn dolos_install_dry_run_returns_validated_plan() {
         let router = ToolRouter::new();
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let definition = router.get_with_dynamic("workloads.install", &[]).unwrap();
         let mut arguments = JsonObject::new();
         arguments.insert(
@@ -1443,7 +1496,7 @@ mod tests {
     #[tokio::test]
     async fn hydra_install_dry_run_passes_chart_values_directly() {
         let router = ToolRouter::new();
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let definition = router.get_with_dynamic("workloads.install", &[]).unwrap();
         let mut arguments = JsonObject::new();
         arguments.insert(
@@ -1550,7 +1603,7 @@ mod tests {
     #[tokio::test]
     async fn vault_runtime_tool_rejects_non_runtime_path_before_client_setup() {
         let router = ToolRouter::new();
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let definition = router.get_with_dynamic("vault.runtime.write", &[]).unwrap();
         let mut arguments = JsonObject::new();
         arguments.insert(

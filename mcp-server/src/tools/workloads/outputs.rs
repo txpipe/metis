@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn relay_outputs_include_internal_n2n_and_n2c() {
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let release = helm_release(Some("cardano-relay"));
         let service = service_with_ports(
             "relay-preview-cardano-relay",
@@ -204,7 +204,7 @@ mod tests {
 
     #[test]
     fn dolos_outputs_include_internal_endpoints() {
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let release = helm_release(Some("dolos"));
         let service = service_with_ports(
             "dolos-preview",
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn hydra_outputs_include_api_websocket_p2p_and_monitoring() {
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let release = helm_release(Some("hydra-node"));
         let service = service_with_ports(
             "hydra-preview-hydra-node",
@@ -274,7 +274,7 @@ mod tests {
 
     #[test]
     fn outputs_filter_by_namespace() {
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let release = helm_release(Some("dolos"));
         let wrong_namespace = service_with_ports(
             "dolos-preview",
@@ -303,7 +303,7 @@ mod tests {
 
     #[test]
     fn load_balancer_service_adds_external_outputs() {
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let release = helm_release(Some("dolos"));
         let service = service_with_ports(
             "dolos-preview",
@@ -336,7 +336,7 @@ mod tests {
 
     #[test]
     fn load_balancer_hostname_is_used_for_external_outputs() {
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let release = helm_release(Some("cardano-relay"));
         let service = service_with_ports(
             "relay-preview-cardano-relay",
@@ -364,7 +364,7 @@ mod tests {
 
     #[test]
     fn headless_services_are_not_reported_as_outputs() {
-        let catalog = ExtensionCatalog::embedded();
+        let catalog = ExtensionCatalog::testing();
         let release = helm_release(Some("dolos"));
         let mut service = service_with_ports(
             "dolos-preview-headless",
