@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::catalog::ExtensionCatalog;
 use crate::k8s::HelmReleaseDiscovery;
 use crate::k8s::KubernetesClient;
 
@@ -16,12 +17,20 @@ pub(crate) enum DynamicToolError {
     HelmRelease(#[from] crate::k8s::HelmReleaseError),
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub(crate) struct DynamicToolState {
+    catalog: Arc<ExtensionCatalog>,
     definitions: Arc<RwLock<Arc<Vec<ToolDefinition>>>>,
 }
 
 impl DynamicToolState {
+    pub(crate) fn new(catalog: Arc<ExtensionCatalog>) -> Self {
+        Self {
+            catalog,
+            definitions: Arc::new(RwLock::new(Arc::new(Vec::new()))),
+        }
+    }
+
     pub(crate) async fn definitions(&self) -> Arc<Vec<ToolDefinition>> {
         self.definitions.read().await.clone()
     }
@@ -31,7 +40,7 @@ impl DynamicToolState {
     }
 
     pub(crate) async fn refresh(&self) -> bool {
-        let definitions = match discover_definitions().await {
+        let definitions = match discover_definitions(&self.catalog).await {
             Ok(definitions) => definitions,
             Err(error) => {
                 tracing::debug!(%error, "failed to refresh dynamic MCP tools");
@@ -48,12 +57,14 @@ impl DynamicToolState {
     }
 }
 
-async fn discover_definitions() -> Result<Vec<ToolDefinition>, DynamicToolError> {
+async fn discover_definitions(
+    catalog: &ExtensionCatalog,
+) -> Result<Vec<ToolDefinition>, DynamicToolError> {
     let client = KubernetesClient::try_default().await?;
     let releases = HelmReleaseDiscovery::new(client)
         .list_latest(None, true)
         .await?;
-    let installed_extension_ids = workloads::registry::installed_extension_ids(&releases);
+    let installed_extension_ids = workloads::registry::installed_extension_ids(&releases, catalog);
 
     Ok(workloads::dynamic_definitions(&installed_extension_ids))
 }
@@ -67,6 +78,7 @@ fn tool_signature(definitions: &[ToolDefinition]) -> BTreeSet<&'static str> {
 
 #[cfg(test)]
 mod tests {
+    use crate::catalog::ExtensionCatalog;
     use crate::k8s::HelmChartSummary;
     use crate::k8s::HelmReleaseSummary;
 
@@ -89,7 +101,9 @@ mod tests {
             secret_name: None,
             config: None,
         }];
-        let installed_extension_ids = workloads::registry::installed_extension_ids(&releases);
+        let catalog = ExtensionCatalog::testing();
+        let installed_extension_ids =
+            workloads::registry::installed_extension_ids(&releases, &catalog);
 
         let definitions = workloads::dynamic_definitions(&installed_extension_ids);
 

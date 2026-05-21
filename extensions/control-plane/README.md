@@ -349,6 +349,10 @@ helm template control-plane . -f examples/aws-values.yaml | kubeconform -strict 
 | `prometheusOperator.tolerations` | Tolerations applied to the Prometheus Operator deployment | `[]` |
 | `grafana.tolerations` | Tolerations applied to the Grafana StatefulSet | `[]` |
 | `prometheus.tolerations` | Tolerations applied to the Prometheus CRD | `[]` |
+| `supernodeMcp.extensionCatalog.source` | MCP extension catalog source (`oci` or `bundled`) | `oci` |
+| `supernodeMcp.extensionCatalog.ociRef` | OCI artifact reference for the MCP extension catalog JSON | `oci://oci.supernode.store/extension-catalog:0.1.0` |
+| `supernodeMcp.extensionCatalog.maxBytes` | Maximum accepted catalog JSON blob size in bytes | `1048576` |
+| `supernodeMcp.extensionCatalog.allowUntrusted` | Allows non-`oci.supernode.store` catalog and chart refs. Unsafe; development only | `false` |
 | `supernodeMcp.sessionStore.type` | MCP Streamable HTTP session store (`sqlite` or `memory`) | `sqlite` |
 | `supernodeMcp.sessionStore.sqlitePath` | SQLite database path for restart-resistant MCP sessions | `/var/lib/supernode-mcp/sessions.sqlite3` |
 | `supernodeMcp.sessionStore.ttlSeconds` | Session restore TTL in seconds | `86400` |

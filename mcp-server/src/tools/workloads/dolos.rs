@@ -71,7 +71,7 @@ pub(crate) async fn snapshot_refresh(arguments: Option<&JsonObject>) -> CallTool
         }
     };
 
-    if release.chart.name.as_deref() != Some(registry::DOLOS_CHART_NAME) {
+    if release.chart.name.as_deref() != Some(registry::DOLOS_EXTENSION_ID) {
         return tool_error(
             "unsupported_workload",
             "snapshot refresh is only supported for Dolos workloads",

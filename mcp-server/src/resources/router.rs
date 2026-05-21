@@ -10,7 +10,7 @@ use serde::Serialize;
 use serde_json::json;
 
 use crate::auth::AuthContext;
-use crate::catalog::ExtensionCatalog;
+use crate::catalog::{ExtensionCatalog, extension_summary};
 
 use super::uri::CONTROL_PLANE_STATUS_URI;
 use super::uri::EXTENSION_CATALOG_URI;
@@ -48,7 +48,7 @@ impl ResourceRouter {
                 EXTENSION_CATALOG_URI,
                 "extensions-catalog",
                 "Extension Catalog",
-                "Embedded catalog of extensions supported by this MCP server.",
+                "Summary catalog of extensions supported by this MCP server.",
             ),
         ];
 
@@ -57,7 +57,7 @@ impl ResourceRouter {
                 extension_catalog_entry_uri(&extension.id),
                 format!("extension-catalog-{}", extension.id),
                 extension.name.clone(),
-                format!("Embedded catalog entry for {}.", extension.name),
+                format!("Full catalog entry for {}.", extension.name),
             )
         }));
 
@@ -82,7 +82,7 @@ impl ResourceRouter {
                 "reason": "kubernetes-discovery-not-implemented",
             }),
             SupernodeResourceUri::ExtensionCatalog => json!({
-                "extensions": self.catalog.list().collect::<Vec<_>>(),
+                "extensions": self.catalog.list().map(extension_summary).collect::<Vec<_>>(),
             }),
             SupernodeResourceUri::ExtensionCatalogEntry { extension_id } => serde_json::to_value(
                 self.catalog
@@ -130,11 +130,13 @@ fn text_resource(
 
 #[cfg(test)]
 mod tests {
+    use serde_json::Value;
+
     use super::*;
 
     #[test]
     fn lists_static_and_extension_catalog_resources() {
-        let router = ResourceRouter::new(Arc::new(ExtensionCatalog::embedded()));
+        let router = ResourceRouter::new(Arc::new(ExtensionCatalog::testing()));
 
         let resources = router.list().resources;
 
@@ -153,7 +155,7 @@ mod tests {
 
     #[test]
     fn reads_catalog_resource_as_json() {
-        let router = ResourceRouter::new(Arc::new(ExtensionCatalog::embedded()));
+        let router = ResourceRouter::new(Arc::new(ExtensionCatalog::testing()));
 
         let result = router
             .read(EXTENSION_CATALOG_URI, &AuthContext::trusted())
@@ -168,12 +170,32 @@ mod tests {
         };
         assert_eq!(mime_type.as_deref(), Some(JSON_MIME_TYPE));
         assert!(text.contains("cardano-relay"));
+        let value = serde_json::from_str::<Value>(text).unwrap();
+        let relay = value
+            .pointer("/extensions")
+            .and_then(Value::as_array)
+            .unwrap()
+            .iter()
+            .find(|extension| {
+                extension.pointer("/id") == Some(&Value::String("cardano-relay".to_string()))
+            })
+            .unwrap();
+        assert!(relay.get("configuration").is_none());
+        assert!(relay.get("metrics").is_none());
+        assert!(relay.get("metricsCollection").is_none());
+        assert!(relay.get("secrets").is_none());
+        assert!(
+            relay
+                .pointer("/outputs")
+                .and_then(Value::as_array)
+                .is_some_and(|outputs| !outputs.is_empty())
+        );
         assert!(!text.contains("secret-value"));
     }
 
     #[test]
     fn reads_one_catalog_entry() {
-        let router = ResourceRouter::new(Arc::new(ExtensionCatalog::embedded()));
+        let router = ResourceRouter::new(Arc::new(ExtensionCatalog::testing()));
 
         let result = router
             .read(
@@ -191,7 +213,7 @@ mod tests {
 
     #[test]
     fn unknown_resource_returns_not_found() {
-        let router = ResourceRouter::new(Arc::new(ExtensionCatalog::embedded()));
+        let router = ResourceRouter::new(Arc::new(ExtensionCatalog::testing()));
 
         let error = router
             .read(

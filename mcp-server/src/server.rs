@@ -16,7 +16,7 @@ use tracing::info;
 use crate::audit::TracingAuditSink;
 use crate::auth::AuthContext;
 use crate::auth::AuthMode;
-use crate::catalog::ExtensionCatalog;
+use crate::catalog::source::load_catalog;
 use crate::config::Config;
 use crate::config::SessionStoreConfig;
 use crate::mcp::SupernodeMcpServer;
@@ -30,7 +30,7 @@ struct HealthResponse {
 
 pub async fn run(config: Config) -> anyhow::Result<()> {
     let cancellation_token = CancellationToken::new();
-    let app = router(config.clone(), cancellation_token.child_token())?;
+    let app = router(config.clone(), cancellation_token.child_token()).await?;
     let listener = TcpListener::bind(config.bind_addr).await?;
 
     info!(
@@ -47,19 +47,20 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn router(config: Config, cancellation_token: CancellationToken) -> anyhow::Result<Router> {
+async fn router(config: Config, cancellation_token: CancellationToken) -> anyhow::Result<Router> {
     let auth_mode = config.auth_mode;
     let auth_context = match auth_mode {
         AuthMode::Trusted => AuthContext::trusted(),
         AuthMode::OAuth => anyhow::bail!("MCP_AUTH_MODE=oauth is not implemented yet"),
     };
     let session_store = session_store(&config.session_store)?;
+    let catalog = load_catalog(&config.extension_catalog).await?;
 
     let mcp_state = SupernodeMcpServer::new(
         auth_context.clone(),
         Policy,
         Arc::new(TracingAuditSink),
-        Arc::new(ExtensionCatalog::embedded()),
+        Arc::new(catalog),
     );
     let mut mcp_config = StreamableHttpServerConfig::default()
         .with_cancellation_token(cancellation_token)

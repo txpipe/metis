@@ -17,7 +17,7 @@ pub fn definitions() -> &'static [ToolDefinition] {
         ToolDefinition {
             name: "workloads.list",
             title: "List Workloads",
-            description: "List installed Helm workloads, namespaces, charts, versions, and status.",
+            description: "List installed workload summaries with catalog extension outputs when available.",
             required_scope: Scope::Discover,
             approval_class: ApprovalClass::Discovery,
             read_only: true,
@@ -27,7 +27,7 @@ pub fn definitions() -> &'static [ToolDefinition] {
         ToolDefinition {
             name: "workloads.get",
             title: "Get Workload",
-            description: "Inspect one workload release and related Kubernetes objects.",
+            description: "Inspect one workload release and related Kubernetes objects in detail.",
             required_scope: Scope::Discover,
             approval_class: ApprovalClass::Discovery,
             read_only: true,

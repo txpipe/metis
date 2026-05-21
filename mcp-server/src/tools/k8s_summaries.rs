@@ -13,18 +13,6 @@ use kube::api::ObjectList;
 use serde_json::Value;
 use serde_json::json;
 
-pub(crate) fn deployment_summaries(
-    deployments: ObjectList<Deployment>,
-    include_control_plane: bool,
-) -> Vec<Value> {
-    deployments
-        .items
-        .iter()
-        .filter(|deployment| include_control_plane || !is_control_plane(&deployment.metadata))
-        .map(deployment_summary)
-        .collect()
-}
-
 pub(crate) fn deployment_summary(deployment: &Deployment) -> Value {
     json!({
         "kind": "Deployment",
@@ -35,18 +23,6 @@ pub(crate) fn deployment_summary(deployment: &Deployment) -> Value {
     })
 }
 
-pub(crate) fn stateful_set_summaries(
-    stateful_sets: ObjectList<StatefulSet>,
-    include_control_plane: bool,
-) -> Vec<Value> {
-    stateful_sets
-        .items
-        .iter()
-        .filter(|stateful_set| include_control_plane || !is_control_plane(&stateful_set.metadata))
-        .map(stateful_set_summary)
-        .collect()
-}
-
 pub(crate) fn stateful_set_summary(stateful_set: &StatefulSet) -> Value {
     json!({
         "kind": "StatefulSet",
@@ -55,14 +31,6 @@ pub(crate) fn stateful_set_summary(stateful_set: &StatefulSet) -> Value {
         "readyReplicas": stateful_set.status.as_ref().and_then(|status| status.ready_replicas),
         "currentReplicas": stateful_set.status.as_ref().and_then(|status| status.current_replicas),
     })
-}
-
-pub(crate) fn pod_summaries(pods: ObjectList<Pod>, include_control_plane: bool) -> Vec<Value> {
-    pods.items
-        .iter()
-        .filter(|pod| include_control_plane || !is_control_plane(&pod.metadata))
-        .map(pod_summary)
-        .collect()
 }
 
 pub(crate) fn pod_summary(pod: &Pod) -> Value {

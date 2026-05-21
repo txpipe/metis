@@ -1,0 +1,4202 @@
+{
+  "schemaVersion": "supernode.extensionCatalog/v1",
+  "extensions": [
+    {
+      "id": "apex-fusion-block-producer",
+      "name": "Apex Fusion Block Producer",
+      "description": "A private Apex Fusion block producer workload with optional managed relays and Vault-synced runtime producer material.",
+      "versions": [
+        "0.1.0"
+      ],
+      "defaultVersion": "0.1.0",
+      "configuration": {
+        "$schema": "https://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "definitions": {
+          "persistence": {
+            "additionalProperties": false,
+            "properties": {
+              "accessModes": {
+                "default": [
+                  "ReadWriteOnce"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "annotations": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "existingClaim": {
+                "default": "",
+                "description": "Advanced, usually not modified. Existing PVC name for the producer. Managed relay persistence always creates PVCs.",
+                "type": "string"
+              },
+              "size": {
+                "default": "20Gi",
+                "pattern": "^[0-9]+(Mi|Gi|Ti)$",
+                "type": "string"
+              },
+              "storageClass": {
+                "description": "Required. Kubernetes StorageClass used for the chain-data PVC.",
+                "minLength": 1,
+                "type": "string",
+                "x-supernodeCategory": "required"
+              }
+            },
+            "required": [
+              "storageClass"
+            ],
+            "type": "object"
+          },
+          "resourceList": {
+            "additionalProperties": false,
+            "properties": {
+              "cpu": {
+                "type": "string"
+              },
+              "memory": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "resources": {
+            "additionalProperties": false,
+            "properties": {
+              "limits": {
+                "$ref": "#/definitions/resourceList"
+              },
+              "requests": {
+                "$ref": "#/definitions/resourceList"
+              }
+            },
+            "type": "object"
+          },
+          "service": {
+            "additionalProperties": false,
+            "description": "Optional. Kubernetes Service settings for the private producer Service. Managed relays are always ClusterIP.",
+            "properties": {
+              "annotations": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "clusterIP": {
+                "default": "",
+                "type": "string"
+              },
+              "externalTrafficPolicy": {
+                "default": "",
+                "enum": [
+                  "",
+                  "Cluster",
+                  "Local"
+                ],
+                "type": "string"
+              },
+              "labels": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "loadBalancerIP": {
+                "default": "",
+                "type": "string"
+              },
+              "metricsNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "metricsPort": {
+                "default": 12789,
+                "type": "integer"
+              },
+              "n2cNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "n2cPort": {
+                "default": 3307,
+                "type": "integer"
+              },
+              "n2nNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "n2nPort": {
+                "default": 3000,
+                "type": "integer"
+              },
+              "type": {
+                "default": "ClusterIP",
+                "enum": [
+                  "ClusterIP",
+                  "NodePort",
+                  "LoadBalancer"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "stringMap": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "trustedRelay": {
+            "additionalProperties": false,
+            "properties": {
+              "address": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "port": {
+                "default": 3000,
+                "maximum": 65535,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "valency": {
+                "default": 1,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "address"
+            ],
+            "type": "object"
+          },
+          "vaultAuth": {
+            "additionalProperties": false,
+            "properties": {
+              "ref": {
+                "default": "control-plane/default",
+                "description": "VaultAuth reference used by chart-managed VaultStaticSecret resources.",
+                "type": "string"
+              },
+              "serviceAccount": {
+                "additionalProperties": false,
+                "properties": {
+                  "create": {
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "default": "vault-auth",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "vaultStaticSecret": {
+            "additionalProperties": false,
+            "properties": {
+              "mount": {
+                "default": "kv",
+                "type": "string"
+              },
+              "path": {
+                "description": "Required. Runtime Vault path without kv/data prefix, for example runtime/apex-fusion/prime-mainnet-bp/block-producer.",
+                "minLength": 1,
+                "type": "string"
+              },
+              "refreshAfter": {
+                "default": "1m",
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "type": "object"
+          }
+        },
+        "description": "Supernode-opinionated Apex Fusion block producer chart values. This schema is the public configuration interface for LLMs and MCP clients; pass values in this shape directly to Helm. Producer runtime material must be sourced from Vault.",
+        "properties": {
+          "affinity": {
+            "additionalProperties": true,
+            "default": {},
+            "description": "Advanced, usually not modified. Kubernetes affinity rules for producer pod placement.",
+            "type": "object",
+            "x-supernodeCategory": "advanced"
+          },
+          "blockProducer": {
+            "additionalProperties": false,
+            "description": "Required. Private producer runtime settings. Only kes.skey, vrf.skey, and op.cert runtime material should be synced into this pod from Vault; keep cold keys and counters outside the cluster.",
+            "properties": {
+              "debug": {
+                "default": false,
+                "description": "Optional. Mount producer material and emit block-producer metrics env, but do not pass forging flags to the node.",
+                "type": "boolean"
+              },
+              "kesKeyFile": {
+                "default": "kes.skey",
+                "description": "Advanced, usually not modified. KES signing key filename in the Vault-synced Secret.",
+                "type": "string"
+              },
+              "mountPath": {
+                "default": "/block-producer",
+                "description": "Advanced, usually not modified. Mount path for producer runtime material.",
+                "type": "string"
+              },
+              "operationalCertificateFile": {
+                "default": "op.cert",
+                "description": "Advanced, usually not modified. Operational certificate filename in the Vault-synced Secret.",
+                "type": "string"
+              },
+              "poolId": {
+                "default": "",
+                "description": "Optional but recommended. Pool ID used by metrics for leader schedule calculations.",
+                "type": "string"
+              },
+              "vaultStaticSecret": {
+                "$ref": "#/definitions/vaultStaticSecret"
+              },
+              "vrfKeyFile": {
+                "default": "vrf.skey",
+                "description": "Advanced, usually not modified. VRF signing key filename in the Vault-synced Secret.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "vaultStaticSecret"
+            ],
+            "type": "object"
+          },
+          "displayName": {
+            "default": "",
+            "description": "Optional. Human-readable workload name shown by Supernode tooling. MCP normally sets this from releaseName.",
+            "type": "string",
+            "x-supernodeCategory": "optional"
+          },
+          "fullnameOverride": {
+            "default": "",
+            "description": "Advanced, usually not modified. Overrides the full Kubernetes resource name. Leave empty so the release name controls resource names.",
+            "type": "string",
+            "x-supernodeCategory": "advanced"
+          },
+          "image": {
+            "additionalProperties": false,
+            "description": "Optional. Apex Fusion node container image settings.",
+            "properties": {
+              "repository": {
+                "default": "ghcr.io/blinklabs-io/cardano-node",
+                "type": "string"
+              },
+              "tag": {
+                "default": "10.1.4",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "nameOverride": {
+            "default": "",
+            "description": "Advanced, usually not modified. Overrides the Kubernetes app name used by the chart.",
+            "type": "string",
+            "x-supernodeCategory": "advanced"
+          },
+          "node": {
+            "additionalProperties": false,
+            "description": "Required. Apex Fusion block producer runtime settings. Set node.network and usually leave low-level ports unchanged.",
+            "properties": {
+              "metricsPort": {
+                "default": 12789,
+                "description": "Advanced, usually not modified. Internal node metrics port.",
+                "type": "integer"
+              },
+              "n2nPort": {
+                "default": 3000,
+                "description": "Advanced, usually not modified. Internal node-to-node port.",
+                "type": "integer"
+              },
+              "network": {
+                "default": "vector-testnet",
+                "description": "Required. Apex Fusion network to join.",
+                "enum": [
+                  "vector-testnet",
+                  "prime-testnet",
+                  "prime-mainnet"
+                ],
+                "type": "string",
+                "x-supernodeCategory": "required"
+              },
+              "networkMagic": {
+                "default": null,
+                "description": "Advanced, usually not modified. Overrides derived testnet magic. vector-testnet derives 1 and prime-testnet derives 3311.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "socketPath": {
+                "default": "/ipc/node.socket",
+                "description": "Advanced, usually not modified. Node socket path shared with the proxy sidecar.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "network"
+            ],
+            "type": "object"
+          },
+          "nodeSelector": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "description": "Advanced, usually not modified. Kubernetes nodeSelector for producer scheduling.",
+            "type": "object",
+            "x-supernodeCategory": "advanced"
+          },
+          "persistence": {
+            "$ref": "#/definitions/persistence",
+            "description": "Required. Persistent storage for the block producer chain database."
+          },
+          "proxy": {
+            "additionalProperties": false,
+            "description": "Advanced, usually not modified. Node-to-client TCP proxy settings. The proxy is always enabled and uses chart-owned nginx configuration.",
+            "properties": {
+              "n2cPort": {
+                "default": 3307,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "relayPersistence": {
+            "$ref": "#/definitions/persistence",
+            "description": "Required. Persistent storage for each managed relay chain database."
+          },
+          "relayResources": {
+            "$ref": "#/definitions/resources",
+            "description": "Optional. Kubernetes CPU and memory requests and limits for managed relay containers."
+          },
+          "relays": {
+            "additionalProperties": false,
+            "description": "Required. Relay topology for the private block producer. relays.count creates managed relays inside this release. If relays.count=0, provide relays.trusted explicitly. MCP does not auto-resolve trusted relays; use workloads.list to inspect candidate apex-fusion-relay workloads.",
+            "properties": {
+              "count": {
+                "default": 1,
+                "description": "Number of managed relays to create inside this release. Use 0 only when relays.trusted is provided.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "trusted": {
+                "default": [],
+                "description": "Explicit trusted relay endpoints used when count=0.",
+                "items": {
+                  "$ref": "#/definitions/trustedRelay"
+                },
+                "type": "array"
+              },
+              "useLedgerAfterSlot": {
+                "default": -1,
+                "description": "Topology useLedgerAfterSlot value. Private producers typically use -1.",
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "resources": {
+            "$ref": "#/definitions/resources",
+            "description": "Optional. Kubernetes CPU and memory requests and limits for the private block producer container."
+          },
+          "service": {
+            "$ref": "#/definitions/service"
+          },
+          "tolerations": {
+            "default": [],
+            "description": "Advanced, usually not modified. Kubernetes tolerations for producer scheduling.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "x-supernodeCategory": "advanced"
+          },
+          "topologySpreadConstraints": {
+            "default": [],
+            "description": "Advanced, usually not modified. Kubernetes topology spread constraints.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "x-supernodeCategory": "advanced"
+          },
+          "vaultAuth": {
+            "$ref": "#/definitions/vaultAuth"
+          }
+        },
+        "required": [
+          "node",
+          "persistence",
+          "relayPersistence",
+          "blockProducer"
+        ],
+        "title": "Apex Fusion Block Producer Helm Values",
+        "type": "object"
+      },
+      "secrets": [
+        {
+          "name": "blockProducerRuntime",
+          "description": "Runtime Apex Fusion producer material synced from Vault: kes.skey, vrf.skey, and op.cert. Cold keys and counters must not be mounted into the producer pod.",
+          "required": true,
+          "requiredWhen": null,
+          "scope": "runtime",
+          "material": "apex-fusion-block-producer-runtime",
+          "writeOnly": true,
+          "acceptedSources": [
+            "vaultStaticSecret"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "metrics": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "blockHeight": {
+            "description": "Latest block number observed by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "epoch": {
+            "description": "Current epoch observed by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "peersIncoming": {
+            "description": "Incoming peer connection count.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "peersOutgoing": {
+            "description": "Outgoing peer connection count.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "slotNum": {
+            "description": "Absolute slot number observed by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "type": {
+            "const": "apex-fusion"
+          }
+        },
+        "required": [
+          "type",
+          "errors"
+        ],
+        "title": "Apex Fusion Relay Metrics",
+        "type": "object"
+      },
+      "metricsCollection": {
+        "container": "apex-fusion",
+        "command": [
+          "/opt/metis/bin/metrics.sh"
+        ]
+      },
+      "outputs": [
+        {
+          "name": "n2n",
+          "description": "Apex Fusion node-to-node networking endpoint for relay peer connectivity.",
+          "portName": "n2n",
+          "protocol": "TCP"
+        },
+        {
+          "name": "n2c",
+          "description": "Apex Fusion node-to-client endpoint for local clients through the chart proxy.",
+          "portName": "n2c",
+          "protocol": "TCP"
+        }
+      ],
+      "chart": "oci://oci.supernode.store/extensions/apex-fusion-block-producer"
+    },
+    {
+      "id": "apex-fusion-relay",
+      "name": "Apex Fusion Relay",
+      "description": "An Apex Fusion relay node workload for participating in Vector and Prime network topology without block-producing keys.",
+      "versions": [
+        "0.1.0"
+      ],
+      "defaultVersion": "0.1.0",
+      "configuration": {
+        "$schema": "https://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "definitions": {
+          "relayTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "chart": {
+                "default": "apex-fusion-relay",
+                "minLength": 1,
+                "type": "string"
+              },
+              "namespace": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "port": {
+                "default": 3000,
+                "maximum": 65535,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "releaseName": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "valency": {
+                "default": 1,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "releaseName"
+            ],
+            "type": "object"
+          },
+          "resourceList": {
+            "additionalProperties": false,
+            "properties": {
+              "cpu": {
+                "type": "string"
+              },
+              "memory": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "stringMap": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "topology": {
+            "additionalProperties": false,
+            "description": "Optional. Relay topology configuration. Leave mode=image-default for normal public relay behavior. Use relay-service to peer with specific in-cluster relay Services or custom for explicit topology.json roots.",
+            "properties": {
+              "localRoots": {
+                "default": [],
+                "description": "Custom topology localRoots when mode=custom.",
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "mode": {
+                "default": "image-default",
+                "enum": [
+                  "image-default",
+                  "relay-service",
+                  "custom"
+                ],
+                "type": "string"
+              },
+              "publicRoots": {
+                "default": [],
+                "description": "Custom topology publicRoots when mode=custom.",
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "relayTargets": {
+                "default": [],
+                "description": "Internal relay services to use when mode=relay-service.",
+                "items": {
+                  "$ref": "#/definitions/relayTarget"
+                },
+                "type": "array"
+              },
+              "useLedgerAfterSlot": {
+                "default": 0,
+                "description": "Topology useLedgerAfterSlot value. Public relays typically use 0.",
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "description": "Supernode-opinionated Apex Fusion relay chart values. This schema is the public configuration interface for LLMs and MCP clients; pass values in this shape directly to Helm.",
+        "properties": {
+          "affinity": {
+            "additionalProperties": true,
+            "default": {},
+            "description": "Advanced, usually not modified. Kubernetes affinity rules for relay pod placement.",
+            "type": "object",
+            "x-supernodeCategory": "advanced"
+          },
+          "displayName": {
+            "default": "",
+            "description": "Optional. Human-readable workload name shown by Supernode tooling. MCP normally sets this from releaseName.",
+            "type": "string",
+            "x-supernodeCategory": "optional"
+          },
+          "fullnameOverride": {
+            "default": "",
+            "description": "Advanced, usually not modified. Overrides the full Kubernetes resource name. Leave empty so the release name controls resource names.",
+            "type": "string",
+            "x-supernodeCategory": "advanced"
+          },
+          "image": {
+            "additionalProperties": false,
+            "description": "Optional. Apex Fusion node container image settings. Most installs only change image.tag when pinning a specific release.",
+            "properties": {
+              "repository": {
+                "default": "ghcr.io/blinklabs-io/cardano-node",
+                "description": "Advanced, usually not modified. Container image repository for the Apex Fusion compatible node image.",
+                "type": "string"
+              },
+              "tag": {
+                "default": "10.1.4",
+                "description": "Optional. Node image tag to deploy.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "nameOverride": {
+            "default": "",
+            "description": "Advanced, usually not modified. Overrides the Kubernetes app name used by the chart.",
+            "type": "string",
+            "x-supernodeCategory": "advanced"
+          },
+          "node": {
+            "additionalProperties": false,
+            "description": "Required. Apex Fusion relay runtime settings. Set node.network and usually leave ports and topology defaults unchanged.",
+            "properties": {
+              "metricsPort": {
+                "default": 12789,
+                "description": "Advanced, usually not modified. Internal node metrics port.",
+                "type": "integer"
+              },
+              "n2nPort": {
+                "default": 3000,
+                "description": "Advanced, usually not modified. Internal node-to-node port.",
+                "type": "integer"
+              },
+              "network": {
+                "default": "vector-testnet",
+                "description": "Required. Apex Fusion network to join.",
+                "enum": [
+                  "vector-testnet",
+                  "prime-testnet",
+                  "prime-mainnet"
+                ],
+                "type": "string",
+                "x-supernodeCategory": "required"
+              },
+              "networkMagic": {
+                "default": null,
+                "description": "Advanced, usually not modified. Overrides derived testnet magic. vector-testnet derives 1 and prime-testnet derives 3311.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "replicas": {
+                "default": 1,
+                "description": "Advanced, usually not modified. Number of relay pods.",
+                "minimum": 1,
+                "type": "integer"
+              },
+              "socketPath": {
+                "default": "/ipc/node.socket",
+                "description": "Advanced, usually not modified. Node socket path shared with the proxy sidecar.",
+                "type": "string"
+              },
+              "topology": {
+                "$ref": "#/definitions/topology"
+              }
+            },
+            "required": [
+              "network"
+            ],
+            "type": "object"
+          },
+          "nodeSelector": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "description": "Advanced, usually not modified. Kubernetes nodeSelector for relay scheduling.",
+            "type": "object",
+            "x-supernodeCategory": "advanced"
+          },
+          "persistence": {
+            "additionalProperties": false,
+            "description": "Required. Persistent storage for the Apex Fusion chain database. Persistence is always enabled for this chart.",
+            "properties": {
+              "accessModes": {
+                "default": [
+                  "ReadWriteOnce"
+                ],
+                "description": "Advanced, usually not modified. PVC access modes.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "annotations": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "existingClaim": {
+                "default": "",
+                "description": "Advanced, usually not modified. Existing PVC name to mount instead of creating a StatefulSet volumeClaimTemplate.",
+                "type": "string"
+              },
+              "size": {
+                "default": "20Gi",
+                "description": "Optional. Requested chain database PVC size.",
+                "pattern": "^[0-9]+(Mi|Gi|Ti)$",
+                "type": "string"
+              },
+              "storageClass": {
+                "description": "Required. Kubernetes StorageClass used for the chain-data PVC.",
+                "minLength": 1,
+                "type": "string",
+                "x-supernodeCategory": "required"
+              }
+            },
+            "required": [
+              "storageClass"
+            ],
+            "type": "object"
+          },
+          "proxy": {
+            "additionalProperties": false,
+            "description": "Advanced, usually not modified. Node-to-client TCP proxy settings. The proxy is always enabled and uses chart-owned nginx configuration.",
+            "properties": {
+              "n2cPort": {
+                "default": 3307,
+                "description": "Internal proxy listener port for node-to-client traffic.",
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "resources": {
+            "additionalProperties": false,
+            "description": "Optional. Kubernetes CPU and memory requests and limits for the relay container. Start with 500m CPU requested, 2 CPU limit, and 4Gi memory for test networks; increase memory for larger networks.",
+            "properties": {
+              "limits": {
+                "$ref": "#/definitions/resourceList"
+              },
+              "requests": {
+                "$ref": "#/definitions/resourceList"
+              }
+            },
+            "type": "object"
+          },
+          "service": {
+            "additionalProperties": false,
+            "description": "Optional. Kubernetes Service settings. Keep ClusterIP for in-cluster access; use LoadBalancer only when external node-to-node access is required.",
+            "properties": {
+              "annotations": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "clusterIP": {
+                "default": "",
+                "type": "string"
+              },
+              "externalTrafficPolicy": {
+                "default": "",
+                "enum": [
+                  "",
+                  "Cluster",
+                  "Local"
+                ],
+                "type": "string"
+              },
+              "labels": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "loadBalancerIP": {
+                "default": "",
+                "type": "string"
+              },
+              "metricsNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "metricsPort": {
+                "default": 12789,
+                "description": "Advanced, usually not modified. Metrics Service port.",
+                "type": "integer"
+              },
+              "n2cNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "n2cPort": {
+                "default": 3307,
+                "description": "Advanced, usually not modified. Node-to-client Service port exposed through the proxy sidecar.",
+                "type": "integer"
+              },
+              "n2nNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "n2nPort": {
+                "default": 3000,
+                "description": "Advanced, usually not modified. Node-to-node Service port.",
+                "type": "integer"
+              },
+              "type": {
+                "default": "ClusterIP",
+                "enum": [
+                  "ClusterIP",
+                  "NodePort",
+                  "LoadBalancer"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "tolerations": {
+            "default": [],
+            "description": "Advanced, usually not modified. Kubernetes tolerations for relay scheduling.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "x-supernodeCategory": "advanced"
+          },
+          "topologySpreadConstraints": {
+            "default": [],
+            "description": "Advanced, usually not modified. Kubernetes topology spread constraints.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "x-supernodeCategory": "advanced"
+          }
+        },
+        "required": [
+          "node",
+          "persistence"
+        ],
+        "title": "Apex Fusion Relay Helm Values",
+        "type": "object"
+      },
+      "secrets": [],
+      "dependencies": [],
+      "metrics": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "blockHeight": {
+            "description": "Latest block number observed by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "epoch": {
+            "description": "Current epoch observed by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "peersIncoming": {
+            "description": "Incoming peer connection count.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "peersOutgoing": {
+            "description": "Outgoing peer connection count.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "slotNum": {
+            "description": "Absolute slot number observed by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "type": {
+            "const": "apex-fusion"
+          }
+        },
+        "required": [
+          "type",
+          "errors"
+        ],
+        "title": "Apex Fusion Relay Metrics",
+        "type": "object"
+      },
+      "metricsCollection": {
+        "container": "apex-fusion",
+        "command": [
+          "/opt/metis/bin/metrics.sh"
+        ]
+      },
+      "outputs": [
+        {
+          "name": "n2n",
+          "description": "Apex Fusion node-to-node networking endpoint for relay peer connectivity.",
+          "portName": "n2n",
+          "protocol": "TCP"
+        },
+        {
+          "name": "n2c",
+          "description": "Apex Fusion node-to-client endpoint for local clients through the chart proxy.",
+          "portName": "n2c",
+          "protocol": "TCP"
+        }
+      ],
+      "chart": "oci://oci.supernode.store/extensions/apex-fusion-relay"
+    },
+    {
+      "id": "cardano-block-producer",
+      "name": "Cardano Block Producer",
+      "description": "A private Cardano block producer workload with optional managed relays and Vault-synced runtime producer material.",
+      "versions": [
+        "0.1.0"
+      ],
+      "defaultVersion": "0.1.0",
+      "configuration": {
+        "$schema": "https://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "definitions": {
+          "resourceList": {
+            "additionalProperties": false,
+            "properties": {
+              "cpu": {
+                "description": "Kubernetes CPU quantity. Use 500m for requests; use 4 for mainnet limits and 2 for preview or preprod limits.",
+                "type": "string"
+              },
+              "memory": {
+                "description": "Kubernetes memory quantity. Set requests.memory equal to limits.memory: 8Gi for mainnet, 4Gi for preview or preprod.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "stringMap": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "trustedRelay": {
+            "additionalProperties": false,
+            "properties": {
+              "address": {
+                "description": "Trusted relay hostname or IP address. Do not include the port here.",
+                "minLength": 1,
+                "type": "string"
+              },
+              "port": {
+                "default": 3000,
+                "maximum": 65535,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "valency": {
+                "default": 1,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "address"
+            ],
+            "type": "object"
+          }
+        },
+        "description": "Supernode-opinionated Cardano block producer chart values. This chart deploys one private block producer and can also deploy zero, one, or many managed relays in the same release. This schema is the public configuration interface for LLMs and MCP clients.",
+        "properties": {
+          "affinity": {
+            "additionalProperties": true,
+            "default": {},
+            "description": "Advanced, usually not modified. Kubernetes affinity rules for producer pod placement.",
+            "type": "object",
+            "x-supernodeCategory": "advanced"
+          },
+          "blockProducer": {
+            "additionalProperties": false,
+            "description": "Required. Block producer runtime settings. debug=true mounts producer material and enables schedule metrics, but does not pass forging flags to cardano-node. debug=false runs as an active block producer.",
+            "properties": {
+              "debug": {
+                "default": false,
+                "description": "Optional. When true, do not pass KES/VRF/op-cert runtime flags, but still mount producer material and expose block producer schedule metrics.",
+                "type": "boolean"
+              },
+              "kesKeyFile": {
+                "default": "kes.skey",
+                "description": "Advanced, usually not modified. KES signing key filename in the Vault-synced secret.",
+                "type": "string"
+              },
+              "mountPath": {
+                "default": "/block-producer",
+                "description": "Advanced, usually not modified. Mount path for synced producer runtime material.",
+                "type": "string"
+              },
+              "operationalCertificateFile": {
+                "default": "op.cert",
+                "description": "Advanced, usually not modified. Operational certificate filename in the Vault-synced secret.",
+                "type": "string"
+              },
+              "poolId": {
+                "description": "Required. Stake pool ID used by metrics to compute leadership schedule.",
+                "minLength": 1,
+                "type": "string"
+              },
+              "vaultStaticSecret": {
+                "additionalProperties": false,
+                "description": "Required. Vault KV v2 location containing kes.skey, vrf.skey, and op.cert. Only runtime block producer material should be stored here; cold keys and counters must stay outside the producer-mounted path.",
+                "properties": {
+                  "mount": {
+                    "default": "kv",
+                    "description": "Vault KV v2 mount name.",
+                    "type": "string"
+                  },
+                  "path": {
+                    "description": "Required. Runtime Vault path, for example runtime/cardano-block-producer/mainnet-pool/block-producer.",
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "refreshAfter": {
+                    "default": "1m",
+                    "description": "Advanced, usually not modified. Vault Secrets Operator refresh interval.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ],
+                "type": "object"
+              },
+              "vrfKeyFile": {
+                "default": "vrf.skey",
+                "description": "Advanced, usually not modified. VRF signing key filename in the Vault-synced secret.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "poolId",
+              "vaultStaticSecret"
+            ],
+            "type": "object"
+          },
+          "displayName": {
+            "default": "",
+            "description": "Optional. Human-readable workload name shown by Supernode tooling. MCP normally sets this from releaseName.",
+            "type": "string",
+            "x-supernodeCategory": "optional"
+          },
+          "fullnameOverride": {
+            "default": "",
+            "description": "Advanced, usually not modified. Overrides the full Kubernetes resource name. Leave empty so the release name controls resource names.",
+            "type": "string",
+            "x-supernodeCategory": "advanced"
+          },
+          "image": {
+            "additionalProperties": false,
+            "description": "Optional. Cardano node image settings shared by the producer and managed relays.",
+            "properties": {
+              "repository": {
+                "default": "ghcr.io/blinklabs-io/cardano-node",
+                "description": "Advanced, usually not modified. Container image repository for cardano-node.",
+                "type": "string"
+              },
+              "tag": {
+                "default": "11.0.1",
+                "description": "Optional. Cardano node image tag to deploy.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "nameOverride": {
+            "default": "",
+            "description": "Advanced, usually not modified. Overrides the Kubernetes app name used by the chart.",
+            "type": "string",
+            "x-supernodeCategory": "advanced"
+          },
+          "node": {
+            "additionalProperties": false,
+            "description": "Required. Shared Cardano node runtime settings for the producer and managed relays.",
+            "properties": {
+              "metricsPort": {
+                "default": 12798,
+                "description": "Advanced, usually not modified. Internal cardano-node metrics port.",
+                "type": "integer"
+              },
+              "n2nPort": {
+                "default": 3000,
+                "description": "Advanced, usually not modified. Internal cardano-node node-to-node port.",
+                "type": "integer"
+              },
+              "network": {
+                "default": "preview",
+                "description": "Required. Cardano network to join. The chart derives network magic internally for preview and preprod.",
+                "enum": [
+                  "mainnet",
+                  "preprod",
+                  "preview"
+                ],
+                "type": "string",
+                "x-supernodeCategory": "required"
+              },
+              "socketPath": {
+                "default": "/ipc/node.socket",
+                "description": "Advanced, usually not modified. Cardano node socket path shared with the proxy sidecar.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "network"
+            ],
+            "type": "object"
+          },
+          "nodeSelector": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "description": "Advanced, usually not modified. Kubernetes nodeSelector for producer scheduling.",
+            "type": "object",
+            "x-supernodeCategory": "advanced"
+          },
+          "persistence": {
+            "additionalProperties": false,
+            "description": "Required. Persistent storage for the block producer chain database. Persistence is always enabled.",
+            "properties": {
+              "accessModes": {
+                "default": [
+                  "ReadWriteOnce"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "annotations": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "existingClaim": {
+                "default": "",
+                "description": "Advanced, usually not modified. Existing PVC name to mount for the producer instead of creating a StatefulSet volumeClaimTemplate.",
+                "type": "string"
+              },
+              "size": {
+                "default": "80Gi",
+                "description": "Optional. Requested producer chain database PVC size. Use roughly 250Gi for mainnet and 80Gi to 120Gi for preview or preprod.",
+                "pattern": "^[0-9]+(Mi|Gi|Ti)$",
+                "type": "string"
+              },
+              "storageClass": {
+                "description": "Required. Kubernetes StorageClass used for the producer chain-data PVC.",
+                "minLength": 1,
+                "type": "string",
+                "x-supernodeCategory": "required"
+              }
+            },
+            "required": [
+              "storageClass"
+            ],
+            "type": "object"
+          },
+          "proxy": {
+            "additionalProperties": false,
+            "description": "Advanced, usually not modified. Node-to-client TCP proxy settings. The proxy is always enabled and uses nginx with fixed chart-owned configuration.",
+            "properties": {
+              "n2cPort": {
+                "default": 3307,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "relayPersistence": {
+            "additionalProperties": false,
+            "description": "Required when relays.count is greater than zero. Persistent storage settings for each managed relay.",
+            "properties": {
+              "accessModes": {
+                "default": [
+                  "ReadWriteOnce"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "annotations": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "size": {
+                "default": "80Gi",
+                "description": "Requested chain database PVC size for each managed relay.",
+                "pattern": "^[0-9]+(Mi|Gi|Ti)$",
+                "type": "string"
+              },
+              "storageClass": {
+                "description": "StorageClass used for managed relay PVCs. Set this when relays.count > 0. Leave empty when relays.count=0 because no managed relay PVCs are created.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "relayResources": {
+            "additionalProperties": false,
+            "description": "Optional. Kubernetes CPU and memory requests and limits for each managed relay. Use the same guidance as resources unless the relays have a different workload profile.",
+            "properties": {
+              "limits": {
+                "$ref": "#/definitions/resourceList"
+              },
+              "requests": {
+                "$ref": "#/definitions/resourceList"
+              }
+            },
+            "type": "object"
+          },
+          "relays": {
+            "additionalProperties": false,
+            "description": "Required. Managed relay topology for the producer. If count is greater than zero, the chart creates that many relay StatefulSets and points the producer topology at them. If count is zero, trusted must contain at least one trusted relay address. MCP does not auto-resolve trusted relays; run workloads.list and suggest same-network cardano-relay workloads to the user when available.",
+            "properties": {
+              "count": {
+                "default": 1,
+                "description": "Number of managed relays to create in this release. Use 1 or more for the easiest private producer setup. Use 0 only when connecting to existing trusted relays.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "trusted": {
+                "default": [],
+                "description": "Trusted relay targets used when count=0. Each address should be host-only, with port separate. If unknown, run workloads.list and inspect same-network cardano-relay services; a typical address is RELEASE.NAMESPACE.svc.cluster.local with port 3000.",
+                "items": {
+                  "$ref": "#/definitions/trustedRelay"
+                },
+                "type": "array"
+              },
+              "useLedgerAfterSlot": {
+                "default": -1,
+                "description": "Producer topology useLedgerAfterSlot. Private producers should normally use -1 so they only trust configured relays.",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "count"
+            ],
+            "type": "object"
+          },
+          "resources": {
+            "additionalProperties": false,
+            "description": "Optional. Kubernetes CPU and memory requests and limits for the block producer container. Recommended limits are 4 CPU cores and 8Gi memory for mainnet, and 2 CPU cores and 4Gi memory for preview or preprod. Request little CPU, usually 500m, and set memory requests equal to memory limits.",
+            "properties": {
+              "limits": {
+                "$ref": "#/definitions/resourceList"
+              },
+              "requests": {
+                "$ref": "#/definitions/resourceList"
+              }
+            },
+            "type": "object"
+          },
+          "service": {
+            "additionalProperties": false,
+            "description": "Optional. Producer Service settings and default ports used by managed relay Services. Keep ClusterIP for private producer deployments.",
+            "properties": {
+              "annotations": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "clusterIP": {
+                "default": "",
+                "type": "string"
+              },
+              "externalTrafficPolicy": {
+                "default": "",
+                "enum": [
+                  "",
+                  "Cluster",
+                  "Local"
+                ],
+                "type": "string"
+              },
+              "labels": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "loadBalancerIP": {
+                "default": "",
+                "type": "string"
+              },
+              "metricsNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "metricsPort": {
+                "default": 12798,
+                "description": "Metrics Service port.",
+                "type": "integer"
+              },
+              "n2cNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "n2cPort": {
+                "default": 3307,
+                "description": "Node-to-client Service port exposed through the proxy sidecar.",
+                "type": "integer"
+              },
+              "n2nNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "n2nPort": {
+                "default": 3000,
+                "description": "Node-to-node Service port.",
+                "type": "integer"
+              },
+              "type": {
+                "default": "ClusterIP",
+                "enum": [
+                  "ClusterIP",
+                  "NodePort",
+                  "LoadBalancer"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "tolerations": {
+            "default": [],
+            "description": "Advanced, usually not modified. Kubernetes tolerations for producer scheduling.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "x-supernodeCategory": "advanced"
+          },
+          "topologySpreadConstraints": {
+            "default": [],
+            "description": "Advanced, usually not modified. Kubernetes topology spread constraints for producer pod placement.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "x-supernodeCategory": "advanced"
+          },
+          "vaultAuth": {
+            "additionalProperties": false,
+            "description": "Advanced, usually not modified. Shared Vault auth created by the control-plane extension.",
+            "properties": {
+              "ref": {
+                "default": "control-plane/default",
+                "description": "VaultAuth reference used by VaultStaticSecret.",
+                "type": "string"
+              },
+              "serviceAccount": {
+                "additionalProperties": false,
+                "properties": {
+                  "create": {
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "default": "vault-auth",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "node",
+          "persistence",
+          "blockProducer",
+          "relays"
+        ],
+        "title": "Cardano Block Producer Helm Values",
+        "type": "object"
+      },
+      "secrets": [
+        {
+          "name": "blockProducerRuntime",
+          "description": "Runtime producer material synced from Vault: kes.skey, vrf.skey, and op.cert. Cold keys and counters must not be mounted into the producer pod.",
+          "required": true,
+          "requiredWhen": null,
+          "scope": "runtime",
+          "material": "cardano-block-producer-runtime",
+          "writeOnly": true,
+          "acceptedSources": [
+            "vaultStaticSecret"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "metrics": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aboutToLeadCount": {
+            "description": "Times the node was about to lead a slot since startup, for block-producing nodes.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "adoptedCount": {
+            "description": "Forged blocks adopted by the chain since startup, for block-producing nodes.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "blockHeight": {
+            "description": "Latest block number observed by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "blocksLate": {
+            "description": "Blocks observed later than five seconds by the block fetch client.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "blocksServed": {
+            "description": "Blocks served to peers by this node since startup.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "blocksWithin1s": {
+            "description": "Percentage of observed blocks arriving within 1 second.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "blocksWithin3s": {
+            "description": "Percentage of observed blocks arriving within 3 seconds.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "blocksWithin5s": {
+            "description": "Percentage of observed blocks arriving within 5 seconds.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "connectionBiDir": {
+            "description": "Current bidirectional connection count.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "connectionDuplex": {
+            "description": "Current full duplex connection count.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "connectionUniDir": {
+            "description": "Current unidirectional connection count.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "density": {
+            "description": "Recent chain density reported by the node, expressed as a percentage.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "epoch": {
+            "description": "Current epoch observed by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "epochLength": {
+            "description": "Number of slots in the current Cardano epoch from Shelley genesis.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "epochProgressPercent": {
+            "description": "Percentage of the current epoch completed from slot-in-epoch and Shelley genesis epoch length.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "epochTimeRemainingSeconds": {
+            "description": "Approximate time remaining in the current epoch derived from Shelley genesis timing.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "errors": {
+            "description": "Warnings or collection errors emitted by the metrics script.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "forgedCount": {
+            "description": "Blocks forged by the node since startup, for block-producing nodes.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "forgingEnabled": {
+            "description": "Whether this node currently has forging enabled.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "forks": {
+            "description": "Number of chain forks the node has observed since startup.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "gcMajorCount": {
+            "description": "Number of major garbage collections since startup.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "gcMinorCount": {
+            "description": "Number of minor garbage collections since startup.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "inboundGovernorHot": {
+            "description": "Inbound governor hot connection count reported by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "inboundGovernorWarm": {
+            "description": "Inbound governor warm connection count reported by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "invalidCount": {
+            "description": "Derived count of forged blocks that were not adopted, clamped at zero.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "kesExpirationSeconds": {
+            "description": "Approximate seconds until KES key expiry, when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "kesExpirationTime": {
+            "description": "Estimated KES key expiry time as an ISO-8601 timestamp, when available.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kesPeriod": {
+            "description": "Current KES period reported by the node, when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "kesRemaining": {
+            "description": "Remaining KES periods before key expiry, when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lastBlockDelaySeconds": {
+            "description": "Latest observed block propagation delay.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "leaderCount": {
+            "description": "Slots where the node was leader since startup, for block-producing nodes.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "memHeapBytes": {
+            "description": "Heap memory currently reserved by the node RTS.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "memLiveBytes": {
+            "description": "Live RTS memory currently retained by the node process.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "missedSlots": {
+            "description": "Slots missed by the node since startup, when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "nextLeaderSlot": {
+            "description": "Next scheduled leadership slot number, for block-producing nodes.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "nextLeaderTime": {
+            "description": "Next scheduled leadership slot time as an ISO-8601 timestamp.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nextLeaderTimeRemainingSeconds": {
+            "description": "Approximate seconds until the next scheduled leadership slot.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "nodeRevision": {
+            "description": "Cardano node build revision reported by the metrics endpoint.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nodeVersion": {
+            "description": "Cardano node build version reported by the metrics endpoint.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "opCertOnChain": {
+            "description": "Operational certificate counter observed on chain, when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "opCertOnDisk": {
+            "description": "Operational certificate counter found on disk, when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "peerSelectionCold": {
+            "description": "Peer selection cold state count for outbound connections.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "peerSelectionHot": {
+            "description": "Peer selection hot state count for outbound connections.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "peerSelectionWarm": {
+            "description": "Peer selection warm state count for outbound connections.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "peersIncoming": {
+            "description": "Active inbound node connections.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "peersOutgoing": {
+            "description": "Active outbound node connections.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "pendingTx": {
+            "description": "Transactions currently in the mempool.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "pendingTxBytes": {
+            "description": "Buffered mempool transaction size when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "role": {
+            "const": "block-producer"
+          },
+          "scheduledIdealCount": {
+            "description": "Expected leadership slots for the current epoch based on active stake.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "scheduledLeaderCount": {
+            "description": "Leadership slots scheduled for the current epoch, for block-producing nodes.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "scheduledLuckPercent": {
+            "description": "Scheduled leader slots as a percentage of ideal expected slots.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "slotInEpoch": {
+            "description": "Current slot within the active epoch observed by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "slotLength": {
+            "description": "Slot duration in seconds from Shelley genesis.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "slotNum": {
+            "description": "Absolute slot number observed by the node across the chain timeline.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "syncPercent": {
+            "description": "Estimated sync percentage against the computed reference tip.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "systemStartUnix": {
+            "description": "Shelley system start timestamp as Unix seconds.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "tipDiffSlots": {
+            "description": "Difference between the computed reference tip and the node tip.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "tipRefSlot": {
+            "description": "Reference chain tip computed from the Shelley genesis system start and slot length.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "txProcessed": {
+            "description": "Total transactions processed by the node since startup.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "type": {
+            "const": "cardano-node"
+          }
+        },
+        "required": [
+          "type",
+          "role",
+          "errors"
+        ],
+        "title": "Cardano Block Producer Metrics",
+        "type": "object"
+      },
+      "metricsCollection": {
+        "container": "cardano-node",
+        "command": [
+          "/opt/metis/bin/metrics.sh"
+        ]
+      },
+      "outputs": [
+        {
+          "name": "n2n",
+          "description": "Cardano node-to-node networking endpoint for relay peer connectivity.",
+          "portName": "n2n",
+          "protocol": "TCP"
+        },
+        {
+          "name": "n2c",
+          "description": "Cardano node-to-client endpoint for local clients through the chart proxy.",
+          "portName": "n2c",
+          "protocol": "TCP"
+        }
+      ],
+      "chart": "oci://oci.supernode.store/extensions/cardano-block-producer"
+    },
+    {
+      "id": "cardano-relay",
+      "name": "Cardano Relay",
+      "description": "A Cardano relay node workload for participating in Cardano network topology without block-producing keys.",
+      "versions": [
+        "0.1.0"
+      ],
+      "defaultVersion": "0.1.0",
+      "configuration": {
+        "$schema": "https://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "definitions": {
+          "relayTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "chart": {
+                "default": "cardano-relay",
+                "minLength": 1,
+                "type": "string"
+              },
+              "namespace": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "port": {
+                "default": 3000,
+                "maximum": 65535,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "releaseName": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "valency": {
+                "default": 1,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "releaseName"
+            ],
+            "type": "object"
+          },
+          "resourceList": {
+            "additionalProperties": false,
+            "properties": {
+              "cpu": {
+                "description": "Kubernetes CPU quantity. Use 500m for requests; use 4 for mainnet limits and 2 for preview or preprod limits.",
+                "type": "string"
+              },
+              "memory": {
+                "description": "Kubernetes memory quantity. Set requests.memory equal to limits.memory: 8Gi for mainnet, 4Gi for preview or preprod.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "stringMap": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "topology": {
+            "additionalProperties": false,
+            "description": "Optional. Relay topology configuration. Leave mode=image-default for normal public relay behavior. Use relay-service to peer with specific in-cluster relay Services or custom for explicit topology.json roots.",
+            "properties": {
+              "localRoots": {
+                "default": [],
+                "description": "Custom topology localRoots when mode=custom.",
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "mode": {
+                "default": "image-default",
+                "enum": [
+                  "image-default",
+                  "relay-service",
+                  "custom"
+                ],
+                "type": "string"
+              },
+              "publicRoots": {
+                "default": [],
+                "description": "Custom topology publicRoots when mode=custom.",
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "relayTargets": {
+                "default": [],
+                "description": "Internal relay services to use when mode=relay-service.",
+                "items": {
+                  "$ref": "#/definitions/relayTarget"
+                },
+                "type": "array"
+              },
+              "useLedgerAfterSlot": {
+                "default": 0,
+                "description": "Topology useLedgerAfterSlot value. Public relays typically use 0.",
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "description": "Supernode-opinionated Cardano relay chart values. This schema is the public configuration interface for LLMs and MCP clients; pass values in this shape directly to Helm.",
+        "properties": {
+          "affinity": {
+            "additionalProperties": true,
+            "default": {},
+            "description": "Advanced, usually not modified. Kubernetes affinity rules for relay pod placement.",
+            "type": "object",
+            "x-supernodeCategory": "advanced"
+          },
+          "displayName": {
+            "default": "",
+            "description": "Optional. Human-readable workload name shown by Supernode tooling. MCP normally sets this from releaseName.",
+            "type": "string",
+            "x-supernodeCategory": "optional"
+          },
+          "fullnameOverride": {
+            "default": "",
+            "description": "Advanced, usually not modified. Overrides the full Kubernetes resource name. Leave empty so the release name controls resource names.",
+            "type": "string",
+            "x-supernodeCategory": "advanced"
+          },
+          "image": {
+            "additionalProperties": false,
+            "description": "Optional. Cardano node container image settings. Most installs only change image.tag when pinning a specific Cardano node release.",
+            "properties": {
+              "repository": {
+                "default": "ghcr.io/blinklabs-io/cardano-node",
+                "description": "Advanced, usually not modified. Container image repository for cardano-node.",
+                "type": "string"
+              },
+              "tag": {
+                "default": "11.0.1",
+                "description": "Optional. Cardano node image tag to deploy.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "x-supernodeCategory": "optional"
+          },
+          "nameOverride": {
+            "default": "",
+            "description": "Advanced, usually not modified. Overrides the Kubernetes app name used by the chart.",
+            "type": "string",
+            "x-supernodeCategory": "advanced"
+          },
+          "node": {
+            "additionalProperties": false,
+            "description": "Required. Cardano relay runtime settings. Set node.network and usually leave the low-level ports and topology defaults unchanged.",
+            "properties": {
+              "metricsPort": {
+                "default": 12798,
+                "description": "Advanced, usually not modified. Internal cardano-node metrics port.",
+                "type": "integer"
+              },
+              "n2nPort": {
+                "default": 3000,
+                "description": "Advanced, usually not modified. Internal cardano-node node-to-node port.",
+                "type": "integer"
+              },
+              "network": {
+                "default": "preview",
+                "description": "Required. Cardano network to join. The chart derives network magic internally for preview and preprod.",
+                "enum": [
+                  "mainnet",
+                  "preprod",
+                  "preview"
+                ],
+                "type": "string",
+                "x-supernodeCategory": "required"
+              },
+              "replicas": {
+                "default": 1,
+                "description": "Advanced, usually not modified. Number of relay pods.",
+                "minimum": 1,
+                "type": "integer"
+              },
+              "socketPath": {
+                "default": "/ipc/node.socket",
+                "description": "Advanced, usually not modified. Cardano node socket path shared with the proxy sidecar.",
+                "type": "string"
+              },
+              "topology": {
+                "$ref": "#/definitions/topology"
+              }
+            },
+            "required": [
+              "network"
+            ],
+            "type": "object",
+            "x-supernodeCategory": "required"
+          },
+          "nodeSelector": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "description": "Advanced, usually not modified. Kubernetes nodeSelector for relay scheduling.",
+            "type": "object",
+            "x-supernodeCategory": "advanced"
+          },
+          "persistence": {
+            "additionalProperties": false,
+            "description": "Required. Persistent storage for the Cardano chain database. Persistence is always enabled for this chart.",
+            "properties": {
+              "accessModes": {
+                "default": [
+                  "ReadWriteOnce"
+                ],
+                "description": "Advanced, usually not modified. PVC access modes.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "annotations": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "existingClaim": {
+                "default": "",
+                "description": "Advanced, usually not modified. Existing PVC name to mount instead of creating a StatefulSet volumeClaimTemplate.",
+                "type": "string"
+              },
+              "size": {
+                "default": "80Gi",
+                "description": "Optional. Requested chain database PVC size. Use roughly 250Gi for mainnet and 80Gi to 120Gi for preview or preprod.",
+                "pattern": "^[0-9]+(Mi|Gi|Ti)$",
+                "type": "string"
+              },
+              "storageClass": {
+                "description": "Required. Kubernetes StorageClass used for the chain-data PVC.",
+                "minLength": 1,
+                "type": "string",
+                "x-supernodeCategory": "required"
+              }
+            },
+            "required": [
+              "storageClass"
+            ],
+            "type": "object",
+            "x-supernodeCategory": "required"
+          },
+          "proxy": {
+            "additionalProperties": false,
+            "description": "Advanced, usually not modified. Node-to-client TCP proxy settings. The proxy is always enabled and uses nginx with fixed chart-owned configuration.",
+            "properties": {
+              "n2cPort": {
+                "default": 3307,
+                "description": "Internal proxy listener port for node-to-client traffic.",
+                "type": "integer"
+              }
+            },
+            "type": "object",
+            "x-supernodeCategory": "advanced"
+          },
+          "resources": {
+            "additionalProperties": false,
+            "description": "Optional. Kubernetes CPU and memory requests and limits for the relay container. Recommended limits are 4 CPU cores and 8Gi memory for mainnet, and 2 CPU cores and 4Gi memory for preview or preprod. Request little CPU, usually 500m, and set memory requests equal to memory limits.",
+            "properties": {
+              "limits": {
+                "$ref": "#/definitions/resourceList"
+              },
+              "requests": {
+                "$ref": "#/definitions/resourceList"
+              }
+            },
+            "type": "object",
+            "x-supernodeCategory": "optional"
+          },
+          "service": {
+            "additionalProperties": false,
+            "description": "Optional. Kubernetes Service settings. Keep ClusterIP for in-cluster use; use LoadBalancer only when external node-to-node access is required.",
+            "properties": {
+              "annotations": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "clusterIP": {
+                "default": "",
+                "type": "string"
+              },
+              "externalTrafficPolicy": {
+                "default": "",
+                "enum": [
+                  "",
+                  "Cluster",
+                  "Local"
+                ],
+                "type": "string"
+              },
+              "labels": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "loadBalancerIP": {
+                "default": "",
+                "type": "string"
+              },
+              "metricsNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "metricsPort": {
+                "default": 12798,
+                "description": "Advanced, usually not modified. Metrics Service port.",
+                "type": "integer"
+              },
+              "n2cNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "n2cPort": {
+                "default": 3307,
+                "description": "Advanced, usually not modified. Node-to-client Service port exposed through the proxy sidecar.",
+                "type": "integer"
+              },
+              "n2nNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "n2nPort": {
+                "default": 3000,
+                "description": "Advanced, usually not modified. Node-to-node Service port.",
+                "type": "integer"
+              },
+              "type": {
+                "default": "ClusterIP",
+                "enum": [
+                  "ClusterIP",
+                  "NodePort",
+                  "LoadBalancer"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "x-supernodeCategory": "optional"
+          },
+          "tolerations": {
+            "default": [],
+            "description": "Advanced, usually not modified. Kubernetes tolerations for relay scheduling.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "x-supernodeCategory": "advanced"
+          },
+          "topologySpreadConstraints": {
+            "default": [],
+            "description": "Advanced, usually not modified. Kubernetes topology spread constraints.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "x-supernodeCategory": "advanced"
+          }
+        },
+        "required": [
+          "node",
+          "persistence"
+        ],
+        "title": "Cardano Relay Helm Values",
+        "type": "object"
+      },
+      "secrets": [],
+      "dependencies": [],
+      "metrics": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "aboutToLeadCount": {
+            "description": "Times the node was about to lead a slot since startup, for block-producing nodes.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "adoptedCount": {
+            "description": "Forged blocks adopted by the chain since startup, for block-producing nodes.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "blockHeight": {
+            "description": "Latest block number observed by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "blocksLate": {
+            "description": "Blocks observed later than five seconds by the block fetch client.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "blocksServed": {
+            "description": "Blocks served to peers by this node since startup.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "blocksWithin1s": {
+            "description": "Percentage of observed blocks arriving within 1 second.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "blocksWithin3s": {
+            "description": "Percentage of observed blocks arriving within 3 seconds.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "blocksWithin5s": {
+            "description": "Percentage of observed blocks arriving within 5 seconds.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "connectionBiDir": {
+            "description": "Current bidirectional connection count.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "connectionDuplex": {
+            "description": "Current full duplex connection count.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "connectionUniDir": {
+            "description": "Current unidirectional connection count.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "density": {
+            "description": "Recent chain density reported by the node, expressed as a percentage.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "epoch": {
+            "description": "Current epoch observed by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "epochLength": {
+            "description": "Number of slots in the current Cardano epoch from Shelley genesis.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "epochProgressPercent": {
+            "description": "Percentage of the current epoch completed from slot-in-epoch and Shelley genesis epoch length.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "epochTimeRemainingSeconds": {
+            "description": "Approximate time remaining in the current epoch derived from Shelley genesis timing.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "errors": {
+            "description": "Warnings or collection errors emitted by the metrics script.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "forgedCount": {
+            "description": "Blocks forged by the node since startup, for block-producing nodes.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "forgingEnabled": {
+            "description": "Whether this node currently has forging enabled.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "forks": {
+            "description": "Number of chain forks the node has observed since startup.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "gcMajorCount": {
+            "description": "Number of major garbage collections since startup.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "gcMinorCount": {
+            "description": "Number of minor garbage collections since startup.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "inboundGovernorHot": {
+            "description": "Inbound governor hot connection count reported by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "inboundGovernorWarm": {
+            "description": "Inbound governor warm connection count reported by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "invalidCount": {
+            "description": "Derived count of forged blocks that were not adopted, clamped at zero.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "kesExpirationSeconds": {
+            "description": "Approximate seconds until KES key expiry, when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "kesExpirationTime": {
+            "description": "Estimated KES key expiry time as an ISO-8601 timestamp, when available.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kesPeriod": {
+            "description": "Current KES period reported by the node, when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "kesRemaining": {
+            "description": "Remaining KES periods before key expiry, when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lastBlockDelaySeconds": {
+            "description": "Latest observed block propagation delay.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "leaderCount": {
+            "description": "Slots where the node was leader since startup, for block-producing nodes.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "memHeapBytes": {
+            "description": "Heap memory currently reserved by the node RTS.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "memLiveBytes": {
+            "description": "Live RTS memory currently retained by the node process.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "missedSlots": {
+            "description": "Slots missed by the node since startup, when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "nextLeaderSlot": {
+            "description": "Next scheduled leadership slot number, for block-producing nodes.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "nextLeaderTime": {
+            "description": "Next scheduled leadership slot time as an ISO-8601 timestamp.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nextLeaderTimeRemainingSeconds": {
+            "description": "Approximate seconds until the next scheduled leadership slot.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "nodeRevision": {
+            "description": "Cardano node build revision reported by the metrics endpoint.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nodeVersion": {
+            "description": "Cardano node build version reported by the metrics endpoint.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "opCertOnChain": {
+            "description": "Operational certificate counter observed on chain, when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "opCertOnDisk": {
+            "description": "Operational certificate counter found on disk, when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "peerSelectionCold": {
+            "description": "Peer selection cold state count for outbound connections.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "peerSelectionHot": {
+            "description": "Peer selection hot state count for outbound connections.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "peerSelectionWarm": {
+            "description": "Peer selection warm state count for outbound connections.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "peersIncoming": {
+            "description": "Active inbound node connections.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "peersOutgoing": {
+            "description": "Active outbound node connections.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "pendingTx": {
+            "description": "Transactions currently in the mempool.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "pendingTxBytes": {
+            "description": "Buffered mempool transaction size when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "role": {
+            "const": "relay"
+          },
+          "scheduledIdealCount": {
+            "description": "Expected leadership slots for the current epoch based on active stake.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "scheduledLeaderCount": {
+            "description": "Leadership slots scheduled for the current epoch, for block-producing nodes.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "scheduledLuckPercent": {
+            "description": "Scheduled leader slots as a percentage of ideal expected slots.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "slotInEpoch": {
+            "description": "Current slot within the active epoch observed by the node.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "slotLength": {
+            "description": "Slot duration in seconds from Shelley genesis.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "slotNum": {
+            "description": "Absolute slot number observed by the node across the chain timeline.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "syncPercent": {
+            "description": "Estimated sync percentage against the computed reference tip.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "systemStartUnix": {
+            "description": "Shelley system start timestamp as Unix seconds.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "tipDiffSlots": {
+            "description": "Difference between the computed reference tip and the node tip.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "tipRefSlot": {
+            "description": "Reference chain tip computed from the Shelley genesis system start and slot length.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "txProcessed": {
+            "description": "Total transactions processed by the node since startup.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "type": {
+            "const": "cardano-node"
+          }
+        },
+        "required": [
+          "type",
+          "role",
+          "errors"
+        ],
+        "title": "Cardano Relay Metrics",
+        "type": "object"
+      },
+      "metricsCollection": {
+        "container": "cardano-node",
+        "command": [
+          "/opt/metis/bin/metrics.sh"
+        ]
+      },
+      "outputs": [
+        {
+          "name": "n2n",
+          "description": "Cardano node-to-node networking endpoint for relay peer connectivity.",
+          "portName": "n2n",
+          "protocol": "TCP"
+        },
+        {
+          "name": "n2c",
+          "description": "Cardano node-to-client endpoint for local clients through the chart proxy.",
+          "portName": "n2c",
+          "protocol": "TCP"
+        }
+      ],
+      "chart": "oci://oci.supernode.store/extensions/cardano-relay"
+    },
+    {
+      "id": "dolos",
+      "name": "Dolos",
+      "description": "A Dolos chain data service workload for serving Cardano chain data APIs from the supernode cluster.",
+      "versions": [
+        "0.1.0"
+      ],
+      "defaultVersion": "0.1.0",
+      "configuration": {
+        "$schema": "https://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "definitions": {
+          "resourceList": {
+            "additionalProperties": false,
+            "properties": {
+              "cpu": {
+                "description": "Kubernetes CPU quantity. For Dolos requests use 500m. For Dolos limits use 4 on cardano-mainnet and 2 on cardano-preview or cardano-preprod.",
+                "type": "string"
+              },
+              "memory": {
+                "description": "Kubernetes memory quantity. For Dolos, requests.memory should match limits.memory: 8Gi on cardano-mainnet and 4Gi on cardano-preview or cardano-preprod.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "stringMap": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "description": "Supernode-opinionated Dolos chart values. This schema is the public configuration interface for LLMs and MCP clients; pass values in this shape directly to Helm instead of translating from a separate extension-specific object.",
+        "properties": {
+          "affinity": {
+            "additionalProperties": true,
+            "default": {},
+            "description": "Advanced, usually not modified. Kubernetes affinity rules for Dolos pod placement. Leave empty unless there is a cluster-specific scheduling requirement.",
+            "type": "object",
+            "x-supernodeCategory": "advanced"
+          },
+          "config": {
+            "additionalProperties": false,
+            "description": "Required. Dolos TOML configuration input. The chart always creates a ConfigMap mounted at /etc/config/dolos.toml.",
+            "properties": {
+              "customConfig": {
+                "default": "",
+                "description": "Optional. Full Dolos TOML configuration. Leave empty to use the chart preset selected by dolos.network. If set, the custom content is templated by Helm and written to /etc/config/dolos.toml.",
+                "type": "string"
+              },
+              "extraFiles": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "default": {},
+                "description": "Advanced, usually not modified. Additional templated files to include in the Dolos config ConfigMap.",
+                "type": "object"
+              },
+              "upstreamAddress": {
+                "description": "Required. Trusted Cardano relay address Dolos uses for syncing, in host:port form. MCP does not auto-resolve this value. If the address is unknown, run workloads.list and inspect same-network Cardano relay workloads; a typical candidate is RELEASE_FULLNAME.NAMESPACE.svc.cluster.local:PORT, where PORT is usually the relay n2n port such as 3000.",
+                "minLength": 1,
+                "type": "string",
+                "x-supernodeCategory": "required"
+              }
+            },
+            "required": [
+              "upstreamAddress"
+            ],
+            "type": "object",
+            "x-supernodeCategory": "required"
+          },
+          "displayName": {
+            "default": "",
+            "description": "Optional. Human-readable workload name shown by Supernode tooling. MCP normally sets this from releaseName.",
+            "type": "string",
+            "x-supernodeCategory": "optional"
+          },
+          "dolos": {
+            "additionalProperties": false,
+            "description": "Required. Dolos runtime settings. For normal Supernode installs, set dolos.network and leave command, args, and bootstrap defaults unchanged.",
+            "properties": {
+              "args": {
+                "default": [
+                  "-c",
+                  "/etc/config/dolos.toml",
+                  "daemon"
+                ],
+                "description": "Advanced, usually not modified. Dolos daemon arguments. The default runs `dolos -c /etc/config/dolos.toml daemon`.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "bootstrap": {
+                "additionalProperties": false,
+                "description": "Optional. Bootstrap init container settings. Keep enabled for normal installs so Dolos initializes data before the daemon starts.",
+                "properties": {
+                  "args": {
+                    "default": [],
+                    "description": "Advanced, usually not modified. Bootstrap arguments. Leave empty to use the chart default full snapshot bootstrap command.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "command": {
+                    "default": [],
+                    "description": "Advanced, usually not modified. Overrides the bootstrap container command. Leave empty to use the image entrypoint.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "enabled": {
+                    "default": true,
+                    "description": "Optional. Enables the bootstrap init container. Disable only when reusing an already initialized data volume.",
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "default": "bootstrap",
+                    "description": "Advanced, usually not modified. Name of the bootstrap init container.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "command": {
+                "default": [],
+                "description": "Advanced, usually not modified. Overrides the Dolos container command. Leave empty to use the image entrypoint.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "network": {
+                "default": "cardano-preview",
+                "description": "Required. Cardano network Dolos should index. This selects the built-in Dolos configuration preset unless config.customConfig is provided.",
+                "enum": [
+                  "cardano-mainnet",
+                  "cardano-preprod",
+                  "cardano-preview"
+                ],
+                "type": "string",
+                "x-supernodeCategory": "required"
+              },
+              "replicas": {
+                "default": 1,
+                "description": "Advanced, usually not modified. Number of Dolos StatefulSet replicas. Keep 1 because the chart provisions a single writable data volume per pod and Supernode expects one Dolos instance per release.",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "network"
+            ],
+            "type": "object",
+            "x-supernodeCategory": "required"
+          },
+          "fullnameOverride": {
+            "default": "",
+            "description": "Advanced, usually not modified. Overrides the full Kubernetes resource name. Leave empty so the release name controls resource names.",
+            "type": "string",
+            "x-supernodeCategory": "advanced"
+          },
+          "image": {
+            "additionalProperties": false,
+            "description": "Optional. Dolos container image settings. Most installs only change image.tag when pinning or testing a specific Dolos release.",
+            "properties": {
+              "repository": {
+                "default": "ghcr.io/txpipe/dolos",
+                "description": "Advanced, usually not modified. Container image repository for Dolos.",
+                "type": "string"
+              },
+              "tag": {
+                "default": "v1.1.1",
+                "description": "Optional. Dolos image tag to deploy. Keep the chart default unless a specific Dolos version is required.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "x-supernodeCategory": "optional"
+          },
+          "nameOverride": {
+            "default": "",
+            "description": "Advanced, usually not modified. Overrides the Kubernetes app name used by the chart. Leave empty unless there is a naming collision.",
+            "type": "string",
+            "x-supernodeCategory": "advanced"
+          },
+          "nodeSelector": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "description": "Advanced, usually not modified. Kubernetes nodeSelector for scheduling Dolos onto specific nodes. Use only when the cluster has known node labels for storage or workload placement.",
+            "type": "object",
+            "x-supernodeCategory": "advanced"
+          },
+          "persistence": {
+            "additionalProperties": false,
+            "description": "Required. Persistent storage for the Dolos chain database. At minimum set persistence.storageClass for Supernode installs.",
+            "properties": {
+              "accessModes": {
+                "default": [
+                  "ReadWriteOnce"
+                ],
+                "description": "Advanced, usually not modified. PVC access modes. ReadWriteOnce is appropriate for the single-replica StatefulSet.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "annotations": {
+                "$ref": "#/definitions/stringMap",
+                "description": "Advanced, usually not modified. Annotations added to the generated Dolos data PVC."
+              },
+              "existingClaim": {
+                "default": "",
+                "description": "Advanced, usually not modified. Existing PVC name to mount instead of creating a StatefulSet volumeClaimTemplate. Leave empty for normal installs.",
+                "type": "string"
+              },
+              "size": {
+                "default": "20Gi",
+                "description": "Optional. Requested PVC size for the Dolos chain database. Use larger values for mainnet; 50Gi is suitable for preview and preprod defaults.",
+                "pattern": "^[0-9]+(Mi|Gi|Ti)$",
+                "type": "string"
+              },
+              "storageClass": {
+                "description": "Required. Kubernetes StorageClass used for the Dolos data PVC. Choose a StorageClass available in the target cluster.",
+                "minLength": 1,
+                "type": "string",
+                "x-supernodeCategory": "required"
+              }
+            },
+            "required": [
+              "storageClass"
+            ],
+            "type": "object",
+            "x-supernodeCategory": "required"
+          },
+          "resources": {
+            "additionalProperties": false,
+            "description": "Optional. Kubernetes CPU and memory requests and limits for both the Dolos container and bootstrap init container. Recommended limits are 4 CPU cores and 8Gi memory for cardano-mainnet, and 2 CPU cores and 4Gi memory for cardano-preview or cardano-preprod. Request little CPU, usually 500m, so scheduling stays flexible while allowing bursts up to the CPU limit. Memory requests should match memory limits because Dolos needs predictable memory and Kubernetes may evict pods whose memory request is lower than actual steady-state use.",
+            "properties": {
+              "limits": {
+                "$ref": "#/definitions/resourceList",
+                "description": "Optional. Maximum CPU and memory available to Dolos. Use cpu 4 and memory 8Gi for cardano-mainnet; use cpu 2 and memory 4Gi for cardano-preview or cardano-preprod."
+              },
+              "requests": {
+                "$ref": "#/definitions/resourceList",
+                "description": "Optional. Scheduler reservation for Dolos CPU and memory. Use cpu 500m for all networks. Set memory equal to limits.memory: 8Gi for cardano-mainnet and 4Gi for cardano-preview or cardano-preprod."
+              }
+            },
+            "type": "object",
+            "x-supernodeCategory": "optional"
+          },
+          "service": {
+            "additionalProperties": false,
+            "description": "Optional. Kubernetes Service settings for Dolos API exposure. Use ClusterIP for in-cluster access; use LoadBalancer only when external access is required.",
+            "properties": {
+              "annotations": {
+                "$ref": "#/definitions/stringMap",
+                "description": "Advanced, usually not modified. Additional annotations for cloud load balancer integrations."
+              },
+              "clusterIP": {
+                "default": "",
+                "description": "Advanced, usually not modified. Explicit ClusterIP value. Leave empty for Kubernetes to allocate one.",
+                "type": "string"
+              },
+              "externalTrafficPolicy": {
+                "default": "",
+                "description": "Advanced, usually not modified. External traffic policy for NodePort or LoadBalancer services. Leave empty unless the cluster networking policy requires Local or Cluster.",
+                "enum": [
+                  "",
+                  "Cluster",
+                  "Local"
+                ],
+                "type": "string"
+              },
+              "grpcNodePort": {
+                "default": null,
+                "description": "Advanced, usually not modified. Explicit NodePort for grpc when service.type is NodePort or LoadBalancer. Leave null for Kubernetes allocation.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "grpcPort": {
+                "default": 50051,
+                "description": "Advanced, usually not modified. Service and container port for UTxO RPC gRPC.",
+                "type": "integer"
+              },
+              "labels": {
+                "$ref": "#/definitions/stringMap",
+                "description": "Advanced, usually not modified. Additional labels on the Service resource."
+              },
+              "loadBalancerIP": {
+                "default": "",
+                "description": "Advanced, usually not modified. Requested static load balancer IP, if supported by the cluster provider.",
+                "type": "string"
+              },
+              "minibfNodePort": {
+                "default": null,
+                "description": "Advanced, usually not modified. Explicit NodePort for minibf when service.type is NodePort or LoadBalancer. Leave null for Kubernetes allocation.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "minibfPort": {
+                "default": 3001,
+                "description": "Advanced, usually not modified. Service and container port for the Blockfrost-compatible minibf HTTP API.",
+                "type": "integer"
+              },
+              "minikupoNodePort": {
+                "default": null,
+                "description": "Advanced, usually not modified. Explicit NodePort for minikupo when service.type is NodePort or LoadBalancer. Leave null for Kubernetes allocation.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "minikupoPort": {
+                "default": 1442,
+                "description": "Advanced, usually not modified. Service and container port for the Kupo-compatible minikupo HTTP API.",
+                "type": "integer"
+              },
+              "ouroborosNodePort": {
+                "default": null,
+                "description": "Advanced, usually not modified. Reserved for compatibility with values consumers; the opinionated Service does not expose ouroboros.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "ouroborosPort": {
+                "default": 30013,
+                "description": "Advanced, usually not modified. Internal Dolos ouroboros container port. This port is not exposed on the Service.",
+                "type": "integer"
+              },
+              "trpNodePort": {
+                "default": null,
+                "description": "Advanced, usually not modified. Explicit NodePort for trp when service.type is NodePort or LoadBalancer. Leave null for Kubernetes allocation.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "trpPort": {
+                "default": 8164,
+                "description": "Advanced, usually not modified. Service and container port for the Dolos TRP HTTP API.",
+                "type": "integer"
+              },
+              "type": {
+                "default": "ClusterIP",
+                "description": "Optional. Kubernetes Service type. ClusterIP keeps Dolos internal to the cluster. LoadBalancer exposes the service externally when the cluster supports it.",
+                "enum": [
+                  "ClusterIP",
+                  "NodePort",
+                  "LoadBalancer"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "x-supernodeCategory": "optional"
+          },
+          "tolerations": {
+            "default": [],
+            "description": "Advanced, usually not modified. Kubernetes tolerations for scheduling Dolos onto tainted nodes. Only set when the target cluster requires specific taints.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "x-supernodeCategory": "advanced"
+          },
+          "topologySpreadConstraints": {
+            "default": [],
+            "description": "Advanced, usually not modified. Kubernetes topology spread constraints. Mostly useful for cluster operators with explicit zone or node spreading policies.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "x-supernodeCategory": "advanced"
+          }
+        },
+        "required": [
+          "dolos",
+          "config",
+          "persistence"
+        ],
+        "title": "Dolos Helm Values",
+        "type": "object"
+      },
+      "secrets": [],
+      "dependencies": [],
+      "metrics": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "blockHeight": {
+            "description": "Latest block height served by Dolos.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "epoch": {
+            "description": "Current epoch served by Dolos.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "errors": {
+            "description": "Warnings or collection errors emitted by the metrics script.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "slotNum": {
+            "description": "Latest block slot served by Dolos.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "type": {
+            "const": "dolos"
+          }
+        },
+        "required": [
+          "type",
+          "errors"
+        ],
+        "title": "Dolos Metrics",
+        "type": "object"
+      },
+      "metricsCollection": {
+        "container": "dolos",
+        "command": [
+          "/opt/metis/bin/metrics.sh"
+        ]
+      },
+      "outputs": [
+        {
+          "name": "trp",
+          "description": "Dolos TRP HTTP endpoint.",
+          "portName": "trp",
+          "protocol": "HTTP"
+        },
+        {
+          "name": "blockfrost",
+          "description": "Blockfrost-compatible minibf HTTP endpoint.",
+          "portName": "minibf",
+          "protocol": "HTTP"
+        },
+        {
+          "name": "kupo",
+          "description": "Kupo-compatible minikupo HTTP endpoint.",
+          "portName": "minikupo",
+          "protocol": "HTTP"
+        },
+        {
+          "name": "utxorpc",
+          "description": "UTxO RPC gRPC endpoint.",
+          "portName": "grpc",
+          "protocol": "gRPC"
+        }
+      ],
+      "chart": "oci://oci.supernode.store/extensions/dolos"
+    },
+    {
+      "id": "hydra-node",
+      "name": "Hydra Node",
+      "description": "A Hydra Head protocol node for operating Cardano L2 state channels with low-latency off-chain transactions and L1 settlement.",
+      "versions": [
+        "0.2.0"
+      ],
+      "defaultVersion": "0.2.0",
+      "configuration": {
+        "$schema": "https://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "definitions": {
+          "cardanoKeys": {
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "default": false,
+                "description": "Set true for online Hydra mode. When true, also provide Cardano signing and verification keys and socket access.",
+                "type": "boolean"
+              },
+              "signing": {
+                "additionalProperties": false,
+                "properties": {
+                  "filename": {
+                    "default": "cardano.sk",
+                    "description": "Secret key and mounted filename for the Cardano signing key.",
+                    "type": "string"
+                  },
+                  "vaultStaticSecret": {
+                    "$ref": "#/definitions/vaultStaticSecret"
+                  }
+                },
+                "type": "object"
+              },
+              "socketPath": {
+                "default": "/ipc/node.socket",
+                "description": "Cardano node socket path used by hydra-node. With node.cardanoSocketProxy enabled, the proxy creates this socket inside the pod.",
+                "type": "string"
+              },
+              "verification": {
+                "additionalProperties": false,
+                "properties": {
+                  "existingConfigMap": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "key": {
+                        "default": "",
+                        "description": "Reserved for compatibility; the chart mounts the ConfigMap and uses filename for the mounted file name.",
+                        "type": "string"
+                      },
+                      "name": {
+                        "default": "",
+                        "description": "Existing ConfigMap containing the Cardano verification key.",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "filename": {
+                    "default": "cardano.vk",
+                    "description": "Mounted filename for the public Cardano verification key.",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Public Cardano verification key payload. This is not secret material.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "cardanoSocketProxy": {
+            "additionalProperties": false,
+            "description": "Online mode socket proxy. Enable this to project a remote Cardano node's TCP endpoint into the Hydra pod as a Unix socket. MCP does not auto-select upstreams; use workloads.list to inspect Cardano relay outputs and set targetHost/targetPort explicitly.",
+            "properties": {
+              "enabled": {
+                "default": false,
+                "description": "Set true for online mode when the Cardano socket is reached through a remote relay TCP endpoint.",
+                "type": "boolean"
+              },
+              "image": {
+                "additionalProperties": false,
+                "properties": {
+                  "repository": {
+                    "default": "alpine/socat",
+                    "description": "Advanced, usually not modified. Container image repository for the socat proxy sidecar.",
+                    "type": "string"
+                  },
+                  "tag": {
+                    "default": "1.7.4.4-r0",
+                    "description": "Advanced, usually not modified. Container image tag for the socat proxy sidecar.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "listenOptions": {
+                "default": "reuseaddr,fork,unlink-early",
+                "description": "Advanced, usually not modified. socat UNIX-LISTEN options.",
+                "type": "string"
+              },
+              "resources": {
+                "additionalProperties": true,
+                "default": {},
+                "description": "Advanced, usually not modified. Kubernetes resources for the socat proxy sidecar.",
+                "type": "object"
+              },
+              "socketPath": {
+                "default": "",
+                "description": "Unix socket path created by the proxy inside the Hydra pod. Leave empty to use keys.cardano.socketPath.",
+                "type": "string"
+              },
+              "targetHost": {
+                "default": "",
+                "description": "Required when enabled. Cardano upstream relay host. Use workloads.list to find same-network relay service endpoints.",
+                "type": "string"
+              },
+              "targetOptions": {
+                "default": "verify=0",
+                "description": "Advanced, usually not modified. socat target options, for example verify=0 for test relays.",
+                "type": "string"
+              },
+              "targetPort": {
+                "default": 0,
+                "description": "Required when enabled. Cardano upstream relay port, usually 3000 for node-to-node TCP endpoints.",
+                "maximum": 65535,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "targetScheme": {
+                "default": "OPENSSL",
+                "description": "Advanced, usually not modified. socat target scheme for the upstream Cardano relay.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "configPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "create": {
+                "default": true,
+                "description": "Create a chart-managed ConfigMap when name is empty.",
+                "type": "boolean"
+              },
+              "data": {
+                "description": "Inline JSON payload used when the chart creates the ConfigMap.",
+                "type": "string"
+              },
+              "filename": {
+                "default": "protocol-parameters.json",
+                "description": "File name mounted into ledger.mountPath.",
+                "type": "string"
+              },
+              "name": {
+                "default": "",
+                "description": "Existing ConfigMap name. Set create=false and provide this to reuse pre-created ledger data.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "hydraSigning": {
+            "additionalProperties": false,
+            "properties": {
+              "filename": {
+                "default": "hydra.sk",
+                "description": "Secret key and mounted filename for this node's Hydra signing key.",
+                "type": "string"
+              },
+              "vaultStaticSecret": {
+                "additionalProperties": false,
+                "properties": {
+                  "mount": {
+                    "default": "kv",
+                    "description": "Vault KV v2 mount name.",
+                    "type": "string"
+                  },
+                  "path": {
+                    "description": "Required. Runtime Vault path without kv/data prefix, for example runtime/hydra/demo/hydra-signing.",
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "refreshAfter": {
+                    "default": "1m",
+                    "description": "VaultStaticSecret refresh interval.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "vaultStaticSecret"
+            ],
+            "type": "object"
+          },
+          "hydraVerification": {
+            "additionalProperties": false,
+            "properties": {
+              "existingConfigMap": {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "default": "",
+                    "description": "Existing ConfigMap containing public Hydra verification key files.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "items": {
+                "description": "Required. Hydra verification key files for all parties, including this node. Include value for chart-created ConfigMaps or filename only when using existingConfigMap.name.",
+                "items": {
+                  "$ref": "#/definitions/verificationItem"
+                },
+                "minItems": 1,
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "peer": {
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "port": {
+                "maximum": 65535,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ],
+            "type": "object"
+          },
+          "resourceList": {
+            "additionalProperties": false,
+            "properties": {
+              "cpu": {
+                "description": "Kubernetes CPU quantity.",
+                "type": "string"
+              },
+              "memory": {
+                "description": "Kubernetes memory quantity.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "stringMap": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "vaultAuth": {
+            "additionalProperties": false,
+            "properties": {
+              "ref": {
+                "default": "control-plane/default",
+                "description": "VaultAuth reference used by chart-managed VaultStaticSecret resources.",
+                "type": "string"
+              },
+              "serviceAccount": {
+                "additionalProperties": false,
+                "properties": {
+                  "create": {
+                    "default": true,
+                    "description": "Create the service account referenced by VaultAuth.",
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "default": "vault-auth",
+                    "description": "ServiceAccount name expected by the VaultAuth resource.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "vaultStaticSecret": {
+            "additionalProperties": false,
+            "properties": {
+              "mount": {
+                "default": "kv",
+                "description": "Vault KV v2 mount name.",
+                "type": "string"
+              },
+              "path": {
+                "description": "Runtime Vault path without kv/data prefix, for example runtime/hydra/demo/hydra-signing.",
+                "type": "string"
+              },
+              "refreshAfter": {
+                "default": "1m",
+                "description": "VaultStaticSecret refresh interval.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "verificationItem": {
+            "additionalProperties": false,
+            "properties": {
+              "filename": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "value": {
+                "description": "Public verification key payload. This is not secret material.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "filename"
+            ],
+            "type": "object"
+          }
+        },
+        "description": "Supernode-opinionated Hydra node chart values. This schema is the public configuration interface for LLMs and MCP clients; pass values in this shape directly to Helm. Do not use arbitrary manual volume mounts for Cardano sockets; configure node.cardanoSocketProxy for online mode.",
+        "properties": {
+          "affinity": {
+            "additionalProperties": true,
+            "default": {},
+            "description": "Advanced, usually not modified. Kubernetes affinity rules for Hydra pod placement.",
+            "type": "object",
+            "x-supernodeCategory": "advanced"
+          },
+          "displayName": {
+            "default": "",
+            "description": "Optional. Human-readable workload name shown by Supernode tooling. MCP normally sets this from releaseName.",
+            "type": "string",
+            "x-supernodeCategory": "optional"
+          },
+          "fullnameOverride": {
+            "default": "",
+            "description": "Advanced, usually not modified. Overrides the full Kubernetes resource name. Leave empty so the release name controls resource names.",
+            "type": "string",
+            "x-supernodeCategory": "advanced"
+          },
+          "image": {
+            "additionalProperties": false,
+            "description": "Optional. Hydra node container image settings. Most installs only change image.tag when pinning a specific Hydra release.",
+            "properties": {
+              "repository": {
+                "default": "ghcr.io/cardano-scaling/hydra-node",
+                "description": "Advanced, usually not modified. Container image repository for hydra-node.",
+                "type": "string"
+              },
+              "tag": {
+                "default": "2.1.0",
+                "description": "Optional. Hydra node image tag to deploy.",
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "x-supernodeCategory": "optional"
+          },
+          "keys": {
+            "additionalProperties": false,
+            "description": "Required. Hydra and optional Cardano key references. Signing keys must come from VaultStaticSecret runtime paths; public verification keys may be inline or in ConfigMaps.",
+            "properties": {
+              "cardano": {
+                "$ref": "#/definitions/cardanoKeys"
+              },
+              "hydraSigning": {
+                "$ref": "#/definitions/hydraSigning"
+              },
+              "hydraVerification": {
+                "$ref": "#/definitions/hydraVerification"
+              },
+              "mountPath": {
+                "default": "/etc/keys",
+                "description": "Advanced, usually not modified. Mount path for projected key material.",
+                "type": "string"
+              },
+              "vaultAuth": {
+                "$ref": "#/definitions/vaultAuth"
+              }
+            },
+            "required": [
+              "hydraSigning",
+              "hydraVerification"
+            ],
+            "type": "object",
+            "x-supernodeCategory": "required"
+          },
+          "ledger": {
+            "additionalProperties": false,
+            "description": "Optional. Offline ledger configuration. Offline mode needs protocol parameters and initial UTxO from inline data or existing ConfigMaps.",
+            "properties": {
+              "initialUtxo": {
+                "$ref": "#/definitions/configPayload",
+                "description": "Offline initial UTxO JSON or existing ConfigMap reference."
+              },
+              "mountPath": {
+                "default": "/etc/hydra",
+                "description": "Advanced, usually not modified. Mount path for offline ledger ConfigMaps.",
+                "type": "string"
+              },
+              "protocolParameters": {
+                "$ref": "#/definitions/configPayload",
+                "description": "Offline ledger protocol parameters JSON or existing ConfigMap reference."
+              }
+            },
+            "type": "object",
+            "x-supernodeCategory": "optional"
+          },
+          "nameOverride": {
+            "default": "",
+            "description": "Advanced, usually not modified. Overrides the Kubernetes app name used by the chart.",
+            "type": "string",
+            "x-supernodeCategory": "advanced"
+          },
+          "node": {
+            "additionalProperties": false,
+            "description": "Optional. Hydra runtime settings. Offline mode is the default for local experiments. For online mode set offlineMode=false, enable keys.cardano, set hydraScriptsTxId, and configure node.cardanoSocketProxy to reach a Cardano relay. MCP does not auto-discover Hydra peers or Cardano upstreams; use workloads.list to inspect candidate workloads.",
+            "properties": {
+              "apiHost": {
+                "default": "0.0.0.0",
+                "description": "Advanced, usually not modified. API listen host.",
+                "type": "string"
+              },
+              "cardanoSocketProxy": {
+                "$ref": "#/definitions/cardanoSocketProxy"
+              },
+              "contestationPeriod": {
+                "default": "",
+                "description": "Optional. Hydra contestation period, for example 43200s. Mainnet should use at least 12 hours.",
+                "type": "string"
+              },
+              "depositPeriod": {
+                "default": "",
+                "description": "Optional. Deposit period used for incremental commits, for example 7200s.",
+                "type": "string"
+              },
+              "host": {
+                "default": "0.0.0.0",
+                "description": "Advanced, usually not modified. Fallback listen host.",
+                "type": "string"
+              },
+              "hydraScriptsTxId": {
+                "default": "",
+                "description": "Required for online mode. Transaction ID of the deployed Hydra scripts.",
+                "type": "string"
+              },
+              "listenHost": {
+                "default": "0.0.0.0",
+                "description": "Advanced, usually not modified. Peer listener host.",
+                "type": "string"
+              },
+              "network": {
+                "default": "",
+                "description": "Optional. Cardano network passed to hydra-node in online mode.",
+                "enum": [
+                  "",
+                  "mainnet",
+                  "preprod",
+                  "preview"
+                ],
+                "type": "string"
+              },
+              "nodeId": {
+                "default": "hydra-node-1",
+                "description": "Required for online mode. Unique Hydra node identifier; each participant must use a distinct node ID.",
+                "type": "string"
+              },
+              "offlineHeadSeed": {
+                "default": "0001",
+                "description": "Required for offline mode. Hexadecimal offline head seed shared by offline participants.",
+                "pattern": "^[0-9a-fA-F]+$",
+                "type": "string"
+              },
+              "offlineMode": {
+                "default": true,
+                "description": "Optional. true runs without Cardano L1 connectivity using offline ledger state; false runs online against Cardano.",
+                "type": "boolean"
+              },
+              "peers": {
+                "default": [],
+                "description": "Optional. Static Hydra peer endpoints. Use workloads.list to inspect deployed Hydra outputs, then provide peers as host:port strings or host/port objects.",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/peer"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              "persistenceSubPath": {
+                "default": "",
+                "description": "Advanced, usually not modified. SubPath within the Hydra data PVC.",
+                "type": "string"
+              },
+              "quiet": {
+                "default": true,
+                "description": "Optional. Pass --quiet to hydra-node.",
+                "type": "boolean"
+              },
+              "replicas": {
+                "default": 1,
+                "description": "Advanced, usually not modified. Number of Hydra node pods.",
+                "minimum": 1,
+                "type": "integer"
+              },
+              "startChainFrom": {
+                "default": "",
+                "description": "Optional. Online mode chain point for starting chain synchronization.",
+                "type": "string"
+              },
+              "unsyncedPeriod": {
+                "default": null,
+                "description": "Optional. Seconds after which the node considers itself out of sync with L1.",
+                "minimum": 1,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "type": "object",
+            "x-supernodeCategory": "optional"
+          },
+          "nodeSelector": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "description": "Advanced, usually not modified. Kubernetes nodeSelector for Hydra scheduling.",
+            "type": "object",
+            "x-supernodeCategory": "advanced"
+          },
+          "persistence": {
+            "additionalProperties": false,
+            "description": "Required. Persistent storage for the Hydra persistence directory. Persistence is always enabled for this chart.",
+            "properties": {
+              "accessModes": {
+                "default": [
+                  "ReadWriteOnce"
+                ],
+                "description": "Advanced, usually not modified. PVC access modes.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "annotations": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "existingClaim": {
+                "default": "",
+                "description": "Advanced, usually not modified. Existing PVC name to mount instead of creating a StatefulSet volumeClaimTemplate.",
+                "type": "string"
+              },
+              "size": {
+                "default": "5Gi",
+                "description": "Optional. Requested Hydra persistence PVC size.",
+                "pattern": "^[0-9]+(Mi|Gi|Ti)$",
+                "type": "string"
+              },
+              "storageClass": {
+                "description": "Required. Kubernetes StorageClass used for the Hydra state PVC.",
+                "minLength": 1,
+                "type": "string",
+                "x-supernodeCategory": "required"
+              }
+            },
+            "required": [
+              "storageClass"
+            ],
+            "type": "object",
+            "x-supernodeCategory": "required"
+          },
+          "resources": {
+            "additionalProperties": false,
+            "description": "Optional. Kubernetes CPU and memory requests and limits for the Hydra node container. Defaults reserve 500m CPU and 1Gi memory, with a 2 CPU limit.",
+            "properties": {
+              "limits": {
+                "$ref": "#/definitions/resourceList"
+              },
+              "requests": {
+                "$ref": "#/definitions/resourceList"
+              }
+            },
+            "type": "object",
+            "x-supernodeCategory": "optional"
+          },
+          "service": {
+            "additionalProperties": false,
+            "description": "Optional. Kubernetes Service settings for Hydra API, peer, and monitoring ports. Keep ClusterIP for in-cluster access; use LoadBalancer only when external clients or peers need direct access.",
+            "properties": {
+              "annotations": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "apiNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "apiPort": {
+                "default": 4001,
+                "description": "Advanced, usually not modified. Hydra HTTP/WebSocket API Service and container port.",
+                "type": "integer"
+              },
+              "clusterIP": {
+                "default": "",
+                "type": "string"
+              },
+              "externalTrafficPolicy": {
+                "default": "",
+                "enum": [
+                  "",
+                  "Cluster",
+                  "Local"
+                ],
+                "type": "string"
+              },
+              "labels": {
+                "$ref": "#/definitions/stringMap"
+              },
+              "loadBalancerIP": {
+                "default": "",
+                "type": "string"
+              },
+              "monitoringNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "monitoringPort": {
+                "default": 6001,
+                "description": "Advanced, usually not modified. Hydra Prometheus metrics Service and container port.",
+                "type": "integer"
+              },
+              "p2pNodePort": {
+                "default": null,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "p2pPort": {
+                "default": 5001,
+                "description": "Advanced, usually not modified. Hydra peer networking Service and container port.",
+                "type": "integer"
+              },
+              "type": {
+                "default": "ClusterIP",
+                "enum": [
+                  "ClusterIP",
+                  "NodePort",
+                  "LoadBalancer"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object",
+            "x-supernodeCategory": "optional"
+          },
+          "tolerations": {
+            "default": [],
+            "description": "Advanced, usually not modified. Kubernetes tolerations for Hydra scheduling.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "x-supernodeCategory": "advanced"
+          },
+          "topologySpreadConstraints": {
+            "default": [],
+            "description": "Advanced, usually not modified. Kubernetes topology spread constraints.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "x-supernodeCategory": "advanced"
+          }
+        },
+        "required": [
+          "persistence",
+          "keys"
+        ],
+        "title": "Hydra Node Helm Values",
+        "type": "object"
+      },
+      "secrets": [
+        {
+          "name": "hydraSigningKey",
+          "description": "Hydra Ed25519 signing key used by this node to sign snapshots. Values must be supplied through runtime Vault sync and are never echoed by MCP.",
+          "required": true,
+          "requiredWhen": null,
+          "scope": "runtime",
+          "material": "hydra-signing-key",
+          "writeOnly": true,
+          "acceptedSources": [
+            "vaultStaticSecret"
+          ]
+        },
+        {
+          "name": "cardanoSigningKey",
+          "description": "Cardano signing key used by online Hydra nodes to pay L1 fuel and drive head lifecycle transactions.",
+          "required": false,
+          "requiredWhen": "keys.cardano.enabled == true",
+          "scope": "runtime",
+          "material": "cardano-signing-key",
+          "writeOnly": true,
+          "acceptedSources": [
+            "vaultStaticSecret"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "metrics": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "chainSyncedStatus": {
+            "description": "Hydra chain sync status when connected to L1.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confirmedLovelace": {
+            "description": "Sum of lovelace in the latest confirmed snapshot UTxO.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "confirmedTx": {
+            "description": "Total confirmed L2 transactions from hydra_head_confirmed_tx.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "confirmedUtxoCount": {
+            "description": "Number of entries in the latest confirmed snapshot UTxO.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "currentSlot": {
+            "description": "Current chain slot reported by the Hydra API when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "errors": {
+            "description": "Warnings or collection errors emitted by the metrics script.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "headId": {
+            "description": "Current Hydra head identifier when a head is known.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "headStatus": {
+            "description": "Latest head state tag reported by the Hydra HTTP API.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hydraNodeVersion": {
+            "description": "Hydra node version reported by the HTTP API.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inputs": {
+            "description": "Total processed head inputs from hydra_head_inputs.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lastSeenSnapshotTag": {
+            "description": "Tag returned by /snapshot/last-seen for diagnosing in-flight snapshot consensus.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mode": {
+            "description": "Hydra node mode as configured by the chart: offline or online.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "peersConnected": {
+            "description": "Connected Hydra peers from the Prometheus metrics endpoint.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "pendingDeposits": {
+            "description": "Number of pending deposit transaction IDs returned by /commits.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "requestedTx": {
+            "description": "Total requested L2 transactions from hydra_head_requested_tx.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "snapshotNumber": {
+            "description": "Latest confirmed snapshot number when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "snapshotVersion": {
+            "description": "Latest confirmed snapshot version when available.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "txConfirmationTimeMsAvg": {
+            "description": "Derived average confirmation time in milliseconds.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "txConfirmationTimeMsCount": {
+            "description": "Confirmation-time histogram sample count.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "txConfirmationTimeMsSum": {
+            "description": "Confirmation-time histogram sample sum in milliseconds.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "type": {
+            "const": "hydra-node"
+          }
+        },
+        "required": [
+          "type",
+          "errors"
+        ],
+        "title": "Hydra Node Metrics",
+        "type": "object"
+      },
+      "metricsCollection": {
+        "container": "hydra-node",
+        "command": [
+          "/opt/metis/bin/metrics.sh"
+        ]
+      },
+      "outputs": [
+        {
+          "name": "api",
+          "description": "Hydra HTTP API endpoint.",
+          "portName": "api",
+          "protocol": "HTTP"
+        },
+        {
+          "name": "ws",
+          "description": "Hydra WebSocket client-input and server-output endpoint.",
+          "portName": "api",
+          "protocol": "WebSocket"
+        },
+        {
+          "name": "p2p",
+          "description": "Hydra node-to-node peer networking endpoint.",
+          "portName": "p2p",
+          "protocol": "TCP"
+        },
+        {
+          "name": "monitoring",
+          "description": "Hydra Prometheus metrics endpoint.",
+          "portName": "monitoring",
+          "protocol": "HTTP"
+        }
+      ],
+      "chart": "oci://oci.supernode.store/extensions/hydra-node"
+    }
+  ]
+}

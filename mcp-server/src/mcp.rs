@@ -57,6 +57,7 @@ impl SupernodeMcpServer {
         catalog: Arc<ExtensionCatalog>,
     ) -> Self {
         let resources = ResourceRouter::new(catalog.clone());
+        let dynamic_tools = DynamicToolState::new(catalog.clone());
 
         Self {
             auth,
@@ -66,7 +67,7 @@ impl SupernodeMcpServer {
             resources,
             prompts: PromptCatalog,
             tools: ToolRouter::new(),
-            dynamic_tools: DynamicToolState::default(),
+            dynamic_tools,
         }
     }
 
@@ -343,7 +344,7 @@ mod tests {
             AuthContext::trusted(),
             Policy,
             Arc::new(TracingAuditSink),
-            Arc::new(ExtensionCatalog::embedded()),
+            Arc::new(ExtensionCatalog::testing()),
         );
 
         let info = server.server_info();
