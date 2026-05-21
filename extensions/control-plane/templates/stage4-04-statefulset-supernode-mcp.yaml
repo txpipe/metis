@@ -52,6 +52,14 @@ spec:
           value: {{ .Values.supernodeMcp.extensionCatalog.maxBytes | int | quote }}
         - name: MCP_EXTENSION_CATALOG_ALLOW_UNTRUSTED
           value: {{ .Values.supernodeMcp.extensionCatalog.allowUntrusted | quote }}
+        - name: MCP_SKILL_CATALOG_SOURCE
+          value: {{ .Values.supernodeMcp.skillCatalog.source | quote }}
+        - name: MCP_SKILL_CATALOG_OCI_REF
+          value: {{ .Values.supernodeMcp.skillCatalog.ociRef | quote }}
+        - name: MCP_SKILL_CATALOG_MAX_BYTES
+          value: {{ .Values.supernodeMcp.skillCatalog.maxBytes | int | quote }}
+        - name: MCP_SKILL_CATALOG_ALLOW_UNTRUSTED
+          value: {{ .Values.supernodeMcp.skillCatalog.allowUntrusted | quote }}
         - name: MCP_SESSION_STORE
           value: {{ .Values.supernodeMcp.sessionStore.type | quote }}
         - name: MCP_SESSION_SQLITE_PATH

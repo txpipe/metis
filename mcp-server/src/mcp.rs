@@ -34,6 +34,7 @@ use crate::policy::Scope;
 use crate::prompts::PromptCatalog;
 use crate::resources::ResourceRouter;
 use crate::resources::router::ResourceReadError;
+use crate::skills::SkillCatalog;
 use crate::tools::ToolRouter;
 use crate::tools::dynamic::DynamicToolState;
 
@@ -43,6 +44,7 @@ pub struct SupernodeMcpServer {
     policy: Policy,
     audit: Arc<dyn AuditSink>,
     catalog: Arc<ExtensionCatalog>,
+    skill_catalog: Arc<SkillCatalog>,
     resources: ResourceRouter,
     prompts: PromptCatalog,
     tools: ToolRouter,
@@ -55,8 +57,9 @@ impl SupernodeMcpServer {
         policy: Policy,
         audit: Arc<dyn AuditSink>,
         catalog: Arc<ExtensionCatalog>,
+        skill_catalog: Arc<SkillCatalog>,
     ) -> Self {
-        let resources = ResourceRouter::new(catalog.clone());
+        let resources = ResourceRouter::new(catalog.clone(), skill_catalog.clone());
         let dynamic_tools = DynamicToolState::new(catalog.clone());
 
         Self {
@@ -64,6 +67,7 @@ impl SupernodeMcpServer {
             policy,
             audit,
             catalog,
+            skill_catalog,
             resources,
             prompts: PromptCatalog,
             tools: ToolRouter::new(),
@@ -124,6 +128,7 @@ impl ServerHandler for SupernodeMcpServer {
         tracing::debug!(
             supported_approval_classes = ApprovalClass::all().len(),
             extension_count = self.catalog.len(),
+            skill_count = self.skill_catalog.len(),
             listed_extension_count = self.catalog.list().count(),
             "initialized MCP session"
         );
@@ -335,6 +340,7 @@ fn audit_target_for_tool(
 #[cfg(test)]
 mod tests {
     use crate::audit::TracingAuditSink;
+    use crate::skills::SkillCatalog;
 
     use super::*;
 
@@ -345,6 +351,7 @@ mod tests {
             Policy,
             Arc::new(TracingAuditSink),
             Arc::new(ExtensionCatalog::testing()),
+            Arc::new(SkillCatalog::testing()),
         );
 
         let info = server.server_info();

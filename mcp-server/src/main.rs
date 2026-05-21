@@ -11,6 +11,7 @@ mod prompts;
 mod resources;
 mod server;
 mod session;
+mod skills;
 mod tools;
 pub mod vault;
 

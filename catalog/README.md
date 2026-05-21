@@ -1,12 +1,22 @@
-# Extension Catalog
+# MCP Catalogs
 
-This directory contains the Supernode MCP extension catalog.
+This directory contains the catalog documents consumed by the Supernode MCP server.
 
-`extension-catalog.json` is the catalog document consumed by the MCP server. It is also the payload that should be published as the official OCI catalog artifact.
+- `extension-catalog.json`: installable extension contracts and chart references.
+- `skill-catalog.manifest.json`: editable metadata for operational skill guides.
+- `skill-catalog.json`: generated, gitignored skill catalog payload with embedded markdown content.
 
-## Contract
+Run this after editing `skill-catalog.manifest.json` or `../skills/*.md`:
 
-The catalog document uses this top-level shape:
+```sh
+node catalog/scripts/generate-skill-catalog.mjs
+```
+
+`skill-catalog.json` is intentionally not committed. Generate it locally before building MCP from source or publishing the skill catalog artifact.
+
+## Extension Catalog Contract
+
+`extension-catalog.json` uses this top-level shape:
 
 ```json
 {
@@ -28,6 +38,28 @@ Each extension entry describes the MCP-facing extension contract:
 - `outputs`: user-facing endpoints provided by workloads of this extension.
 - `chart`: OCI Helm chart reference used by MCP install and upgrade operations.
 
+## Skill Catalog Contract
+
+`skill-catalog.json` uses this top-level shape:
+
+```json
+{
+  "schemaVersion": "supernode.skillCatalog/v1",
+  "skills": []
+}
+```
+
+Each skill entry describes one operational guide:
+
+- `id`: canonical URI-safe skill ID used by `supernode://skills/{skillId}`.
+- `title` and `description`: human-readable metadata for agents and users.
+- `tags`: discovery labels.
+- `extensions`: related extension IDs, when applicable.
+- `tools`: MCP tools used by the guide.
+- `content`: markdown guide content embedded from `../skills/*.md`.
+
+Edit `skill-catalog.manifest.json` rather than `skill-catalog.json` directly. The manifest stores the same metadata plus `contentPath`; the generator embeds the referenced markdown into the publishable JSON document. Because `skill-catalog.json` is generated and gitignored, changes to skill metadata or markdown are published only after regenerating it.
+
 ## Trusted Sources
 
 By default, MCP only trusts official Supernode OCI references:
@@ -35,45 +67,65 @@ By default, MCP only trusts official Supernode OCI references:
 - Catalog artifacts must be fetched from `oci.supernode.store`.
 - Extension charts must be under `oci://oci.supernode.store/extensions/{extensionId}`.
 
-This is intentional. The catalog influences what agents recommend and what MCP can install or execute for metrics collection. Treat it as a supply-chain input, not a cosmetic document.
+This is intentional. Extension catalogs influence what MCP can install and execute for metrics collection. Skill catalogs are prompt-bearing operational guidance and can influence agent behavior. Treat both as supply-chain inputs, not cosmetic documents.
 
 For local development only, MCP can be started with:
 
 ```text
 MCP_EXTENSION_CATALOG_ALLOW_UNTRUSTED=true
+MCP_SKILL_CATALOG_ALLOW_UNTRUSTED=true
 ```
 
-Do not enable this in production. An untrusted catalog can point MCP at untrusted charts, mislead agents through descriptions and schemas, or define unsafe metrics collection metadata.
+Do not enable these in production.
 
 ## Publishing
 
-The official catalog should be published as a standalone OCI artifact containing `extension-catalog.json` as a JSON layer.
+The official catalogs should be published as standalone OCI artifacts containing a single JSON layer. Use the publish script rather than invoking `oras` directly; it regenerates `skill-catalog.json` immediately before pushing so the OCI artifact matches the current manifest and markdown.
 
-Recommended layer media type:
+Recommended extension catalog layer media type:
 
 ```text
 application/vnd.supernode.extension-catalog.v1+json
 ```
 
-Example using `oras`:
+Recommended skill catalog layer media type:
+
+```text
+application/vnd.supernode.skill-catalog.v1+json
+```
+
+Publish both catalogs with:
 
 ```sh
+CATALOG_TAG=0.1.0 catalog/scripts/publish-catalogs.sh
+```
+
+The script runs the equivalent of:
+
+```sh
+node catalog/scripts/generate-skill-catalog.mjs
+
 oras push \
-  oci.supernode.store/extension-catalog:0.1.0 \
-  extension-catalog.json:application/vnd.supernode.extension-catalog.v1+json
+  oci.supernode.store/extension-catalog:${CATALOG_TAG} \
+  catalog/extension-catalog.json:application/vnd.supernode.extension-catalog.v1+json
+
+oras push \
+  oci.supernode.store/skill-catalog:${CATALOG_TAG} \
+  catalog/skill-catalog.json:application/vnd.supernode.skill-catalog.v1+json
 ```
 
 Production deployments should prefer digest-pinned catalog references when practical:
 
 ```text
 oci://oci.supernode.store/extension-catalog@sha256:<digest>
+oci://oci.supernode.store/skill-catalog@sha256:<digest>
 ```
 
 Tag references are supported and convenient for development or release channels, but digest references are safer because they are immutable.
 
 ## Validation
 
-MCP validates the catalog at load time:
+MCP validates extension catalogs at load time:
 
 - `schemaVersion` must be `supernode.extensionCatalog/v1`.
 - extension IDs must be unique and non-empty.
@@ -82,5 +134,11 @@ MCP validates the catalog at load time:
 - dependency IDs must exist in the same catalog.
 - chart references must be OCI references.
 - by default, chart references must point to `oci://oci.supernode.store/extensions/{extensionId}`.
+
+MCP validates skill catalogs at load time:
+
+- `schemaVersion` must be `supernode.skillCatalog/v1`.
+- skill IDs must be unique, non-empty, and URI-safe.
+- `title`, `description`, and `content` must be non-empty.
 
 Longer term, official catalog artifacts should also be signed and verified before MCP accepts them.

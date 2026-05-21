@@ -7,7 +7,9 @@ on:
     paths:
       - ".github/image/Dockerfile"
       - ".github/workflows/build_mcp_server.yml"
+      - "catalog/**"
       - "mcp-server/**"
+      - "skills/**"
 
 jobs:
   build:
@@ -41,6 +43,9 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
+      - name: Generate skill catalog
+        run: node catalog/scripts/generate-skill-catalog.mjs
 
       - name: Run cargo build
         run: cargo build --target ${{ matrix.target }} ${{ matrix.args }}

@@ -45,19 +45,25 @@ const PROMPTS: &[PromptSpec] = &[
         name: "bootstrap-and-discovery",
         title: "Bootstrap And Discovery",
         description: "Discover an existing Supernode cluster before making changes.",
-        text: "Inspect the Supernode through read-only resources and discovery tools first. Use supernode://status, supernode://control-plane/status, and supernode://extensions/catalog for extension summaries and outputs. Read a specific supernode://extensions/catalog/{extensionId} entry only when full configuration or metrics schemas are needed. Do not bootstrap infrastructure from MCP, do not shell out, and do not request raw Kubernetes, Vault, or Helm proxy access.",
+        text: "Inspect the Supernode through read-only MCP resources and discovery tools first. Read supernode://status, supernode://extensions/catalog, and supernode://skills. Select and read a specific supernode://skills/{skillId} guide only when it matches the operator task. Do not bootstrap infrastructure from MCP, do not shell out, and do not request raw Kubernetes, Vault, or Helm proxy access.",
     },
     PromptSpec {
-        name: "cardano-relay-setup",
-        title: "Cardano Relay Setup",
-        description: "Plan a Cardano relay install through the catalog workflow.",
-        text: "Use the catalog-driven lifecycle workflow for a Cardano relay. Read supernode://extensions/catalog/cardano-relay, validate required extension configuration values, and use workloads.install when tool execution is available. Do not use extension-specific install tools or raw Helm values.",
+        name: "install-catalog-extension",
+        title: "Install Catalog Extension",
+        description: "Plan a catalog-backed workload install with skill guidance.",
+        text: "Use MCP tools only. Read supernode://skills and select the most relevant skill guide for the requested workload. Read supernode://extensions/catalog/{extensionId} as the source of truth for configuration shape. Start workloads.install with dryRun=true and run live only after operator approval.",
+    },
+    PromptSpec {
+        name: "troubleshoot-workload",
+        title: "Troubleshoot Workload",
+        description: "Troubleshoot catalog-managed workloads with scoped MCP reads.",
+        text: "Use MCP tools only. Read supernode://skills and select the relevant troubleshooting or verification skill guide. Inspect workload state, logs, metrics, and cluster events through MCP tools. If the required operation is outside MCP capabilities, state that MCP does not currently expose it and stop for operator direction.",
     },
     PromptSpec {
         name: "dashboard-access",
         title: "Dashboard Access",
         description: "Inspect dashboard/control-plane access without broad privileges.",
-        text: "Inspect control-plane status through read-only MCP resources and typed discovery tools. Keep access scoped to the MCP server permissions; do not reuse the dashboard superadmin cluster role, do not expose bearer tokens, and prefer kubectl port-forward access for the trusted MVP.",
+        text: "Inspect control-plane status through read-only MCP resources and typed discovery tools. Read supernode://skills/supernode-dashboard-port-forward for the current access boundary. Keep access scoped to the MCP server permissions; do not reuse the dashboard superadmin cluster role and do not expose bearer tokens.",
     },
 ];
 
@@ -71,7 +77,7 @@ mod tests {
 
         let prompts = catalog.list().prompts;
 
-        assert_eq!(prompts.len(), 3);
+        assert_eq!(prompts.len(), 4);
         assert!(
             prompts
                 .iter()
@@ -80,7 +86,12 @@ mod tests {
         assert!(
             prompts
                 .iter()
-                .any(|prompt| prompt.name == "cardano-relay-setup")
+                .any(|prompt| prompt.name == "install-catalog-extension")
+        );
+        assert!(
+            prompts
+                .iter()
+                .any(|prompt| prompt.name == "troubleshoot-workload")
         );
         assert!(
             prompts
@@ -90,10 +101,10 @@ mod tests {
     }
 
     #[test]
-    fn prompts_reference_catalog_driven_workflows() {
+    fn prompts_reference_skill_driven_workflows() {
         let catalog = PromptCatalog;
 
-        let prompt = catalog.get("cardano-relay-setup").unwrap();
+        let prompt = catalog.get("install-catalog-extension").unwrap();
         let message = &prompt.messages[0];
 
         assert_eq!(message.role, PromptMessageRole::User);
@@ -101,7 +112,8 @@ mod tests {
             panic!("expected text prompt");
         };
         assert!(text.contains("workloads.install"));
-        assert!(text.contains("cardano-relay"));
+        assert!(text.contains("supernode://skills"));
+        assert!(text.contains("supernode://extensions/catalog/{extensionId}"));
         assert!(!text.contains("cardano.relay.install"));
     }
 
