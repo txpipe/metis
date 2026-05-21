@@ -48,13 +48,13 @@ jobs:
 
       - name: rename binaries
         run: |
-          mv target/${{ matrix.target }}/release/mcp-server${{ matrix.ext }} supernode-mcp-${{ matrix.release_for }}${{ matrix.ext }}
+          mv mcp-server/target/${{ matrix.target }}/release/supernode-mcp supernode-mcp-${{ matrix.release_for }}
 
       - name: upload
         uses: actions/upload-artifact@v4
         with:
           name: binaries-supernode-mcp-${{ matrix.release_for }}
-          path: supernode-mcp-${{ matrix.release_for }}${{ matrix.ext }}
+          path: supernode-mcp-${{ matrix.release_for }}
 
   docker:
     runs-on: ubuntu-latest
@@ -63,7 +63,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - tags: ghcr.io/txpipe/metis-supernode-mcp,ghcr.io/txpipe/metis-supernode-mcp:${{ github.sha }}
+          - tags: ghcr.io/txpipe/metis-mcp,ghcr.io/txpipe/metis-mcp:${{ github.sha }}
             binary: supernode-mcp
 
     permissions:
