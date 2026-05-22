@@ -24,6 +24,7 @@ pub(crate) async fn fetch_artifact_json(
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(30))
+        .redirect(reqwest::redirect::Policy::none())
         .build()?;
     let manifest = fetch_manifest(&client, &reference).await?;
     let descriptor = select_artifact_descriptor(&manifest, layer_media_type)

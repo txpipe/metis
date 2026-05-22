@@ -39,7 +39,8 @@ pub(crate) fn optional_string(arguments: Option<&JsonObject>, name: &str) -> Opt
     arguments?
         .get(name)?
         .as_str()
-        .filter(|value| !value.trim().is_empty())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
         .map(str::to_string)
 }
 
