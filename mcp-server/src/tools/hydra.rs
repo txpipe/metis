@@ -9,6 +9,7 @@ use crate::vault::{SecretObject, VaultClient, VaultPath, WriteMode};
 
 use super::{
     ToolDefinition,
+    args::{optional_bool, optional_string, required_string},
     common::{success, tool_error, vault_error},
 };
 
@@ -26,7 +27,7 @@ pub fn definitions() -> &'static [ToolDefinition] {
         required_scope: Scope::VaultRuntimeWrite,
         approval_class: ApprovalClass::RuntimeSecretWrite,
         read_only: false,
-        destructive: false,
+        destructive: true,
         input_schema: r#"{"type":"object","required":["path","approvalId"],"properties":{"path":{"type":"string","pattern":"^runtime/","description":"Runtime Vault path without kv/data prefix."},"approvalId":{"type":"string"},"signingKeyName":{"type":"string","minLength":1,"default":"hydra.sk","description":"Vault field name for the Hydra signing key text envelope."},"verificationKeyName":{"type":"string","minLength":1,"default":"hydra.vk","description":"Vault field name for the Hydra verification key text envelope."},"overwrite":{"type":"boolean","default":false,"description":"Allow replacing existing signing or verification key fields at the target path."}},"additionalProperties":false}"#,
     }]
 }
@@ -179,28 +180,6 @@ fn runtime_vault_path(arguments: Option<&JsonObject>) -> Result<VaultPath, CallT
     })
 }
 
-fn required_string(arguments: Option<&JsonObject>, name: &str) -> Result<String, CallToolResult> {
-    optional_string(arguments, name).ok_or_else(|| {
-        tool_error(
-            "invalid_arguments",
-            format!("missing required string argument: {name}"),
-            json!({ "argument": name }),
-        )
-    })
-}
-
-fn optional_string(arguments: Option<&JsonObject>, name: &str) -> Option<String> {
-    arguments?
-        .get(name)?
-        .as_str()
-        .filter(|value| !value.trim().is_empty())
-        .map(str::to_string)
-}
-
-fn optional_bool(arguments: Option<&JsonObject>, name: &str) -> Option<bool> {
-    arguments?.get(name)?.as_bool()
-}
-
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct HydraKeyPair {
     signing_key: String,
@@ -291,7 +270,7 @@ mod tests {
         assert_eq!(definition.required_scope, Scope::VaultRuntimeWrite);
         assert_eq!(definition.approval_class, ApprovalClass::RuntimeSecretWrite);
         assert!(!definition.read_only);
-        assert!(!definition.destructive);
+        assert!(definition.destructive);
         assert!(definition.input_schema.contains("overwrite"));
     }
 

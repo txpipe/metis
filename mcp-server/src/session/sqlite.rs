@@ -75,57 +75,74 @@ impl SqliteSessionStore {
 #[async_trait]
 impl SessionStore for SqliteSessionStore {
     async fn load(&self, session_id: &str) -> Result<Option<SessionState>, SessionStoreError> {
-        let now = unix_timestamp();
-        self.with_connection(|connection| {
-            delete_expired(connection, now)?;
-            let state_json = connection
-                .query_row(
-                    "SELECT state_json FROM mcp_sessions WHERE session_id = ?1 AND (expires_at IS NULL OR expires_at > ?2)",
-                    params![session_id, now],
-                    |row| row.get::<_, String>(0),
-                )
-                .optional()
-                .map_err(box_error)?;
+        let store = self.clone();
+        let session_id = session_id.to_string();
+        tokio::task::spawn_blocking(move || {
+            let now = unix_timestamp();
+            store.with_connection(|connection| {
+                delete_expired(connection, now)?;
+                let state_json = connection
+                    .query_row(
+                        "SELECT state_json FROM mcp_sessions WHERE session_id = ?1 AND (expires_at IS NULL OR expires_at > ?2)",
+                        params![session_id, now],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .optional()
+                    .map_err(box_error)?;
 
-            state_json
-                .map(|value| serde_json::from_str(&value).map_err(box_error))
-                .transpose()
+                state_json
+                    .map(|value| serde_json::from_str(&value).map_err(box_error))
+                    .transpose()
+            })
         })
+        .await
+        .map_err(box_error)?
     }
 
     async fn store(&self, session_id: &str, state: &SessionState) -> Result<(), SessionStoreError> {
-        let now = unix_timestamp();
-        let expires_at = self.expires_at(now);
+        let store = self.clone();
+        let session_id = session_id.to_string();
         let state_json = serde_json::to_string(state).map_err(box_error)?;
-
-        self.with_connection(|connection| {
-            connection
-                .execute(
-                    r#"
-                    INSERT INTO mcp_sessions (session_id, state_json, created_at, updated_at, expires_at)
-                    VALUES (?1, ?2, ?3, ?3, ?4)
-                    ON CONFLICT(session_id) DO UPDATE SET
-                        state_json = excluded.state_json,
-                        updated_at = excluded.updated_at,
-                        expires_at = excluded.expires_at
-                    "#,
-                    params![session_id, state_json, now, expires_at],
-                )
-                .map_err(box_error)?;
-            Ok(())
+        tokio::task::spawn_blocking(move || {
+            let now = unix_timestamp();
+            let expires_at = store.expires_at(now);
+            store.with_connection(|connection| {
+                connection
+                    .execute(
+                        r#"
+                        INSERT INTO mcp_sessions (session_id, state_json, created_at, updated_at, expires_at)
+                        VALUES (?1, ?2, ?3, ?3, ?4)
+                        ON CONFLICT(session_id) DO UPDATE SET
+                            state_json = excluded.state_json,
+                            updated_at = excluded.updated_at,
+                            expires_at = excluded.expires_at
+                        "#,
+                        params![session_id, state_json, now, expires_at],
+                    )
+                    .map_err(box_error)?;
+                Ok(())
+            })
         })
+        .await
+        .map_err(box_error)?
     }
 
     async fn delete(&self, session_id: &str) -> Result<(), SessionStoreError> {
-        self.with_connection(|connection| {
-            connection
-                .execute(
-                    "DELETE FROM mcp_sessions WHERE session_id = ?1",
-                    params![session_id],
-                )
-                .map_err(box_error)?;
-            Ok(())
+        let store = self.clone();
+        let session_id = session_id.to_string();
+        tokio::task::spawn_blocking(move || {
+            store.with_connection(|connection| {
+                connection
+                    .execute(
+                        "DELETE FROM mcp_sessions WHERE session_id = ?1",
+                        params![session_id],
+                    )
+                    .map_err(box_error)?;
+                Ok(())
+            })
         })
+        .await
+        .map_err(box_error)?
     }
 }
 

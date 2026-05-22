@@ -353,6 +353,10 @@ helm template control-plane . -f examples/aws-values.yaml | kubeconform -strict 
 | `supernodeMcp.extensionCatalog.ociRef` | OCI artifact reference for the MCP extension catalog JSON | `oci://oci.supernode.store/extension-catalog:0.1.0` |
 | `supernodeMcp.extensionCatalog.maxBytes` | Maximum accepted catalog JSON blob size in bytes | `1048576` |
 | `supernodeMcp.extensionCatalog.allowUntrusted` | Allows non-`oci.supernode.store` catalog and chart refs. Unsafe; development only | `false` |
+| `supernodeMcp.skillCatalog.source` | MCP skill catalog source (`oci` or `bundled`) | `oci` |
+| `supernodeMcp.skillCatalog.ociRef` | OCI artifact reference for the MCP skill catalog JSON | `oci://oci.supernode.store/skill-catalog:0.1.0` |
+| `supernodeMcp.skillCatalog.maxBytes` | Maximum accepted skill catalog JSON blob size in bytes | `1048576` |
+| `supernodeMcp.skillCatalog.allowUntrusted` | Allows non-`oci.supernode.store` skill catalog refs. Unsafe; development only | `false` |
 | `supernodeMcp.sessionStore.type` | MCP Streamable HTTP session store (`sqlite` or `memory`) | `sqlite` |
 | `supernodeMcp.sessionStore.sqlitePath` | SQLite database path for restart-resistant MCP sessions | `/var/lib/supernode-mcp/sessions.sqlite3` |
 | `supernodeMcp.sessionStore.ttlSeconds` | Session restore TTL in seconds | `86400` |

@@ -22,6 +22,7 @@ use crate::config::SessionStoreConfig;
 use crate::mcp::SupernodeMcpServer;
 use crate::policy::Policy;
 use crate::session::SqliteSessionStore;
+use crate::skills::source::load_skill_catalog;
 
 #[derive(Debug, Serialize)]
 struct HealthResponse {
@@ -55,12 +56,14 @@ async fn router(config: Config, cancellation_token: CancellationToken) -> anyhow
     };
     let session_store = session_store(&config.session_store)?;
     let catalog = load_catalog(&config.extension_catalog).await?;
+    let skill_catalog = load_skill_catalog(&config.skill_catalog).await?;
 
     let mcp_state = SupernodeMcpServer::new(
         auth_context.clone(),
         Policy,
         Arc::new(TracingAuditSink),
         Arc::new(catalog),
+        Arc::new(skill_catalog),
     );
     let mut mcp_config = StreamableHttpServerConfig::default()
         .with_cancellation_token(cancellation_token)

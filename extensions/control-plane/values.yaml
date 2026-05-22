@@ -178,6 +178,11 @@ supernodeMcp:
     ociRef: oci://oci.supernode.store/extension-catalog@sha256:623004147b13c18ffa6fdbb701da9001304518d8fd4a1988cc667f8ebd3e0419
     maxBytes: 1048576
     allowUntrusted: false
+  skillCatalog:
+    source: oci
+    ociRef: oci://oci.supernode.store/skill-catalog:0.1.0
+    maxBytes: 1048576
+    allowUntrusted: false
   sessionStore:
     type: sqlite
     sqlitePath: /var/lib/supernode-mcp/sessions.sqlite3

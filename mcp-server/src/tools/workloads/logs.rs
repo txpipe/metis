@@ -6,6 +6,7 @@ use serde_json::json;
 use crate::k8s::KubernetesClient;
 use crate::k8s::PodLogParams;
 use crate::k8s::ResourceListParams;
+use crate::tools::args::{optional_bool, optional_i64, optional_string, required_string};
 use crate::tools::common::kube_error;
 use crate::tools::common::success;
 use crate::tools::common::tool_error;
@@ -248,32 +249,6 @@ fn get_optional<T>(result: Result<T, kube::Error>) -> Result<Option<T>, kube::Er
         Err(kube::Error::Api(error)) if error.code == 404 => Ok(None),
         Err(error) => Err(error),
     }
-}
-
-fn required_string(arguments: Option<&JsonObject>, name: &str) -> Result<String, CallToolResult> {
-    optional_string(arguments, name).ok_or_else(|| {
-        tool_error(
-            "invalid_arguments",
-            format!("missing required string argument: {name}"),
-            json!({ "argument": name }),
-        )
-    })
-}
-
-fn optional_string(arguments: Option<&JsonObject>, name: &str) -> Option<String> {
-    arguments?
-        .get(name)?
-        .as_str()
-        .filter(|value| !value.trim().is_empty())
-        .map(str::to_string)
-}
-
-fn optional_bool(arguments: Option<&JsonObject>, name: &str) -> Option<bool> {
-    arguments?.get(name)?.as_bool()
-}
-
-fn optional_i64(arguments: Option<&JsonObject>, name: &str) -> Option<i64> {
-    arguments?.get(name)?.as_i64()
 }
 
 #[cfg(test)]

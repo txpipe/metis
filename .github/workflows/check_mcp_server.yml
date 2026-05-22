@@ -6,13 +6,17 @@ on:
       - main
     paths:
       - ".github/workflows/check_mcp_server.yml"
+      - "catalog/**"
       - "mcp-server/**"
+      - "skills/**"
   pull_request:
     branches:
       - main
     paths:
       - ".github/workflows/check_mcp_server.yml"
+      - "catalog/**"
       - "mcp-server/**"
+      - "skills/**"
 
 jobs:
   lint:
@@ -23,6 +27,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Generate skill catalog
+        working-directory: .
+        run: node catalog/scripts/generate-skill-catalog.mjs
 
       - name: Clippy check lints
         run: cargo clippy -- -D warnings

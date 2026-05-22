@@ -20,4 +20,12 @@ pub enum ConfigError {
     InvalidExtensionCatalogMaxBytes(ParseIntError),
     #[error("invalid MCP_EXTENSION_CATALOG_ALLOW_UNTRUSTED '{0}', expected 'true' or 'false'")]
     InvalidExtensionCatalogAllowUntrusted(String),
+    #[error("invalid MCP_SKILL_CATALOG_SOURCE '{0}', expected 'bundled' or 'oci'")]
+    InvalidSkillCatalogSource(String),
+    #[error("MCP_SKILL_CATALOG_OCI_REF is required when MCP_SKILL_CATALOG_SOURCE=oci")]
+    MissingSkillCatalogOciRef,
+    #[error("invalid MCP_SKILL_CATALOG_MAX_BYTES: {0}")]
+    InvalidSkillCatalogMaxBytes(ParseIntError),
+    #[error("invalid MCP_SKILL_CATALOG_ALLOW_UNTRUSTED '{0}', expected 'true' or 'false'")]
+    InvalidSkillCatalogAllowUntrusted(String),
 }
