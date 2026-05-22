@@ -6,6 +6,7 @@ mod errors;
 mod helm;
 pub mod k8s;
 mod mcp;
+mod oci_client;
 mod policy;
 mod prompts;
 mod resources;

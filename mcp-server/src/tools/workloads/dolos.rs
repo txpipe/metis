@@ -13,6 +13,7 @@ use crate::k8s::ResourceListParams;
 use crate::policy::ApprovalClass;
 use crate::policy::Scope;
 use crate::tools::ToolDefinition;
+use crate::tools::args::{optional_bool, required_string};
 use crate::tools::common::kube_error;
 use crate::tools::common::success;
 use crate::tools::common::tool_error;
@@ -31,7 +32,7 @@ pub(crate) fn definitions() -> &'static [ToolDefinition] {
         approval_class: ApprovalClass::Destructive,
         read_only: false,
         destructive: true,
-        input_schema: r#"{"type":"object","required":["namespace","releaseName"],"properties":{"namespace":{"type":"string"},"releaseName":{"type":"string"},"dryRun":{"type":"boolean"},"approvalId":{"type":"string"}},"additionalProperties":false}"#,
+        input_schema: r#"{"type":"object","required":["namespace","releaseName"],"properties":{"namespace":{"type":"string","pattern":"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$","maxLength":63},"releaseName":{"type":"string","pattern":"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$","maxLength":63},"dryRun":{"type":"boolean"},"approvalId":{"type":"string"}},"additionalProperties":false}"#,
     }]
 }
 
@@ -301,27 +302,6 @@ fn pvc_summary(pvc: &PersistentVolumeClaim) -> Value {
         "namespace": pvc.metadata.namespace,
         "phase": pvc.status.as_ref().and_then(|status| status.phase.clone()),
     })
-}
-
-fn required_string(arguments: Option<&JsonObject>, name: &str) -> Result<String, CallToolResult> {
-    arguments
-        .and_then(|arguments| arguments.get(name))
-        .and_then(Value::as_str)
-        .filter(|value| !value.trim().is_empty())
-        .map(str::to_string)
-        .ok_or_else(|| {
-            tool_error(
-                "invalid_arguments",
-                format!("missing required string argument: {name}"),
-                json!({ "argument": name }),
-            )
-        })
-}
-
-fn optional_bool(arguments: Option<&JsonObject>, name: &str) -> Option<bool> {
-    arguments
-        .and_then(|arguments| arguments.get(name))
-        .and_then(Value::as_bool)
 }
 
 #[cfg(test)]

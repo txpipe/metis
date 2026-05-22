@@ -1,16 +1,167 @@
 use k8s_openapi::api::storage::v1::StorageClass;
-use rmcp::model::CallToolResult;
+use rmcp::model::{CallToolResult, JsonObject};
 use serde_json::Value;
 use serde_json::json;
 
-use crate::catalog::ExtensionDefinition;
+use crate::catalog::{ExtensionCatalog, ExtensionDefinition};
+use crate::helm::{self, HelmChartRef, HelmInstallPlan};
 use crate::k8s::KubernetesClient;
 use crate::k8s::ResourceListParams;
 
 use super::registry;
+use crate::tools::args::{optional_bool, required_object, required_string};
 use crate::tools::common::kube_error;
+use crate::tools::common::success;
 use crate::tools::common::tool_error;
 use crate::tools::k8s_summaries::storage_class_summary;
+use crate::tools::schema_validation::validate_configuration_schema;
+
+const TOOL_NAME: &str = "workloads.install";
+
+pub(crate) async fn install(
+    arguments: Option<&JsonObject>,
+    catalog: &ExtensionCatalog,
+) -> CallToolResult {
+    let extension_id = match required_string(arguments, "extensionId") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let release_name = match required_string(arguments, "releaseName") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let namespace = match required_string(arguments, "namespace") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let dry_run = optional_bool(arguments, "dryRun").unwrap_or(true);
+
+    let configuration = match required_object(arguments, "configuration") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let extension = match catalog.get(&extension_id) {
+        Some(extension) => extension,
+        None => {
+            return tool_error(
+                "unknown_extension",
+                format!("extension not found: {extension_id}"),
+                json!({ "extensionId": extension_id }),
+            );
+        }
+    };
+
+    if let Err(error) = validate_configuration_schema(&configuration, &extension.configuration) {
+        return error;
+    }
+
+    if !uses_direct_helm_values(extension)
+        && configuration.get("namespace").and_then(Value::as_str) != Some(namespace.as_str())
+    {
+        return tool_error(
+            "invalid_arguments",
+            "configuration.namespace must match namespace",
+            json!({ "namespace": namespace, "configurationNamespace": configuration.get("namespace") }),
+        );
+    }
+
+    let resolved_configuration = apply_defaults(extension, Value::Object(configuration));
+    let resolution =
+        match resolve_configuration(extension, &namespace, resolved_configuration, dry_run).await {
+            Ok(resolution) => resolution,
+            Err(error) => return error,
+        };
+    let helm_values = planned_helm_values(extension, &release_name, &resolution.configuration);
+    let chart = HelmChartRef {
+        chart: extension.chart.clone(),
+        version: extension.default_version.clone(),
+    };
+
+    if dry_run {
+        return success(json!({
+            "action": "install",
+            "dryRun": true,
+            "wouldMutate": false,
+            "release": {
+                "name": release_name,
+                "namespace": namespace,
+            },
+            "extension": {
+                "id": extension.id,
+                "name": extension.name,
+                "version": extension.default_version,
+            },
+            "chart": chart,
+            "resolvedConfiguration": resolution.configuration,
+            "helmValues": helm_values,
+            "availableStorageClasses": resolution.available_storage_classes,
+            "recommendedStorageClasses": resolution.recommended_storage_classes,
+            "notes": [
+                "dry-run planning only; no Kubernetes or Helm mutation was performed",
+                "raw Helm values are rejected by the extension configuration schema"
+            ],
+        }));
+    }
+
+    let plan = HelmInstallPlan {
+        release_name: release_name.clone(),
+        namespace: namespace.clone(),
+        chart: chart.clone(),
+        values: helm_values.clone(),
+    };
+    let helm_result = match helm::install(&plan).await {
+        Ok(result) => result,
+        Err(error) => {
+            let helm_details = match &error {
+                helm::HelmInstallError::Failed {
+                    status,
+                    stdout,
+                    stderr,
+                } => json!({
+                    "tool": TOOL_NAME,
+                    "extensionId": extension.id,
+                    "releaseName": release_name,
+                    "namespace": namespace,
+                    "status": status,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                }),
+                _ => json!({
+                    "tool": TOOL_NAME,
+                    "extensionId": extension.id,
+                    "releaseName": release_name,
+                    "namespace": namespace,
+                }),
+            };
+            return tool_error("helm_install_failed", error.to_string(), helm_details);
+        }
+    };
+
+    success(json!({
+        "action": "install",
+        "dryRun": false,
+        "wouldMutate": true,
+        "release": {
+            "name": release_name,
+            "namespace": namespace,
+        },
+        "extension": {
+            "id": extension.id,
+            "name": extension.name,
+            "version": extension.default_version,
+        },
+        "chart": chart,
+        "resolvedConfiguration": resolution.configuration,
+        "helmValues": helm_values,
+        "availableStorageClasses": resolution.available_storage_classes,
+        "recommendedStorageClasses": resolution.recommended_storage_classes,
+        "helm": helm_result,
+        "notes": [
+            "Helm upgrade --install completed successfully",
+            "raw Helm values are rejected by the extension configuration schema"
+        ],
+    }))
+}
 
 #[derive(Debug, Clone)]
 pub(crate) struct InstallResolution {
@@ -157,7 +308,7 @@ pub(crate) fn planned_helm_values(
     Value::Object(helm_values)
 }
 
-fn uses_direct_helm_values(extension: &ExtensionDefinition) -> bool {
+pub(crate) fn uses_direct_helm_values(extension: &ExtensionDefinition) -> bool {
     matches!(
         extension.id.as_str(),
         registry::DOLOS_EXTENSION_ID

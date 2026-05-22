@@ -8,6 +8,7 @@ use serde_json::{Value, json};
 use crate::catalog::ExtensionCatalog;
 use crate::helm::{self, HelmUninstallPlan};
 use crate::k8s::{HelmReleaseDiscovery, KubernetesClient, ResourceListParams};
+use crate::tools::args::{optional_bool, required_string};
 use crate::tools::common::{kube_error, success, tool_error};
 
 use super::registry;
@@ -242,27 +243,6 @@ fn pvc_summary(pvc: &PersistentVolumeClaim) -> Value {
 
 fn pvc_name(pvc: &PersistentVolumeClaim) -> Option<&str> {
     pvc.metadata.name.as_deref()
-}
-
-fn required_string(arguments: Option<&JsonObject>, name: &str) -> Result<String, CallToolResult> {
-    arguments
-        .and_then(|arguments| arguments.get(name))
-        .and_then(Value::as_str)
-        .filter(|value| !value.trim().is_empty())
-        .map(str::to_string)
-        .ok_or_else(|| {
-            tool_error(
-                "invalid_arguments",
-                format!("missing required string argument: {name}"),
-                json!({ "argument": name }),
-            )
-        })
-}
-
-fn optional_bool(arguments: Option<&JsonObject>, name: &str) -> Option<bool> {
-    arguments
-        .and_then(|arguments| arguments.get(name))
-        .and_then(Value::as_bool)
 }
 
 #[cfg(test)]

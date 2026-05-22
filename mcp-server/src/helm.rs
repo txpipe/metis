@@ -1,13 +1,13 @@
 use std::path::Path;
-use std::path::PathBuf;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
+use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::Value;
+use tempfile::NamedTempFile;
 use tokio::process::Command;
 
 const DEFAULT_HELM_BIN: &str = "helm";
+const HELM_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -64,6 +64,8 @@ pub struct HelmUninstallResult {
 
 #[derive(Debug, thiserror::Error)]
 pub enum HelmInstallError {
+    #[error("MCP_HELM_BIN must be an absolute path, got: {0}")]
+    InvalidHelmBin(String),
     #[error("failed to create Helm values directory: {0}")]
     CreateValuesDir(std::io::Error),
     #[error("failed to serialize Helm values: {0}")]
@@ -72,6 +74,8 @@ pub enum HelmInstallError {
     WriteValues(std::io::Error),
     #[error("failed to execute Helm: {0}")]
     Execute(std::io::Error),
+    #[error("Helm install timed out after {0} seconds")]
+    Timeout(u64),
     #[error("Helm install failed with status {status}")]
     Failed {
         status: i32,
@@ -82,6 +86,8 @@ pub enum HelmInstallError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum HelmUpgradeError {
+    #[error("MCP_HELM_BIN must be an absolute path, got: {0}")]
+    InvalidHelmBin(String),
     #[error("failed to create Helm values directory: {0}")]
     CreateValuesDir(std::io::Error),
     #[error("failed to serialize Helm values: {0}")]
@@ -90,6 +96,8 @@ pub enum HelmUpgradeError {
     WriteValues(std::io::Error),
     #[error("failed to execute Helm: {0}")]
     Execute(std::io::Error),
+    #[error("Helm upgrade timed out after {0} seconds")]
+    Timeout(u64),
     #[error("Helm upgrade failed with status {status}")]
     Failed {
         status: i32,
@@ -100,8 +108,12 @@ pub enum HelmUpgradeError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum HelmUninstallError {
+    #[error("MCP_HELM_BIN must be an absolute path, got: {0}")]
+    InvalidHelmBin(String),
     #[error("failed to execute Helm: {0}")]
     Execute(std::io::Error),
+    #[error("Helm uninstall timed out after {0} seconds")]
+    Timeout(u64),
     #[error("Helm uninstall failed with status {status}")]
     Failed {
         status: i32,
@@ -111,13 +123,17 @@ pub enum HelmUninstallError {
 }
 
 pub async fn install(plan: &HelmInstallPlan) -> Result<HelmInstallResult, HelmInstallError> {
-    let values_path = write_values_file(&plan.values).map_err(HelmInstallError::from)?;
-    let helm_bin = std::env::var("MCP_HELM_BIN").unwrap_or_else(|_| DEFAULT_HELM_BIN.to_string());
-    let args = install_args(plan, &values_path);
+    let values_file = write_values_file(&plan.values).map_err(HelmInstallError::from)?;
+    let helm_bin =
+        resolve_helm_bin().map_err(|bin| HelmInstallError::InvalidHelmBin(bin.to_string()))?;
+    let args = install_args(plan, values_file.path());
 
-    let output = Command::new(&helm_bin).args(&args).output().await;
-    let _ = std::fs::remove_file(&values_path);
-    let output = output.map_err(HelmInstallError::Execute)?;
+    let output = tokio::time::timeout(HELM_TIMEOUT, Command::new(&helm_bin).args(&args).output())
+        .await
+        .map_err(|_| HelmInstallError::Timeout(HELM_TIMEOUT.as_secs()))?
+        .map_err(HelmInstallError::Execute)?;
+
+    drop(values_file);
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -141,13 +157,17 @@ pub async fn install(plan: &HelmInstallPlan) -> Result<HelmInstallResult, HelmIn
 }
 
 pub async fn upgrade(plan: &HelmUpgradePlan) -> Result<HelmUpgradeResult, HelmUpgradeError> {
-    let values_path = write_values_file(&plan.values).map_err(HelmUpgradeError::from)?;
-    let helm_bin = std::env::var("MCP_HELM_BIN").unwrap_or_else(|_| DEFAULT_HELM_BIN.to_string());
-    let args = upgrade_args(plan, &values_path);
+    let values_file = write_values_file(&plan.values).map_err(HelmUpgradeError::from)?;
+    let helm_bin =
+        resolve_helm_bin().map_err(|bin| HelmUpgradeError::InvalidHelmBin(bin.to_string()))?;
+    let args = upgrade_args(plan, values_file.path());
 
-    let output = Command::new(&helm_bin).args(&args).output().await;
-    let _ = std::fs::remove_file(&values_path);
-    let output = output.map_err(HelmUpgradeError::Execute)?;
+    let output = tokio::time::timeout(HELM_TIMEOUT, Command::new(&helm_bin).args(&args).output())
+        .await
+        .map_err(|_| HelmUpgradeError::Timeout(HELM_TIMEOUT.as_secs()))?
+        .map_err(HelmUpgradeError::Execute)?;
+
+    drop(values_file);
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -173,12 +193,13 @@ pub async fn upgrade(plan: &HelmUpgradePlan) -> Result<HelmUpgradeResult, HelmUp
 pub async fn uninstall(
     plan: &HelmUninstallPlan,
 ) -> Result<HelmUninstallResult, HelmUninstallError> {
-    let helm_bin = std::env::var("MCP_HELM_BIN").unwrap_or_else(|_| DEFAULT_HELM_BIN.to_string());
+    let helm_bin =
+        resolve_helm_bin().map_err(|bin| HelmUninstallError::InvalidHelmBin(bin.to_string()))?;
     let args = uninstall_args(plan);
-    let output = Command::new(&helm_bin)
-        .args(&args)
-        .output()
+
+    let output = tokio::time::timeout(HELM_TIMEOUT, Command::new(&helm_bin).args(&args).output())
         .await
+        .map_err(|_| HelmUninstallError::Timeout(HELM_TIMEOUT.as_secs()))?
         .map_err(HelmUninstallError::Execute)?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
@@ -202,21 +223,36 @@ pub async fn uninstall(
     })
 }
 
-fn write_values_file(values: &Value) -> Result<PathBuf, HelmValuesFileError> {
+fn resolve_helm_bin() -> Result<String, String> {
+    resolve_helm_bin_value(std::env::var("MCP_HELM_BIN").ok().as_deref())
+}
+
+fn resolve_helm_bin_value(value: Option<&str>) -> Result<String, String> {
+    match value {
+        Some(bin) if bin.starts_with('/') => Ok(bin.to_string()),
+        Some(bin) => Err(bin.to_string()),
+        None => Ok(DEFAULT_HELM_BIN.to_string()),
+    }
+}
+
+fn write_values_file(values: &Value) -> Result<NamedTempFile, HelmValuesFileError> {
+    use std::io::Write;
+
     let dir = std::env::var("MCP_HELM_VALUES_DIR")
-        .map(PathBuf::from)
+        .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| std::env::temp_dir().join("supernode-mcp-helm"));
     std::fs::create_dir_all(&dir).map_err(HelmValuesFileError::CreateValuesDir)?;
 
-    let unique = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    let path = dir.join(format!("values-{unique}.json"));
+    let mut file = tempfile::Builder::new()
+        .prefix("values-")
+        .suffix(".json")
+        .tempfile_in(&dir)
+        .map_err(HelmValuesFileError::WriteValues)?;
     let payload =
         serde_json::to_vec_pretty(values).map_err(HelmValuesFileError::SerializeValues)?;
-    std::fs::write(&path, payload).map_err(HelmValuesFileError::WriteValues)?;
-    Ok(path)
+    file.write_all(&payload)
+        .map_err(HelmValuesFileError::WriteValues)?;
+    Ok(file)
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -290,6 +326,8 @@ fn uninstall_args(plan: &HelmUninstallPlan) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use serde_json::json;
 
     use super::*;
@@ -356,5 +394,37 @@ mod tests {
         assert!(!args.contains(&"--atomic".to_string()));
         assert!(!args.contains(&"--install".to_string()));
         assert!(!args.contains(&"--create-namespace".to_string()));
+    }
+
+    #[test]
+    fn resolve_helm_bin_defaults_to_helm() {
+        assert_eq!(resolve_helm_bin_value(None).unwrap(), "helm");
+    }
+
+    #[test]
+    fn resolve_helm_bin_accepts_absolute_path() {
+        assert_eq!(
+            resolve_helm_bin_value(Some("/usr/local/bin/helm")).unwrap(),
+            "/usr/local/bin/helm"
+        );
+    }
+
+    #[test]
+    fn resolve_helm_bin_rejects_relative_path() {
+        assert!(resolve_helm_bin_value(Some("relative/helm")).is_err());
+    }
+
+    #[test]
+    fn values_file_uses_tempfile_with_prefix_and_suffix() {
+        let file = write_values_file(&json!({ "key": "value" })).unwrap();
+        let path = file.path().to_path_buf();
+        let filename = path.file_name().unwrap().to_string_lossy();
+
+        assert!(filename.starts_with("values-"));
+        assert!(filename.ends_with(".json"));
+        assert!(path.exists());
+
+        drop(file);
+        assert!(!path.exists());
     }
 }

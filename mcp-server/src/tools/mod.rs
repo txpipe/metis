@@ -1,8 +1,10 @@
+pub(crate) mod args;
 pub(crate) mod common;
 pub(crate) mod dynamic;
 pub(crate) mod hydra;
 pub(crate) mod k8s_summaries;
 pub mod router;
+pub(crate) mod schema_validation;
 pub mod supernode;
 pub mod vault;
 pub mod workloads;

@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt;
 use std::io::Read;
 
 use base64::Engine;
@@ -18,8 +19,9 @@ const HELM_SECRET_TYPE: &str = "helm.sh/release.v1";
 const HELM_RELEASE_DATA_KEY: &str = "release";
 const HELM_OWNER_LABEL: &str = "owner=helm";
 const CONTROL_PLANE_RELEASE_NAME: &str = "control-plane";
+const MAX_INFLATED_RELEASE_SIZE: u64 = 16 * 1024 * 1024;
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+#[derive(Clone, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelmReleaseSummary {
     pub name: String,
@@ -33,6 +35,23 @@ pub struct HelmReleaseSummary {
     pub secret_name: Option<String>,
     #[serde(skip_serializing)]
     pub config: Option<Value>,
+}
+
+impl fmt::Debug for HelmReleaseSummary {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HelmReleaseSummary")
+            .field("name", &self.name)
+            .field("namespace", &self.namespace)
+            .field("revision", &self.revision)
+            .field("status", &self.status)
+            .field("chart", &self.chart)
+            .field("app_version", &self.app_version)
+            .field("description", &self.description)
+            .field("updated", &self.updated)
+            .field("secret_name", &self.secret_name)
+            .field("config", &self.config.as_ref().map(|_| "<redacted>"))
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
@@ -212,9 +231,10 @@ fn decode_release_payload(payload: &ByteString) -> Result<HelmReleaseData, HelmR
 }
 
 fn gunzip(payload: &[u8]) -> Result<Vec<u8>, std::io::Error> {
-    let mut decoder = GzDecoder::new(payload);
+    let decoder = GzDecoder::new(payload);
+    let mut limited = decoder.take(MAX_INFLATED_RELEASE_SIZE);
     let mut decoded = Vec::new();
-    decoder.read_to_end(&mut decoded)?;
+    limited.read_to_end(&mut decoded)?;
     Ok(decoded)
 }
 
