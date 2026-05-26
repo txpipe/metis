@@ -1,0 +1,109 @@
+{{- $configMapName := include "cardano-db-sync.metricsConfigMapName" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configMapName }}
+  labels:
+    {{- include "cardano-db-sync.labels" . | nindent 4 }}
+data:
+  metrics.sh: |-
+    #!/usr/bin/env sh
+    set -u
+
+    errors_json="[]"
+
+    append_error() {
+      if [ "$errors_json" = "[]" ]; then
+        errors_json="[\"$1\"]"
+      else
+        errors_json="${errors_json%]},\"$1\"]"
+      fi
+    }
+
+    export PGPASSWORD="${POSTGRES_PASSWORD:-}"
+
+    if [ -z "${POSTGRES_DB:-}" ] || [ -z "${POSTGRES_USER:-}" ] || [ -z "${PGPASSWORD:-}" ]; then
+      append_error "postgres credentials are not fully available in the container environment"
+    fi
+
+    psql_value() {
+      query="$1"
+      psql \
+        -h 127.0.0.1 \
+        -p {{ .Values.postgres.port | default 5432 }} \
+        -U "${POSTGRES_USER:-}" \
+        -d "${POSTGRES_DB:-}" \
+        -tAX \
+        -c "$query" 2>/dev/null || true
+    }
+
+    if ! command -v psql >/dev/null 2>&1; then
+      append_error "psql is not available in the postgres container"
+    fi
+
+    sync_row="$(psql_value "select block_no, slot_no, epoch_no, extract(epoch from time)::bigint from block order by id desc limit 1;")"
+    db_size="$(psql_value "select pg_database_size(current_database());")"
+    db_connections="$(psql_value "select count(*) from pg_stat_activity where datname = current_database();")"
+    now_epoch="$(date +%s 2>/dev/null || true)"
+
+    block_height=""
+    slot_num=""
+    epoch=""
+    latest_block_time=""
+    latest_block_age_seconds=""
+
+    if [ -n "$sync_row" ]; then
+      old_ifs="$IFS"
+      IFS='|'
+      set -- $sync_row
+      IFS="$old_ifs"
+      block_height="${1:-}"
+      slot_num="${2:-}"
+      epoch="${3:-}"
+      latest_block_time="${4:-}"
+    else
+      append_error "failed to read latest synced block from postgres"
+    fi
+
+    if [ -n "$latest_block_time" ] && [ -n "$now_epoch" ]; then
+      latest_block_age_seconds=$((now_epoch - latest_block_time))
+      if [ "$latest_block_age_seconds" -lt 0 ]; then
+        latest_block_age_seconds=0
+      fi
+    fi
+
+    number_or_null() {
+      value="$1"
+      if [ -n "$value" ]; then
+        printf '%s' "$value"
+      else
+        printf 'null'
+      fi
+    }
+
+    string_or_null() {
+      value="$1"
+      if [ -n "$value" ]; then
+        printf '"%s"' "$value"
+      else
+        printf 'null'
+      fi
+    }
+
+    latest_block_time_iso=""
+    if [ -n "$latest_block_time" ]; then
+      latest_block_time_iso="$(date -u -r "$latest_block_time" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || true)"
+      if [ -z "$latest_block_time_iso" ]; then
+        append_error "failed to format latest block time"
+      fi
+    fi
+
+    printf '{"type":"cardano-db-sync","blockHeight":%s,"slotNum":%s,"epoch":%s,"latestBlockTime":%s,"latestBlockAgeSeconds":%s,"dbSizeBytes":%s,"dbConnections":%s,"errors":%s}\n' \
+      "$(number_or_null "$block_height")" \
+      "$(number_or_null "$slot_num")" \
+      "$(number_or_null "$epoch")" \
+      "$(string_or_null "$latest_block_time_iso")" \
+      "$(number_or_null "$latest_block_age_seconds")" \
+      "$(number_or_null "$db_size")" \
+      "$(number_or_null "$db_connections")" \
+      "$errors_json"

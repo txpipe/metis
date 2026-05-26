@@ -206,6 +206,16 @@ fn validate_extensions(
                     extension.id
                 ));
             }
+            if metrics_collection
+                .pod_label_selector
+                .as_deref()
+                .is_some_and(|selector| selector.trim().is_empty())
+            {
+                return invalid_catalog(format!(
+                    "extension metrics collection pod label selector must not be empty: {}",
+                    extension.id
+                ));
+            }
         }
         for output in &extension.outputs {
             if output.name.trim().is_empty() || output.port_name.trim().is_empty() {
@@ -279,11 +289,12 @@ mod tests {
     fn bundled_catalog_contains_cardano_extensions_dolos_and_hydra() {
         let catalog = ExtensionCatalog::testing();
 
-        assert_eq!(catalog.len(), 6);
+        assert_eq!(catalog.len(), 7);
         assert!(catalog.get("apex-fusion-relay").is_some());
         assert!(catalog.get("apex-fusion-block-producer").is_some());
         assert!(catalog.get("cardano-relay").is_some());
         assert!(catalog.get("cardano-block-producer").is_some());
+        assert!(catalog.get("cardano-db-sync").is_some());
         assert!(catalog.get("cardano-node").is_none());
         assert!(catalog.get("dolos").is_some());
         assert!(catalog.get("hydra-node").is_some());
@@ -480,6 +491,7 @@ mod tests {
         let cases = [
             ("cardano-relay", "cardano-node"),
             ("cardano-block-producer", "cardano-node"),
+            ("cardano-db-sync", "postgres"),
             ("apex-fusion-relay", "apex-fusion"),
             ("apex-fusion-block-producer", "apex-fusion"),
             ("dolos", "dolos"),
@@ -499,7 +511,50 @@ mod tests {
                 metrics_collection.command,
                 vec!["/opt/metis/bin/metrics.sh"]
             );
+
+            if extension_id == "cardano-db-sync" {
+                assert_eq!(
+                    metrics_collection.pod_label_selector.as_deref(),
+                    Some("app.kubernetes.io/component=postgres")
+                );
+            } else {
+                assert_eq!(metrics_collection.pod_label_selector, None);
+            }
         }
+    }
+
+    #[test]
+    fn cardano_db_sync_extension_exposes_domain_contract() {
+        let catalog = ExtensionCatalog::testing();
+        let extension = catalog.get("cardano-db-sync").unwrap();
+
+        assert_eq!(extension.name, "Cardano DB Sync");
+        assert_eq!(extension.default_version, "0.1.0");
+        assert!(extension.versions.contains(&"0.1.0".to_string()));
+        assert_eq!(extension.configuration.get("type"), Some(&json!("object")));
+        assert_eq!(extension.metrics.get("type"), Some(&json!("object")));
+        assert_eq!(extension.outputs.len(), 1);
+        assert_eq!(extension.secrets.len(), 1);
+        assert!(extension.dependencies.is_empty());
+    }
+
+    #[test]
+    fn cardano_db_sync_metrics_schema_describes_database_sync_fields() {
+        let catalog = ExtensionCatalog::testing();
+        let metrics = &catalog.get("cardano-db-sync").unwrap().metrics;
+        let properties = metrics
+            .get("properties")
+            .and_then(Value::as_object)
+            .unwrap();
+        let required = metrics.get("required").and_then(Value::as_array).unwrap();
+
+        assert!(required.contains(&json!("type")));
+        assert!(required.contains(&json!("errors")));
+        assert!(properties.contains_key("blockHeight"));
+        assert!(properties.contains_key("slotNum"));
+        assert!(properties.contains_key("epoch"));
+        assert!(properties.contains_key("dbSizeBytes"));
+        assert!(properties.contains_key("latestBlockAgeSeconds"));
     }
 
     #[test]

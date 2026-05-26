@@ -1,0 +1,11 @@
+credentials:
+  vaultStaticSecret:
+    path: runtime/cardano-db-sync/preview/postgres
+postgres:
+  persistence:
+    storageClass: standard
+dbSync:
+  persistence:
+    storageClass: standard
+cardanoNode:
+  upstreamAddress: cardano-relay.default.svc.cluster.local:3000

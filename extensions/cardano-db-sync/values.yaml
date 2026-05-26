@@ -1,0 +1,67 @@
+nameOverride: ""
+fullnameOverride: ""
+displayName: ""
+
+vaultAuth:
+  ref: control-plane/default
+  serviceAccount:
+    create: true
+    name: vault-auth
+
+credentials:
+  vaultStaticSecret:
+    mount: kv
+    path: ""
+    refreshAfter: 1m
+  keys:
+    username: username
+    password: password
+    database: database
+    connection: connection
+
+postgres:
+  image:
+    repository: postgres
+    tag: "15.3"
+  port: 5432
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  persistence:
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    annotations: {}
+    size: 50Gi
+    existingClaim: ""
+
+dbSync:
+  image:
+    repository: ghcr.io/intersectmbo/cardano-db-sync
+    tag: "13.7.0.5"
+  replicas: 1
+  network: preview
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    annotations: {}
+    size: 10Gi
+    existingClaim: ""
+
+cardanoNode:
+  upstreamAddress: ""
+  socketPath: /node-ipc/node.socket
+  socketProxyImage:
+    repository: alpine/socat
+    tag: "1.7.4.4-r0"
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

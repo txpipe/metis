@@ -24,18 +24,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: vault-static-secret
+            valuesArgs: "-f midnight/ci/values-vault-static-secret.yaml"
+            dir: midnight
           - name: default
-            valuesArgs: ""
-            dir: midnight
-          - name: inline-secrets
-            valuesArgs: "-f midnight/ci/values-inline-secrets.yaml"
-            dir: midnight
-          - name: existing-secrets
-            valuesArgs: "-f midnight/ci/values-existing-secrets.yaml"
-            dir: midnight
-          - name: managed-dbsync
-            valuesArgs: "-f midnight/ci/values-managed-dbsync.yaml"
-            dir: midnight
+            valuesArgs: "-f cardano-db-sync/ci/values-default.yaml"
+            dir: cardano-db-sync
+          - name: socket-proxy
+            valuesArgs: "-f cardano-db-sync/ci/values-socket-proxy.yaml"
+            dir: cardano-db-sync
           - name: default
             valuesArgs: "-f cardano-relay/ci/values-default.yaml"
             dir: cardano-relay

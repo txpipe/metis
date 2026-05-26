@@ -1,0 +1,22 @@
+{{- if and .Values.dbSync.persistence.enabled (not .Values.dbSync.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "cardano-db-sync.dataPVCName" . }}
+  labels:
+    {{- include "cardano-db-sync.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dbsync
+  {{- with .Values.dbSync.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- toYaml .Values.dbSync.persistence.accessModes | nindent 4 }}
+  {{- if .Values.dbSync.persistence.storageClass }}
+  storageClassName: {{ .Values.dbSync.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.dbSync.persistence.size }}
+{{- end }}

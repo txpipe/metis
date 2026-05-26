@@ -1,0 +1,16 @@
+apiVersion: v2
+name: cardano-db-sync
+description: A Supernode-opinionated Helm chart for deploying Cardano DB Sync with PostgreSQL.
+type: application
+version: 0.1.0
+appVersion: "13.7.0.5"
+keywords:
+  - cardano
+  - db-sync
+  - metis
+  - supernode
+annotations:
+  displayName: Cardano DB Sync
+  icon: /images/workloads/cardano-node.svg
+  category: infrastructure
+  networkPath: dbSync.network

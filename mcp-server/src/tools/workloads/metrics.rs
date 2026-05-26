@@ -73,7 +73,14 @@ pub(crate) async fn get(
             );
         }
     };
-    let pod_name = match find_workload_pod(&client, &namespace, &workload).await {
+    let pod_name = match find_workload_pod(
+        &client,
+        &namespace,
+        &workload,
+        metrics_collection.pod_label_selector.as_deref(),
+    )
+    .await
+    {
         Ok(Some(pod_name)) => pod_name,
         Ok(None) => {
             return tool_error(

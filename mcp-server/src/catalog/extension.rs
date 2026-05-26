@@ -10,6 +10,8 @@ pub type ExtensionMetrics = Value;
 pub struct ExtensionMetricsCollection {
     pub container: String,
     pub command: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pod_label_selector: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

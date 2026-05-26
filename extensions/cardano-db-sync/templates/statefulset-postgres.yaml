@@ -1,0 +1,108 @@
+{{- $name := include "cardano-db-sync.postgresServiceName" . -}}
+{{- $selector := dict "context" . "component" "postgres" -}}
+{{- $secretName := include "cardano-db-sync.secretName" . -}}
+{{- $metricsConfigMapName := include "cardano-db-sync.metricsConfigMapName" . -}}
+{{- $usernameKey := default "username" .Values.credentials.keys.username -}}
+{{- $passwordKey := default "password" .Values.credentials.keys.password -}}
+{{- $databaseKey := default "database" .Values.credentials.keys.database -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "cardano-db-sync.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "cardano-db-sync.selectorLabelsFor" $selector | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cardano-db-sync.selectorLabelsFor" $selector | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "cardano-db-sync.serviceAccountName" . }}
+      containers:
+        - name: postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $databaseKey }}
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $usernameKey }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $passwordKey }}
+          ports:
+            - name: postgres
+              containerPort: {{ .Values.postgres.port | default 5432 }}
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: metrics-scripts
+              mountPath: /opt/metis/bin/metrics.sh
+              subPath: metrics.sh
+              readOnly: true
+          {{- with .Values.postgres.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.postgres.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.postgres.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.postgres.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgres.persistence.existingClaim }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Values.postgres.persistence.existingClaim }}
+        - name: metrics-scripts
+          configMap:
+            name: {{ $metricsConfigMapName }}
+            defaultMode: 0555
+      {{- end }}
+      {{- if not .Values.postgres.persistence.existingClaim }}
+      volumes:
+        - name: metrics-scripts
+          configMap:
+            name: {{ $metricsConfigMapName }}
+            defaultMode: 0555
+      {{- end }}
+  {{- if not .Values.postgres.persistence.existingClaim }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        {{- with .Values.postgres.persistence.annotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.postgres.persistence.accessModes | nindent 10 }}
+        {{- if .Values.postgres.persistence.storageClass }}
+        storageClassName: {{ .Values.postgres.persistence.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.postgres.persistence.size }}
+  {{- end }}

@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Cardano DB Sync Helm Values",
+  "description": "Supernode-opinionated Cardano DB Sync chart values. Secrets are sourced only through VaultStaticSecret; the chart-managed Kubernetes Secret is an internal delivery mechanism created by the Vault Secrets Operator.",
+  "type": "object",
+  "required": ["credentials", "postgres", "dbSync", "cardanoNode"],
+  "additionalProperties": false,
+  "properties": {
+    "nameOverride": {
+      "type": "string",
+      "description": "Advanced, usually not modified. Overrides the Kubernetes app name used by the chart.",
+      "default": "",
+      "x-supernodeCategory": "advanced"
+    },
+    "fullnameOverride": {
+      "type": "string",
+      "description": "Advanced, usually not modified. Overrides the full Kubernetes resource name. Leave empty so the release name controls resource names.",
+      "default": "",
+      "x-supernodeCategory": "advanced"
+    },
+    "displayName": {
+      "type": "string",
+      "description": "Optional. Human-readable workload name shown by Supernode tooling. MCP normally sets this from releaseName.",
+      "default": "",
+      "x-supernodeCategory": "optional"
+    },
+    "vaultAuth": { "$ref": "#/definitions/vaultAuth" },
+    "credentials": {
+      "type": "object",
+      "description": "Required. Vault location for PostgreSQL credentials consumed by both Postgres and Cardano DB Sync. The Vault record should include username, password, database, and connection keys. The connection key is for downstream Midnight workloads.",
+      "x-supernodeCategory": "required",
+      "required": ["vaultStaticSecret"],
+      "additionalProperties": false,
+      "properties": {
+        "vaultStaticSecret": {
+          "$ref": "#/definitions/requiredVaultStaticSecret"
+        },
+        "keys": {
+          "type": "object",
+          "description": "Advanced, usually not modified. Key names expected in the Vault record.",
+          "additionalProperties": false,
+          "properties": {
+            "username": { "type": "string", "default": "username" },
+            "password": { "type": "string", "default": "password" },
+            "database": { "type": "string", "default": "database" },
+            "connection": {
+              "type": "string",
+              "description": "Key containing the downstream PostgreSQL connection string for Midnight.",
+              "default": "connection"
+            }
+          }
+        }
+      }
+    },
+    "postgres": {
+      "type": "object",
+      "description": "Required. PostgreSQL backing Cardano DB Sync. Normal installs only set postgres.persistence.storageClass and optionally size/resources.",
+      "x-supernodeCategory": "required",
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "$ref": "#/definitions/image",
+          "description": "Advanced, usually not modified. PostgreSQL image repository and tag."
+        },
+        "port": {
+          "type": "integer",
+          "description": "Advanced, usually not modified. PostgreSQL Service and container port.",
+          "default": 5432
+        },
+        "resources": {
+          "$ref": "#/definitions/resources",
+          "description": "Optional. Kubernetes CPU and memory requests and limits for PostgreSQL."
+        },
+        "nodeSelector": {
+          "$ref": "#/definitions/stringMap",
+          "description": "Advanced, usually not modified. Node selector for PostgreSQL scheduling."
+        },
+        "tolerations": {
+          "$ref": "#/definitions/tolerations",
+          "description": "Advanced, usually not modified. Tolerations for PostgreSQL scheduling."
+        },
+        "affinity": {
+          "type": "object",
+          "description": "Advanced, usually not modified. Affinity rules for PostgreSQL scheduling.",
+          "additionalProperties": true,
+          "default": {}
+        },
+        "persistence": {
+          "$ref": "#/definitions/persistence",
+          "description": "Required. Persistent storage for PostgreSQL data."
+        }
+      }
+    },
+    "dbSync": {
+      "type": "object",
+      "description": "Required. Cardano DB Sync runtime settings. Set dbSync.network to match the upstream Cardano relay and Midnight environment.",
+      "x-supernodeCategory": "required",
+      "required": ["network"],
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "$ref": "#/definitions/image",
+          "description": "Optional. Cardano DB Sync image repository and tag."
+        },
+        "replicas": {
+          "type": "integer",
+          "description": "Advanced, usually not modified. Keep 1 because DB Sync is a single-writer workload.",
+          "minimum": 1,
+          "default": 1
+        },
+        "network": {
+          "type": "string",
+          "description": "Required. Cardano network DB Sync follows.",
+          "enum": ["mainnet", "preprod", "preview"],
+          "default": "preview",
+          "x-supernodeCategory": "required"
+        },
+        "resources": {
+          "$ref": "#/definitions/resources",
+          "description": "Optional. Kubernetes CPU and memory requests and limits for Cardano DB Sync."
+        },
+        "nodeSelector": {
+          "$ref": "#/definitions/stringMap",
+          "description": "Advanced, usually not modified. Node selector for DB Sync scheduling."
+        },
+        "tolerations": {
+          "$ref": "#/definitions/tolerations",
+          "description": "Advanced, usually not modified. Tolerations for DB Sync scheduling."
+        },
+        "affinity": {
+          "type": "object",
+          "description": "Advanced, usually not modified. Affinity rules for DB Sync scheduling.",
+          "additionalProperties": true,
+          "default": {}
+        },
+        "persistence": {
+          "type": "object",
+          "description": "Required. Persistent storage for DB Sync state.",
+          "x-supernodeCategory": "required",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Advanced, usually not modified. Keep enabled for real deployments.",
+              "default": true
+            },
+            "storageClass": {
+              "type": "string",
+              "description": "Required. Kubernetes StorageClass used for DB Sync state.",
+              "x-supernodeCategory": "required"
+            },
+            "accessModes": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": ["ReadWriteOnce"]
+            },
+            "annotations": { "$ref": "#/definitions/stringMap" },
+            "size": {
+              "type": "string",
+              "description": "Optional. Requested DB Sync state PVC size.",
+              "pattern": "^[0-9]+(Mi|Gi|Ti)$",
+              "default": "10Gi"
+            },
+            "existingClaim": {
+              "type": "string",
+              "description": "Advanced, usually not modified. Existing PVC for DB Sync state.",
+              "default": ""
+            }
+          }
+        }
+      }
+    },
+    "cardanoNode": {
+      "type": "object",
+      "description": "Required. Upstream Cardano relay used by the built-in socket proxy. MCP should use workloads.list to find same-network Cardano relay candidates and ask the operator to approve the exact host:port.",
+      "x-supernodeCategory": "required",
+      "required": ["upstreamAddress"],
+      "additionalProperties": false,
+      "properties": {
+        "upstreamAddress": {
+          "type": "string",
+          "description": "Required. Cardano relay endpoint in host:port form, for example cardano-relay.default.svc.cluster.local:3000.",
+          "minLength": 1,
+          "x-supernodeCategory": "required"
+        },
+        "socketPath": {
+          "type": "string",
+          "description": "Advanced, usually not modified. Unix socket path exposed inside the DB Sync pod.",
+          "default": "/node-ipc/node.socket"
+        },
+        "socketProxyImage": {
+          "$ref": "#/definitions/image",
+          "description": "Advanced, usually not modified. Socat image used for the Cardano socket proxy."
+        }
+      }
+    },
+    "nodeSelector": {
+      "$ref": "#/definitions/stringMap",
+      "description": "Advanced, usually not modified. Reserved for compatibility; use postgres.nodeSelector or dbSync.nodeSelector.",
+      "x-supernodeCategory": "advanced"
+    },
+    "tolerations": {
+      "$ref": "#/definitions/tolerations",
+      "description": "Advanced, usually not modified. Reserved for compatibility; use postgres.tolerations or dbSync.tolerations.",
+      "x-supernodeCategory": "advanced"
+    },
+    "affinity": {
+      "type": "object",
+      "description": "Advanced, usually not modified. Reserved for compatibility; use postgres.affinity or dbSync.affinity.",
+      "additionalProperties": true,
+      "default": {},
+      "x-supernodeCategory": "advanced"
+    }
+  },
+  "definitions": {
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": { "type": "string" },
+        "tag": { "type": "string" }
+      }
+    },
+    "resourceList": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": { "type": "string" },
+        "memory": { "type": "string" }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests": { "$ref": "#/definitions/resourceList" },
+        "limits": { "$ref": "#/definitions/resourceList" }
+      },
+      "default": {}
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "default": {}
+    },
+    "tolerations": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": true },
+      "default": []
+    },
+    "vaultAuth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ref": { "type": "string", "default": "control-plane/default" },
+        "serviceAccount": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "create": { "type": "boolean", "default": true },
+            "name": { "type": "string", "default": "vault-auth" }
+          }
+        }
+      }
+    },
+    "requiredVaultStaticSecret": {
+      "type": "object",
+      "required": ["path"],
+      "additionalProperties": false,
+      "properties": {
+        "mount": { "type": "string", "default": "kv" },
+        "path": {
+          "type": "string",
+          "description": "Required. Runtime Vault path without kv/data prefix.",
+          "minLength": 1,
+          "x-supernodeCategory": "required"
+        },
+        "refreshAfter": { "type": "string", "default": "1m" }
+      }
+    },
+    "persistence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "storageClass": {
+          "type": "string",
+          "description": "Required. Kubernetes StorageClass for persistent data.",
+          "x-supernodeCategory": "required"
+        },
+        "accessModes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["ReadWriteOnce"]
+        },
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "size": { "type": "string", "pattern": "^[0-9]+(Mi|Gi|Ti)$" },
+        "existingClaim": { "type": "string", "default": "" }
+      }
+    }
+  }
+}

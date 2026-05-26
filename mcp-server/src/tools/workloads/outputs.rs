@@ -239,6 +239,35 @@ mod tests {
     }
 
     #[test]
+    fn cardano_db_sync_outputs_include_internal_postgres() {
+        let catalog = ExtensionCatalog::testing();
+        let release = helm_release(Some("cardano-db-sync"));
+        let service = service_with_ports(
+            "db-sync-preview-cardano-db-sync-postgres",
+            "cardano-preview",
+            "relay-preview",
+            "ClusterIP",
+            vec![("postgres", 5432)],
+            vec![],
+        );
+
+        let outputs = outputs_for_release(
+            "cardano-preview",
+            "relay-preview",
+            Some(&release),
+            &[service],
+            &catalog,
+        );
+
+        assert_eq!(outputs.len(), 1);
+        assert!(outputs.iter().any(|output| {
+            output.name == "postgres"
+                && output.url
+                    == "tcp://db-sync-preview-cardano-db-sync-postgres.cardano-preview.svc.cluster.local:5432"
+        }));
+    }
+
+    #[test]
     fn hydra_outputs_include_api_websocket_p2p_and_monitoring() {
         let catalog = ExtensionCatalog::testing();
         let release = helm_release(Some("hydra-node"));

@@ -1,0 +1,107 @@
+{{- $name := include "cardano-db-sync.fullname" . -}}
+{{- $selector := dict "context" . "component" "dbsync" -}}
+{{- $secretName := include "cardano-db-sync.secretName" . -}}
+{{- $usernameKey := default "username" .Values.credentials.keys.username -}}
+{{- $passwordKey := default "password" .Values.credentials.keys.password -}}
+{{- $databaseKey := default "database" .Values.credentials.keys.database -}}
+{{- $postgresService := include "cardano-db-sync.postgresServiceName" . -}}
+{{- $postgresPort := (default 5432 .Values.postgres.port | int) -}}
+{{- $nodeSocketPath := default "/node-ipc/node.socket" .Values.cardanoNode.socketPath -}}
+{{- $nodeSocketDir := dir $nodeSocketPath -}}
+{{- $upstreamAddress := required ".Values.cardanoNode.upstreamAddress is required" .Values.cardanoNode.upstreamAddress -}}
+{{- $persistence := .Values.dbSync.persistence -}}
+{{- $dataPVC := include "cardano-db-sync.dataPVCName" . -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "cardano-db-sync.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dbsync
+spec:
+  serviceName: {{ include "cardano-db-sync.dbSyncServiceName" . }}
+  replicas: {{ .Values.dbSync.replicas | int }}
+  selector:
+    matchLabels:
+      {{- include "cardano-db-sync.selectorLabelsFor" $selector | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cardano-db-sync.selectorLabelsFor" $selector | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "cardano-db-sync.serviceAccountName" . }}
+      containers:
+        - name: cardano-db-sync
+          image: "{{ .Values.dbSync.image.repository }}:{{ .Values.dbSync.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: NETWORK
+              value: {{ required ".Values.dbSync.network is required" .Values.dbSync.network | quote }}
+            - name: POSTGRES_HOST
+              value: {{ $postgresService | quote }}
+            - name: POSTGRES_PORT
+              value: {{ printf "%d" $postgresPort | quote }}
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $databaseKey }}
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $usernameKey }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $passwordKey }}
+            - name: CARDANO_NODE_SOCKET_PATH
+              value: {{ $nodeSocketPath | quote }}
+          volumeMounts:
+            - name: db-sync-data
+              mountPath: /var/lib
+            - name: node-socket
+              mountPath: {{ $nodeSocketDir }}
+          {{- with .Values.dbSync.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- $listenAddress := printf "UNIX-LISTEN:%s,reuseaddr,fork,unlink-early" $nodeSocketPath -}}
+        {{- $targetAddress := printf "OPENSSL:%s,verify=0" $upstreamAddress }}
+        - name: node-socket-proxy
+          image: "{{ .Values.cardanoNode.socketProxyImage.repository }}:{{ .Values.cardanoNode.socketProxyImage.tag }}"
+          imagePullPolicy: IfNotPresent
+          command:
+            - socat
+          args:
+            - {{ $listenAddress | quote }}
+            - {{ $targetAddress | quote }}
+          volumeMounts:
+            - name: node-socket
+              mountPath: {{ $nodeSocketDir }}
+      {{- with .Values.dbSync.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dbSync.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dbSync.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: db-sync-data
+          {{- if and $persistence.enabled $persistence.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ $persistence.existingClaim }}
+          {{- else if $persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ $dataPVC }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: node-socket
+          emptyDir: {}

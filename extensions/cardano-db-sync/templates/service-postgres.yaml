@@ -1,0 +1,18 @@
+{{- $serviceName := include "cardano-db-sync.postgresServiceName" . -}}
+{{- $selector := dict "context" . "component" "postgres" -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $serviceName }}
+  labels:
+    {{- include "cardano-db-sync.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgres
+      port: {{ .Values.postgres.port | default 5432 }}
+      targetPort: postgres
+      protocol: TCP
+  selector:
+    {{- include "cardano-db-sync.selectorLabelsFor" $selector | nindent 4 }}

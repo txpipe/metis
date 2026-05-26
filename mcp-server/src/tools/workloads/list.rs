@@ -75,12 +75,20 @@ pub(crate) async fn find_workload_pod(
     client: &KubernetesClient,
     namespace: &str,
     workload: &str,
+    extra_label_selector: Option<&str>,
 ) -> Result<Option<String>, kube::Error> {
+    let label_selector = match extra_label_selector {
+        Some(selector) if !selector.trim().is_empty() => {
+            format!("app.kubernetes.io/instance={workload},{selector}")
+        }
+        _ => format!("app.kubernetes.io/instance={workload}"),
+    };
+
     let mut pods = client
         .list_pods(
             Some(namespace),
             &ResourceListParams {
-                label_selector: Some(format!("app.kubernetes.io/instance={workload}")),
+                label_selector: Some(label_selector),
                 ..Default::default()
             },
         )

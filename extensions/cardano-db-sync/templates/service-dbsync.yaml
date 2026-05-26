@@ -1,0 +1,13 @@
+{{- $serviceName := include "cardano-db-sync.dbSyncServiceName" . -}}
+{{- $selector := dict "context" . "component" "dbsync" -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $serviceName }}
+  labels:
+    {{- include "cardano-db-sync.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dbsync
+spec:
+  clusterIP: None
+  selector:
+    {{- include "cardano-db-sync.selectorLabelsFor" $selector | nindent 4 }}
