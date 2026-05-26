@@ -390,6 +390,73 @@
       "content": "# Hydra Node Troubleshooting\n\n## Goal\n\nTroubleshoot Hydra node startup, networking, metrics, and head progress with MCP tools only.\n\n## Workflow\n\n1. Call `workloads.get` for the Hydra release.\n2. Call `workloads.logs.get` for recent Hydra logs.\n3. Call `workloads.metrics.get` for the derived Hydra metrics payload.\n4. Call `cluster.events.list` for scheduling, mount, probe, image, or PVC errors.\n5. Call `vault.runtime.metadata.get` for runtime paths when secret sync is suspected.\n\n## Check From MCP\n\n- workload health\n- event errors\n- log errors\n- metric collection errors\n- peer connection counts\n- head status\n- snapshot status\n- configured outputs\n\n## Limits\n\nIf direct Hydra HTTP or WebSocket interaction is required, state that MCP does not currently expose Hydra API operation tools and stop.\n\n## Rules\n\n- Do not call Hydra HTTP or WebSocket APIs directly.\n- Do not generate port-forward commands.\n- Do not use non-MCP commands.\n"
     },
     {
+      "id": "midnight-boot-node-operations",
+      "title": "Midnight Boot Node Operations",
+      "description": "Inspect a Midnight node operating as a boot node.",
+      "tags": [
+        "midnight",
+        "boot-node",
+        "operations"
+      ],
+      "extensions": [
+        "midnight"
+      ],
+      "tools": [
+        "workloads.get",
+        "workloads.logs.get",
+        "workloads.metrics.get",
+        "cluster.events.list"
+      ],
+      "content": "# Midnight Boot Node Operations\n\n## Goal\n\nGuide MCP-first checks for a Midnight node operating as a boot node and use a scoped local port-forward only when API inspection is needed.\n\n## Workflow\n\n1. Call `workloads.get` for the Midnight workload.\n2. Confirm the workload exposes the `p2p` output and that the `node.bootnodes` configuration matches the intended environment.\n3. Call `workloads.metrics.get`.\n4. Call `workloads.logs.get`.\n5. Call `cluster.events.list` for the workload namespace.\n6. If the operator needs API-level confirmation and explicitly approves local access, read `supernode://skills/workload-output-port-forward`, target the `rpc` output, and use a scoped local port-forward for read-only JSON-RPC checks.\n\n## What To Check\n\n- the node has peer connectivity through `healthPeers` or `peers`\n- the node is not stuck in a restart loop\n- logs show steady peer discovery or network participation\n- the `p2p` output is present and matches the expected service port\n\n## Limits\n\n- MCP can confirm the `p2p` output and in-cluster workload state.\n- MCP cannot prove internet reachability of the boot node's exposed P2P endpoint unless a future MCP tool adds that check.\n\n## Optional RPC Checks\n\nIf the operator explicitly approves local access, use a scoped local port-forward to the `rpc` output and run read-only calls such as:\n\n- `system_chain`\n- `system_health`\n- `system_syncState`\n- `system_version`\n\n## Rules\n\n- Treat a boot node as a specialized Midnight node, not as a separate extension.\n- Do not use local port-forwarding unless the operator explicitly approves it.\n- Keep any local API use read-only and scoped to the approved Midnight workload.\n"
+    },
+    {
+      "id": "midnight-node-deployment",
+      "title": "Midnight Node Deployment",
+      "description": "Install and validate a Midnight node with MCP-first workflows.",
+      "tags": [
+        "midnight",
+        "deploy"
+      ],
+      "extensions": [
+        "midnight"
+      ],
+      "tools": [
+        "supernode.status.get",
+        "extensions.catalog.get",
+        "cluster.storage_classes.list",
+        "workloads.list",
+        "vault.runtime.metadata.get",
+        "vault.runtime.write",
+        "vault.runtime.patch",
+        "workloads.install",
+        "workloads.upgrade",
+        "workloads.get",
+        "workloads.logs.get",
+        "workloads.metrics.get",
+        "cluster.events.list"
+      ],
+      "content": "# Midnight Node Deployment\n\n## Goal\n\nDeploy and validate a Midnight node with MCP tools first, using a scoped local port-forward only when deeper RPC inspection is required.\n\n## Required Inputs\n\n- release name\n- namespace\n- Midnight environment\n- storage class selected from MCP\n- approved Vault path for the Cardano DB Sync connection string\n- approved Vault path for the Midnight node key\n- optional node image tag when deploying Preprod or Mainnet\n- optional bootnodes override for non-default environments\n\n## Workflow\n\n1. Call `supernode.status.get`.\n2. Call `extensions.catalog.get` with `extensionId=midnight`.\n3. Call `cluster.storage_classes.list`.\n4. Call `workloads.list` and inspect deployed `cardano-db-sync` workloads.\n5. Confirm the approved `cardano-db-sync` dependency is already deployed before planning a Midnight install.\n6. Ask the operator to approve the exact Vault runtime path that stores the DB Sync PostgreSQL connection string under `connection`.\n7. Ask the operator to approve the exact Vault runtime path that stores the Midnight node key under `node.key`.\n8. Call `workloads.install` with `dryRun=true` and direct `midnight` chart values.\n9. Review the dry-run result with the operator, including dependency status and storage class validation.\n10. Call `workloads.install` with `dryRun=false` only after approval.\n11. Validate with `workloads.get`, `workloads.logs.get`, `workloads.metrics.get`, and `cluster.events.list`.\n12. If deeper API validation is needed and the operator explicitly approves local access, read `supernode://skills/workload-output-port-forward`, target the `rpc` output, and use a scoped local port-forward for read-only JSON-RPC checks.\n\n## Minimal Configuration\n\n```json\n{\n  \"node\": {\n    \"network\": \"preview\"\n  },\n  \"persistence\": {\n    \"storageClass\": \"<storage-class>\"\n  },\n  \"dbSync\": {\n    \"vaultStaticSecret\": {\n      \"path\": \"runtime/midnight/preview/dbsync\"\n    }\n  },\n  \"nodeKey\": {\n    \"vaultStaticSecret\": {\n      \"path\": \"runtime/midnight/preview/node-key\"\n    }\n  }\n}\n```\n\n## Validation Checks\n\n- `workloads.metrics.get` should show Midnight peer and sync data without collection errors.\n- `workloads.logs.get` should not show repeated DB Sync connection failures.\n- `workloads.logs.get` should show peer discovery and normal sync progress.\n- `cluster.events.list` should be clear of repeated container restarts, PVC errors, or Vault sync failures.\n\n## Optional RPC Checks\n\nIf the operator explicitly approves local access, use a scoped local port-forward to the `rpc` output for read-only checks such as:\n\n- `system_chain`\n- `system_health`\n- `system_syncState`\n- `system_version`\n- `rpc_methods`\n\n## Rules\n\n- Midnight depends on a deployed `cardano-db-sync` workload. Do not proceed if the dependency is missing.\n- Do not ask the user to paste secret values in chat.\n- Do not use local port-forwarding unless the operator explicitly approves it.\n- Keep any local API use read-only and scoped to the approved Midnight workload.\n"
+    },
+    {
+      "id": "midnight-node-operations",
+      "title": "Midnight Node Operations",
+      "description": "Inspect Midnight node health, peer connectivity, and sync status.",
+      "tags": [
+        "midnight",
+        "operations"
+      ],
+      "extensions": [
+        "midnight"
+      ],
+      "tools": [
+        "workloads.get",
+        "workloads.logs.get",
+        "workloads.metrics.get",
+        "cluster.events.list"
+      ],
+      "content": "# Midnight Node Operations\n\n## Goal\n\nInspect Midnight node health and operating state with MCP tools first, falling back to a scoped local RPC port-forward only when needed.\n\n## Workflow\n\n1. Call `workloads.get` for the Midnight workload.\n2. Review the `rpc`, `ws`, `p2p`, and `metrics` outputs.\n3. Call `workloads.metrics.get`.\n4. Call `workloads.logs.get`.\n5. Call `cluster.events.list` for the workload namespace.\n6. If the operator needs API-level confirmation and explicitly approves local access, read `supernode://skills/workload-output-port-forward`, target the `rpc` output, and use a scoped local port-forward for read-only JSON-RPC checks.\n\n## What To Check\n\n- `metrics.chain` matches the expected Midnight environment.\n- `metrics.nodeVersion` matches the intended release line for the environment.\n- `metrics.shouldHavePeers` is true for networked nodes.\n- `metrics.healthPeers` or `metrics.peers` is non-zero after startup.\n- `metrics.syncing` trends toward false as the node catches up.\n- `metrics.errors` is empty or only contains transient startup warnings.\n\n## Common Failure Patterns\n\n- DB Sync dependency missing or not ready:\n  - logs show connection failures\n  - metrics remain sparse\n  - node does not progress\n- Wrong network or image version:\n  - chain identity is unexpected\n  - logs show compatibility or handshake failures\n- Bootnode or peer issues:\n  - peer counts stay at zero\n  - logs show repeated dial or discovery failures\n- Storage or restart issues:\n  - events show PVC mount failures or restart loops\n\n## Optional RPC Checks\n\nIf the operator explicitly approves local access, use a scoped local port-forward to the `rpc` output and run read-only JSON-RPC checks such as:\n\n- `system_chain`\n- `system_health`\n- `system_syncState`\n- `system_version`\n- `rpc_methods`\n\nCorrelate API responses with `workloads.metrics.get` and `workloads.logs.get` before concluding the node is healthy.\n\n## Rules\n\n- Prefer `workloads.metrics.get` and `workloads.logs.get` before local API inspection.\n- Do not use local port-forwarding unless the operator explicitly approves it.\n- Keep any local API use read-only.\n- Do not use non-MCP mutation paths for Midnight operations.\n"
+    },
+    {
       "id": "kubernetes-extension-discovery",
       "title": "Kubernetes Extension Discovery",
       "description": "Discover installed catalog-managed workloads.",
@@ -439,7 +506,7 @@
         "workloads.list",
         "workloads.get"
       ],
-      "content": "# Supernode Dashboard Discovery\n\n## Goal\n\nFind dashboard-related control-plane outputs using MCP tools only.\n\n## Workflow\n\n1. Call `workloads.list` with `includeControlPlane=true`.\n2. Find the `control-plane` workload or dashboard-related workload returned by MCP.\n3. Call `workloads.get` for that workload.\n4. Present any dashboard, Grafana, or Prometheus outputs returned by MCP.\n5. If the user asks to open a local tunnel, explain that MCP does not currently provide a long-running port-forward tool and stop.\n\n## Rules\n\n- Do not generate local port-forward commands.\n- Do not use non-MCP cluster commands.\n"
+      "content": "# Supernode Dashboard Discovery\n\n## Goal\n\nFind dashboard-related control-plane outputs using MCP tools only.\n\n## Workflow\n\n1. Call `workloads.list` with `includeControlPlane=true`.\n2. Find the `control-plane` workload or dashboard-related workload returned by MCP.\n3. Call `workloads.get` for that workload.\n4. Present any dashboard, Grafana, or Prometheus outputs returned by MCP.\n5. If the user asks to open a local tunnel, explain that MCP does not currently provide a long-running port-forward tool.\n6. If operator-approved local access is explicitly allowed, identify the exact output and describe a scoped local port-forward as a fallback.\n\n## Rules\n\n- Prefer MCP outputs over local tunnels.\n- Only describe a port-forward when the operator explicitly approves local access for that workload.\n"
     },
     {
       "id": "workload-output-port-forward",
@@ -453,7 +520,7 @@
       "tools": [
         "workloads.get"
       ],
-      "content": "# Workload Output Discovery\n\n## Goal\n\nDiscover workload outputs using MCP tools only.\n\n## Workflow\n\n1. Ask for namespace and workload name if unknown.\n2. Call `workloads.get`.\n3. Present the returned outputs by name, protocol, scope, service, port, and URL.\n4. If the user asks to expose an output locally, explain that MCP does not currently provide a long-running port-forward tool and stop.\n\n## Rules\n\n- Do not generate local port-forward commands.\n- Do not use non-MCP networking commands.\n- Use only the output data returned by `workloads.get`.\n"
+      "content": "# Workload Output Discovery\n\n## Goal\n\nDiscover workload outputs with MCP tools first and describe the current local access boundary.\n\n## Workflow\n\n1. Ask for namespace and workload name if unknown.\n2. Call `workloads.get`.\n3. Present the returned outputs by name, protocol, scope, service, port, and URL.\n4. If the user asks to expose an output locally, explain that MCP does not currently provide a long-running port-forward tool.\n5. If operator-approved local access is explicitly allowed, identify the exact output to target and describe a scoped port-forward as a local fallback.\n\n## Rules\n\n- Prefer MCP outputs and typed MCP tools over local tunnels.\n- Only describe a port-forward when the operator explicitly approves local access for that workload.\n- Keep any port-forward guidance scoped to the specific service port returned by MCP.\n- Use only the output data returned by `workloads.get`.\n"
     }
   ]
 }

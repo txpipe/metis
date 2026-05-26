@@ -723,6 +723,62 @@ mod tests {
         assert_eq!(content.pointer("/helmValues/namespace"), None);
     }
 
+    #[tokio::test]
+    async fn midnight_install_dry_run_reports_declared_dependency() {
+        let router = ToolRouter::new();
+        let catalog = ExtensionCatalog::testing();
+        let definition = router.get_with_dynamic("workloads.install", &[]).unwrap();
+        let mut arguments = JsonObject::new();
+        arguments.insert(
+            "extensionId".to_string(),
+            Value::String("midnight".to_string()),
+        );
+        arguments.insert(
+            "releaseName".to_string(),
+            Value::String("midnight-preview".to_string()),
+        );
+        arguments.insert(
+            "namespace".to_string(),
+            Value::String("midnight".to_string()),
+        );
+        arguments.insert("dryRun".to_string(), Value::Bool(true));
+        arguments.insert(
+            "configuration".to_string(),
+            json!({
+                "node": {
+                    "network": "preview"
+                },
+                "persistence": {
+                    "storageClass": "standard"
+                },
+                "dbSync": {
+                    "vaultStaticSecret": {
+                        "path": "runtime/midnight/preview/dbsync"
+                    }
+                },
+                "nodeKey": {
+                    "vaultStaticSecret": {
+                        "path": "runtime/midnight/preview/node-key"
+                    }
+                }
+            }),
+        );
+
+        let result = router.call(definition, Some(&arguments), &catalog).await;
+
+        assert_eq!(result.is_error, Some(false));
+        let content = result.structured_content.as_ref().unwrap();
+        assert_eq!(content.pointer("/extension/id"), Some(&json!("midnight")));
+        assert_eq!(
+            content.pointer("/dependencies/0/extensionId"),
+            Some(&json!("cardano-db-sync"))
+        );
+        assert_eq!(
+            content.pointer("/helmValues/displayName"),
+            Some(&json!("midnight-preview"))
+        );
+    }
+
     #[test]
     fn workloads_install_schema_does_not_expose_approval_id() {
         let router = ToolRouter::new();

@@ -8,8 +8,10 @@ pub(crate) const APEX_FUSION_RELAY_EXTENSION_ID: &str = "apex-fusion-relay";
 pub(crate) const APEX_FUSION_BLOCK_PRODUCER_EXTENSION_ID: &str = "apex-fusion-block-producer";
 pub(crate) const CARDANO_RELAY_EXTENSION_ID: &str = "cardano-relay";
 pub(crate) const CARDANO_BLOCK_PRODUCER_EXTENSION_ID: &str = "cardano-block-producer";
+pub(crate) const CARDANO_DB_SYNC_EXTENSION_ID: &str = "cardano-db-sync";
 pub(crate) const DOLOS_EXTENSION_ID: &str = "dolos";
 pub(crate) const HYDRA_NODE_EXTENSION_ID: &str = "hydra-node";
+pub(crate) const MIDNIGHT_EXTENSION_ID: &str = "midnight";
 
 pub(crate) fn extension_for_release<'a>(
     release: &HelmReleaseSummary,

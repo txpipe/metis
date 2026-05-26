@@ -4,7 +4,9 @@ These skills are MCP-only operating guides for agents working with Metis.
 
 ## Rule
 
-Use MCP tools only. Do not tell the user to run `kubectl`, `helm`, `vault`, `cardano-cli`, `curl`, Docker, or local port-forward commands from these skills.
+Use MCP tools first. Do not tell the user to run `helm`, `vault`, `cardano-cli`, `curl`, or Docker from these skills.
+
+If MCP does not expose a required workload API directly, a skill may describe an operator-approved, scoped local port-forward to a specific workload output for read-only inspection. Keep that fallback narrow, prefer MCP outputs discovered through `workloads.get`, and do not use port-forwards for secret handling or arbitrary cluster access.
 
 If a requested action cannot be completed with the MCP tools below, say that MCP does not currently expose that operation and stop for operator direction.
 
@@ -31,6 +33,7 @@ If a requested action cannot be completed with the MCP tools below, say that MCP
 ## Workload Rules
 
 - Use split extension IDs for new installs: `cardano-relay`, `cardano-block-producer`, `apex-fusion-relay`, `apex-fusion-block-producer`, `dolos`, and `hydra-node`.
+- Use split extension IDs for new installs: `cardano-relay`, `cardano-block-producer`, `cardano-db-sync`, `apex-fusion-relay`, `apex-fusion-block-producer`, `dolos`, `hydra-node`, and `midnight`.
 - Use `extensions.catalog.get` as the source of truth for configuration shape.
 - Pass direct chart values to `workloads.install` and `workloads.upgrade`.
 - Start mutating tools with `dryRun: true`; run live only after the operator approves the returned plan.

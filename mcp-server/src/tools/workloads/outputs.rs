@@ -302,6 +302,46 @@ mod tests {
     }
 
     #[test]
+    fn midnight_outputs_include_rpc_ws_p2p_and_metrics() {
+        let catalog = ExtensionCatalog::testing();
+        let release = helm_release(Some("midnight"));
+        let service = service_with_ports(
+            "midnight-preview",
+            "midnight",
+            "midnight-preview",
+            "ClusterIP",
+            vec![("rpc", 9944), ("p2p", 30333), ("metrics", 9615)],
+            vec![],
+        );
+
+        let outputs = outputs_for_release(
+            "midnight",
+            "midnight-preview",
+            Some(&release),
+            &[service],
+            &catalog,
+        );
+
+        assert_eq!(outputs.len(), 4);
+        assert!(outputs.iter().any(|output| {
+            output.name == "rpc"
+                && output.url == "http://midnight-preview.midnight.svc.cluster.local:9944"
+        }));
+        assert!(outputs.iter().any(|output| {
+            output.name == "ws"
+                && output.url == "ws://midnight-preview.midnight.svc.cluster.local:9944"
+        }));
+        assert!(outputs.iter().any(|output| {
+            output.name == "p2p"
+                && output.url == "tcp://midnight-preview.midnight.svc.cluster.local:30333"
+        }));
+        assert!(outputs.iter().any(|output| {
+            output.name == "metrics"
+                && output.url == "http://midnight-preview.midnight.svc.cluster.local:9615"
+        }));
+    }
+
+    #[test]
     fn outputs_filter_by_namespace() {
         let catalog = ExtensionCatalog::testing();
         let release = helm_release(Some("dolos"));

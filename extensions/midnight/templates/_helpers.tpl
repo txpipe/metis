@@ -37,9 +37,6 @@ app.kubernetes.io/name: {{ include "midnight.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{ with .Values.extraLabels }}
-{{- toYaml . }}
-{{- end }}
 {{- end }}
 
 {{/*
@@ -63,22 +60,25 @@ app.kubernetes.io/component: {{ .component }}
 Service account name.
 */}}
 {{- define "midnight.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "midnight.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- include "midnight.fullname" . }}
 {{- end }}
 
 {{/*
-Join append args into a single string.
+Build the default Midnight node argument string.
 */}}
 {{- define "midnight.appendArgs" -}}
-{{- if .Values.node.appendArgs }}
-{{- join " " .Values.node.appendArgs }}
-{{- else -}}
-""
-{{- end }}
+{{- $args := list -}}
+{{- $args = append $args "--allow-private-ip" }}
+{{- $args = append $args "--prometheus-external" }}
+{{- $args = append $args "--rpc-external" }}
+{{- $args = append $args "--ws-external" }}
+{{- $args = append $args "--rpc-methods=Safe" }}
+{{- $args = append $args "--rpc-cors=all" }}
+{{- $args = append $args "--pool-limit=10" }}
+{{- $args = append $args "--trie-cache-size=0" }}
+{{- with .Values.node.pruning }}{{- $args = append $args (printf "--pruning=%s" .) }}{{- end }}
+{{- range .Values.node.extraArgs }}{{- $args = append $args . }}{{- end }}
+{{- join " " $args }}
 {{- end }}
 
 {{/*
@@ -93,114 +93,36 @@ Join bootnodes into a single string.
 {{- end }}
 
 {{/*
-Resolve the ConfigMap name for the chain configuration.
-*/}}
-{{- define "midnight.chainConfigName" -}}
-{{- if and .Values.chainConfig.create (not .Values.chainConfig.name) }}
-{{- printf "%s-chain-config" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- else if .Values.chainConfig.name }}
-{{- .Values.chainConfig.name }}
-{{- else }}
-{{- "" }}
-{{- end }}
-{{- end }}
-
-{{/*
 Resolve the Secret name for the DB sync connection string.
 */}}
 {{- define "midnight.dbSyncSecretName" -}}
-{{- if .Values.dbSync.existingSecret.name }}
-{{- .Values.dbSync.existingSecret.name }}
-{{- else -}}
-{{- $connectionString := include "midnight.dbSyncConnectionStringValue" . }}
-{{- if or $connectionString .Values.dbSync.vaultStaticSecret.enabled }}
 {{- printf "%s-dbsync" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- "" }}
-{{- end }}
-{{- end }}
 {{- end }}
 
 {{/*
 Resolve the Secret key for the DB sync connection string.
 */}}
 {{- define "midnight.dbSyncSecretKey" -}}
-{{- if .Values.dbSync.existingSecret.key }}
-{{- .Values.dbSync.existingSecret.key }}
-{{- else -}}
 connection
-{{- end }}
 {{- end }}
 
 {{/*
 Resolve the Secret name for the node key.
 */}}
 {{- define "midnight.nodeKeySecretName" -}}
-{{- if .Values.nodeKey.existingSecret.name }}
-{{- .Values.nodeKey.existingSecret.name }}
-{{- else if or .Values.nodeKey.value .Values.nodeKey.vaultStaticSecret.enabled }}
 {{- printf "%s-node-key" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- else -}}
-{{- "" }}
-{{- end }}
-{{- end }}
-
-{{/*
-Resolve the name for the managed DB sync StatefulSet.
-*/}}
-{{- define "midnight.dbSyncName" -}}
-{{- printf "%s-dbsync" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
-Resolve the PVC name that stores managed DB sync data.
-*/}}
-{{- define "midnight.dbSyncDataPVCName" -}}
-{{- printf "%s-data" (include "midnight.dbSyncName" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Resolve the Secret key for the node key.
 */}}
 {{- define "midnight.nodeKeySecretKey" -}}
-{{- if .Values.nodeKey.existingSecret.key }}
-{{- .Values.nodeKey.existingSecret.key }}
-{{- else -}}
 node.key
 {{- end }}
-{{- end }}
 
 {{/*
-Compute the DB sync connection string that should be surfaced to the Midnight node.
+Resolve the ConfigMap name for Metis metrics scripts.
 */}}
-{{- define "midnight.dbSyncConnectionStringValue" -}}
-{{- if .Values.dbSync.connectionString }}
-{{- .Values.dbSync.connectionString }}
-{{- else if and .Values.dbSync.managed.enabled (not .Values.dbSync.managed.connection.existingSecret.name) .Values.dbSync.managed.connection.username .Values.dbSync.managed.connection.password .Values.dbSync.managed.connection.database }}
-{{- $service := include "midnight.dbSyncPostgresServiceName" . -}}
-{{- $port := (default 5432 .Values.dbSync.managed.postgres.port | int) -}}
-{{- printf "postgresql://%s:%s@%s:%d/%s" .Values.dbSync.managed.connection.username .Values.dbSync.managed.connection.password $service $port .Values.dbSync.managed.connection.database }}
-{{- else -}}
-{{- "" }}
-{{- end }}
-{{- end }}
-
-{{/*
-Compute the Service name for the managed DB sync Postgres instance.
-*/}}
-{{- define "midnight.dbSyncPostgresServiceName" -}}
-{{- printf "%s-dbsync-postgres" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
-Resolve the Secret name that holds the managed DB sync Postgres credentials.
-*/}}
-{{- define "midnight.dbSyncPostgresSecretName" -}}
-{{- if and .Values.dbSync.managed.enabled .Values.dbSync.managed.connection.existingSecret.name }}
-{{- .Values.dbSync.managed.connection.existingSecret.name }}
-{{- else if .Values.dbSync.managed.enabled }}
-{{- printf "%s-dbsync-postgres" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
-{{- else -}}
-{{- "" }}
-{{- end }}
+{{- define "midnight.metricsConfigMapName" -}}
+{{- printf "%s-metrics" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}

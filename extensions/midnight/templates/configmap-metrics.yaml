@@ -1,0 +1,118 @@
+{{- $configMapName := include "midnight.metricsConfigMapName" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configMapName }}
+  labels:
+    {{- include "midnight.labels" . | nindent 4 }}
+data:
+  metrics.sh: |-
+    #!/usr/bin/env sh
+    set -u
+
+    errors_json="[]"
+
+    append_error() {
+      msg="$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+      if [ "$errors_json" = "[]" ]; then
+        errors_json="[\"$msg\"]"
+      else
+        errors_json="${errors_json%]},\"$msg\"]"
+      fi
+    }
+
+    http_get() {
+      url="$1"
+      curl -s --fail "$url" 2>/dev/null || wget -qO- "$url" 2>/dev/null || true
+    }
+
+    rpc_call() {
+      method="$1"
+      payload=$(printf '{"jsonrpc":"2.0","id":1,"method":"%s","params":[]}' "$method")
+      curl -s --fail -H "Content-Type: application/json" -d "$payload" "http://127.0.0.1:{{ .Values.service.rpcPort }}" 2>/dev/null || \
+        wget -qO- --header="Content-Type: application/json" --post-data="$payload" "http://127.0.0.1:{{ .Values.service.rpcPort }}" 2>/dev/null || true
+    }
+
+    json_string() {
+      json="$1"
+      key="$2"
+      printf '%s' "$json" | sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" | head -n 1
+    }
+
+    json_bool() {
+      json="$1"
+      key="$2"
+      printf '%s' "$json" | sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\(true\|false\).*/\\1/p" | head -n 1
+    }
+
+    json_number() {
+      json="$1"
+      key="$2"
+      printf '%s' "$json" | sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\([-0-9][0-9]*\).*/\\1/p" | head -n 1
+    }
+
+    metric_value() {
+      metric_name="$1"
+      printf '%s\n' "$prometheus" | awk -v key="$metric_name" '$1 == key { print $2; exit }'
+    }
+
+    string_or_null() {
+      value="$1"
+      if [ -z "$value" ]; then
+        printf 'null'
+      else
+        printf '"%s"' "$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+      fi
+    }
+
+    number_or_null() {
+      value="$1"
+      if printf '%s' "$value" | grep -Eq '^-?[0-9]+$'; then
+        printf '%s' "$value"
+      else
+        printf 'null'
+      fi
+    }
+
+    bool_or_null() {
+      value="$1"
+      if [ "$value" = "true" ] || [ "$value" = "false" ]; then
+        printf '%s' "$value"
+      else
+        printf 'null'
+      fi
+    }
+
+    prometheus="$(http_get "http://127.0.0.1:{{ .Values.service.metricsPort }}/metrics")"
+    [ -n "$prometheus" ] || append_error "failed to read Midnight Prometheus metrics"
+
+    chain_json="$(rpc_call system_chain)"
+    [ -n "$chain_json" ] || append_error "failed to call system_chain"
+    health_json="$(rpc_call system_health)"
+    [ -n "$health_json" ] || append_error "failed to call system_health"
+    sync_json="$(rpc_call system_syncState)"
+    [ -n "$sync_json" ] || append_error "failed to call system_syncState"
+    version_json="$(rpc_call system_version)"
+    [ -n "$version_json" ] || append_error "failed to call system_version"
+
+    chain="$(json_string "$chain_json" result)"
+    node_version="$(json_string "$version_json" result)"
+    health_peers="$(json_number "$health_json" peers)"
+    should_have_peers="$(json_bool "$health_json" shouldHavePeers)"
+    syncing="$(json_bool "$health_json" isSyncing)"
+    best_block="$(json_number "$sync_json" currentBlock)"
+    finalized_block="$(json_number "$sync_json" highestBlock)"
+    peers="$(metric_value substrate_sub_libp2p_peers_count)"
+
+    printf '{'
+    printf '"type":"midnight"'
+    printf ',"chain":%s' "$(string_or_null "$chain")"
+    printf ',"nodeVersion":%s' "$(string_or_null "$node_version")"
+    printf ',"bestBlock":%s' "$(number_or_null "$best_block")"
+    printf ',"finalizedBlock":%s' "$(number_or_null "$finalized_block")"
+    printf ',"syncing":%s' "$(bool_or_null "$syncing")"
+    printf ',"peers":%s' "$(number_or_null "$peers")"
+    printf ',"healthPeers":%s' "$(number_or_null "$health_peers")"
+    printf ',"shouldHavePeers":%s' "$(bool_or_null "$should_have_peers")"
+    printf ',"errors":%s' "$errors_json"
+    printf '}\n'

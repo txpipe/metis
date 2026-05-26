@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use k8s_openapi::api::storage::v1::StorageClass;
 use rmcp::model::{CallToolResult, JsonObject};
 use serde_json::Value;
@@ -5,8 +7,8 @@ use serde_json::json;
 
 use crate::catalog::{ExtensionCatalog, ExtensionDefinition};
 use crate::helm::{self, HelmChartRef, HelmInstallPlan};
-use crate::k8s::KubernetesClient;
 use crate::k8s::ResourceListParams;
+use crate::k8s::{HelmReleaseDiscovery, KubernetesClient};
 
 use super::registry;
 use crate::tools::args::{optional_bool, required_object, required_string};
@@ -78,6 +80,24 @@ pub(crate) async fn install(
     };
 
     if dry_run {
+        let mut notes = vec![
+            "dry-run planning only; no Kubernetes or Helm mutation was performed".to_string(),
+            "raw Helm values are rejected by the extension configuration schema".to_string(),
+        ];
+        let missing_dependencies = missing_dependency_ids(&resolution.dependencies);
+        if !missing_dependencies.is_empty() {
+            notes.push(format!(
+                "required extension dependencies are not currently deployed: {}",
+                missing_dependencies.join(", ")
+            ));
+        }
+        if resolution.dependency_check_skipped {
+            notes.push(
+                "dependency deployment checks were skipped because Kubernetes discovery was unavailable during dry-run"
+                    .to_string(),
+            );
+        }
+
         return success(json!({
             "action": "install",
             "dryRun": true,
@@ -96,10 +116,8 @@ pub(crate) async fn install(
             "helmValues": helm_values,
             "availableStorageClasses": resolution.available_storage_classes,
             "recommendedStorageClasses": resolution.recommended_storage_classes,
-            "notes": [
-                "dry-run planning only; no Kubernetes or Helm mutation was performed",
-                "raw Helm values are rejected by the extension configuration schema"
-            ],
+            "dependencies": resolution.dependencies,
+            "notes": notes,
         }));
     }
 
@@ -155,6 +173,7 @@ pub(crate) async fn install(
         "helmValues": helm_values,
         "availableStorageClasses": resolution.available_storage_classes,
         "recommendedStorageClasses": resolution.recommended_storage_classes,
+        "dependencies": resolution.dependencies,
         "helm": helm_result,
         "notes": [
             "Helm upgrade --install completed successfully",
@@ -168,6 +187,8 @@ pub(crate) struct InstallResolution {
     pub configuration: Value,
     pub available_storage_classes: Vec<Value>,
     pub recommended_storage_classes: Vec<String>,
+    pub dependencies: Vec<Value>,
+    pub dependency_check_skipped: bool,
 }
 
 pub(crate) async fn resolve_configuration(
@@ -181,6 +202,8 @@ pub(crate) async fn resolve_configuration(
             configuration: resolved_configuration,
             available_storage_classes: vec![],
             recommended_storage_classes: vec![],
+            dependencies: vec![],
+            dependency_check_skipped: false,
         });
     }
 
@@ -192,8 +215,44 @@ pub(crate) async fn resolve_configuration(
 
     let mut available_storage_classes = vec![];
     let mut recommended_storage_classes = vec![];
+    let mut dependencies = vec![];
+    let mut dependency_check_skipped = false;
 
     if let Some(client) = &client {
+        let installed_extension_ids = HelmReleaseDiscovery::new(client.clone())
+            .list_latest(None, false)
+            .await
+            .map(|releases| {
+                releases
+                    .into_iter()
+                    .filter(|release| release.status.as_deref() == Some("deployed"))
+                    .filter_map(|release| release.chart.name)
+                    .collect::<BTreeSet<_>>()
+            })
+            .map_err(|error| {
+                tool_error(
+                    "helm_release_discovery_error",
+                    error.to_string(),
+                    json!({ "tool": TOOL_NAME, "extensionId": extension.id }),
+                )
+            })?;
+        dependencies = dependency_status(extension, &installed_extension_ids);
+        let missing_dependencies = missing_dependency_ids(&dependencies);
+        if !dry_run && !missing_dependencies.is_empty() {
+            return Err(tool_error(
+                "missing_extension_dependencies",
+                format!(
+                    "required extension dependencies are not deployed: {}",
+                    missing_dependencies.join(", ")
+                ),
+                json!({
+                    "extensionId": extension.id,
+                    "dependencies": dependencies,
+                    "missingDependencies": missing_dependencies,
+                }),
+            ));
+        }
+
         let storage_classes = client
             .list_storage_classes(&ResourceListParams::default())
             .await
@@ -232,6 +291,9 @@ pub(crate) async fn resolve_configuration(
                 }),
             ));
         }
+    } else if !extension.dependencies.is_empty() {
+        dependency_check_skipped = true;
+        dependencies = unknown_dependency_status(extension);
     }
 
     if extension.id == registry::DOLOS_EXTENSION_ID
@@ -275,6 +337,8 @@ pub(crate) async fn resolve_configuration(
         configuration: resolved_configuration,
         available_storage_classes,
         recommended_storage_classes,
+        dependencies,
+        dependency_check_skipped,
     })
 }
 
@@ -313,11 +377,51 @@ pub(crate) fn uses_direct_helm_values(extension: &ExtensionDefinition) -> bool {
         extension.id.as_str(),
         registry::DOLOS_EXTENSION_ID
             | registry::CARDANO_RELAY_EXTENSION_ID
+            | registry::CARDANO_DB_SYNC_EXTENSION_ID
             | registry::CARDANO_BLOCK_PRODUCER_EXTENSION_ID
             | registry::APEX_FUSION_RELAY_EXTENSION_ID
             | registry::APEX_FUSION_BLOCK_PRODUCER_EXTENSION_ID
             | registry::HYDRA_NODE_EXTENSION_ID
+            | registry::MIDNIGHT_EXTENSION_ID
     )
+}
+
+fn dependency_status(
+    extension: &ExtensionDefinition,
+    installed_extension_ids: &BTreeSet<String>,
+) -> Vec<Value> {
+    extension
+        .dependencies
+        .iter()
+        .map(|dependency| {
+            json!({
+                "extensionId": dependency,
+                "installed": installed_extension_ids.contains(dependency),
+            })
+        })
+        .collect()
+}
+
+fn unknown_dependency_status(extension: &ExtensionDefinition) -> Vec<Value> {
+    extension
+        .dependencies
+        .iter()
+        .map(|dependency| {
+            json!({
+                "extensionId": dependency,
+                "installed": Value::Null,
+            })
+        })
+        .collect()
+}
+
+fn missing_dependency_ids(dependencies: &[Value]) -> Vec<String> {
+    dependencies
+        .iter()
+        .filter(|dependency| dependency.get("installed") == Some(&Value::Bool(false)))
+        .filter_map(|dependency| dependency.get("extensionId").and_then(Value::as_str))
+        .map(ToString::to_string)
+        .collect()
 }
 
 fn input_string_at<'a>(inputs: &'a Value, path: &[&str]) -> Option<&'a str> {

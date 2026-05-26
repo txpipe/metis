@@ -3763,6 +3763,465 @@
       "chart": "oci://oci.supernode.store/extensions/dolos"
     },
     {
+      "id": "midnight",
+      "name": "Midnight Node",
+      "description": "A Midnight node workload for running Partner Chain RPC, full, archive, or boot-node style infrastructure backed by Cardano DB Sync.",
+      "versions": [
+        "0.3.0"
+      ],
+      "defaultVersion": "0.3.0",
+      "configuration": {
+        "$schema": "https://json-schema.org/draft-07/schema#",
+        "title": "Midnight Helm Values",
+        "description": "Supernode-opinionated Midnight node chart values. Secrets are sourced only through VaultStaticSecret; chart-managed Kubernetes Secrets are internal delivery mechanisms created by the Vault Secrets Operator.",
+        "type": "object",
+        "required": [
+          "node",
+          "persistence",
+          "dbSync",
+          "nodeKey"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "nameOverride": {
+            "type": "string",
+            "description": "Advanced, usually not modified. Overrides the Kubernetes app name used by the chart.",
+            "default": "",
+            "x-supernodeCategory": "advanced"
+          },
+          "fullnameOverride": {
+            "type": "string",
+            "description": "Advanced, usually not modified. Overrides the full Kubernetes resource name. Leave empty so the release name controls resource names.",
+            "default": "",
+            "x-supernodeCategory": "advanced"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "Optional. Human-readable workload name shown by Supernode tooling. MCP normally sets this from releaseName.",
+            "default": "",
+            "x-supernodeCategory": "optional"
+          },
+          "image": {
+            "type": "object",
+            "description": "Optional. Midnight node image repository and tag. Current docs list 0.22.5 for Preview, 0.22.2 for Preprod, and 0.22.1 for Mainnet.",
+            "x-supernodeCategory": "optional",
+            "additionalProperties": false,
+            "properties": {
+              "repository": {
+                "type": "string",
+                "description": "Advanced, usually not modified. Container image repository for midnight-node.",
+                "default": "midnightnetwork/midnight-node"
+              },
+              "tag": {
+                "type": "string",
+                "description": "Optional. Midnight node image tag to deploy.",
+                "default": "0.22.5"
+              }
+            }
+          },
+          "resources": {
+            "$ref": "#/definitions/resources",
+            "description": "Optional. Kubernetes CPU and memory requests and limits for the Midnight node container.",
+            "x-supernodeCategory": "optional"
+          },
+          "service": {
+            "type": "object",
+            "description": "Advanced, usually not modified. Fixed ClusterIP Service port numbers for RPC, P2P, and metrics.",
+            "x-supernodeCategory": "advanced",
+            "additionalProperties": false,
+            "properties": {
+              "rpcPort": {
+                "type": "integer",
+                "default": 9944
+              },
+              "p2pPort": {
+                "type": "integer",
+                "default": 30333
+              },
+              "metricsPort": {
+                "type": "integer",
+                "default": 9615
+              }
+            }
+          },
+          "persistence": {
+            "type": "object",
+            "description": "Required. Persistent storage for Midnight chain data. At minimum set persistence.storageClass for normal Supernode installs.",
+            "x-supernodeCategory": "required",
+            "required": [
+              "storageClass"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "storageClass": {
+                "type": "string",
+                "description": "Required. Kubernetes StorageClass used for the Midnight chain-data PVC.",
+                "x-supernodeCategory": "required"
+              },
+              "accessModes": {
+                "type": "array",
+                "description": "Advanced, usually not modified. PVC access modes.",
+                "items": {
+                  "type": "string"
+                },
+                "default": [
+                  "ReadWriteOnce"
+                ]
+              },
+              "annotations": {
+                "$ref": "#/definitions/stringMap",
+                "description": "Advanced, usually not modified. Annotations added to the generated PVC."
+              },
+              "size": {
+                "type": "string",
+                "description": "Optional. Requested PVC size for Midnight chain data.",
+                "pattern": "^[0-9]+(Mi|Gi|Ti)$",
+                "default": "100Gi"
+              },
+              "existingClaim": {
+                "type": "string",
+                "description": "Advanced, usually not modified. Existing PVC name to mount instead of creating a StatefulSet volumeClaimTemplate.",
+                "default": ""
+              }
+            }
+          },
+          "node": {
+            "type": "object",
+            "description": "Required. Midnight node runtime settings. Normal installs set node.network and use the default bootnodes for Preview or documented bootnodes for Preprod.",
+            "x-supernodeCategory": "required",
+            "required": [
+              "network"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "replicas": {
+                "type": "integer",
+                "description": "Advanced, usually not modified. Number of Midnight node pods. Keep 1 for this StatefulSet.",
+                "minimum": 1,
+                "default": 1
+              },
+              "network": {
+                "type": "string",
+                "description": "Required. Midnight environment represented by this workload. Choose the environment that matches image.tag and the external Cardano DB Sync instance.",
+                "enum": [
+                  "preview",
+                  "preprod",
+                  "mainnet",
+                  "testnet-02"
+                ],
+                "default": "preview",
+                "x-supernodeCategory": "required"
+              },
+              "cfgPreset": {
+                "type": "string",
+                "description": "Advanced, usually not modified. CFG_PRESET passed to the Midnight Docker entrypoint. Current public Docker docs still use testnet-02 for node configuration.",
+                "default": "testnet-02"
+              },
+              "bootnodes": {
+                "type": "array",
+                "description": "Optional. Bootnode multiaddresses. Defaults target Midnight Preview. Use documented Preprod bootnodes for Preprod.",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "pruning": {
+                "type": "string",
+                "description": "Optional. Set to archive for archive nodes, otherwise leave empty for full/RPC nodes.",
+                "default": ""
+              },
+              "extraArgs": {
+                "type": "array",
+                "description": "Advanced. Additional raw Midnight node CLI arguments appended to the opinionated defaults.",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              }
+            }
+          },
+          "vaultAuth": {
+            "$ref": "#/definitions/vaultAuth"
+          },
+          "dbSync": {
+            "type": "object",
+            "description": "Required. Vault source for the Cardano DB Sync PostgreSQL connection string. The Vault record must contain a `connection` key.",
+            "x-supernodeCategory": "required",
+            "required": [
+              "vaultStaticSecret"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "vaultStaticSecret": {
+                "$ref": "#/definitions/requiredVaultStaticSecret"
+              }
+            }
+          },
+          "nodeKey": {
+            "type": "object",
+            "description": "Required. Vault source for the Midnight node private key. The Vault record must contain a `node.key` key unless the chart helper is changed.",
+            "x-supernodeCategory": "required",
+            "required": [
+              "vaultStaticSecret"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "vaultStaticSecret": {
+                "$ref": "#/definitions/requiredVaultStaticSecret"
+              }
+            }
+          },
+          "nodeSelector": {
+            "$ref": "#/definitions/stringMap",
+            "description": "Advanced, usually not modified. Kubernetes nodeSelector for scheduling.",
+            "x-supernodeCategory": "advanced"
+          },
+          "tolerations": {
+            "$ref": "#/definitions/tolerations",
+            "description": "Advanced, usually not modified. Kubernetes tolerations.",
+            "x-supernodeCategory": "advanced"
+          },
+          "affinity": {
+            "type": "object",
+            "description": "Advanced, usually not modified. Kubernetes affinity rules.",
+            "additionalProperties": true,
+            "default": {},
+            "x-supernodeCategory": "advanced"
+          }
+        },
+        "definitions": {
+          "resourceList": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "cpu": {
+                "type": "string"
+              },
+              "memory": {
+                "type": "string"
+              }
+            }
+          },
+          "resources": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "requests": {
+                "$ref": "#/definitions/resourceList"
+              },
+              "limits": {
+                "$ref": "#/definitions/resourceList"
+              }
+            },
+            "default": {}
+          },
+          "stringMap": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {}
+          },
+          "tolerations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "default": []
+          },
+          "vaultAuth": {
+            "type": "object",
+            "description": "Optional. VaultAuth reference used by chart-managed VaultStaticSecret resources.",
+            "additionalProperties": false,
+            "properties": {
+              "ref": {
+                "type": "string",
+                "default": "control-plane/default"
+              },
+              "serviceAccount": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "create": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "name": {
+                    "type": "string",
+                    "default": "vault-auth"
+                  }
+                }
+              }
+            }
+          },
+          "requiredVaultStaticSecret": {
+            "type": "object",
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "mount": {
+                "type": "string",
+                "default": "kv"
+              },
+              "path": {
+                "type": "string",
+                "description": "Required. Runtime Vault path without kv/data prefix.",
+                "minLength": 1,
+                "x-supernodeCategory": "required"
+              },
+              "refreshAfter": {
+                "type": "string",
+                "default": "1m"
+              }
+            }
+          }
+        }
+      },
+      "secrets": [
+        {
+          "name": "dbSyncConnection",
+          "description": "Cardano DB Sync PostgreSQL connection string synced from Vault. The Vault record must expose the approved connection string under the `connection` key.",
+          "required": true,
+          "requiredWhen": null,
+          "scope": "runtime",
+          "material": "midnight-dbsync-connection",
+          "writeOnly": true,
+          "acceptedSources": [
+            "vaultStaticSecret"
+          ]
+        },
+        {
+          "name": "nodeKey",
+          "description": "Stable Midnight node private key synced from Vault. The Vault record must expose the key under `node.key`.",
+          "required": true,
+          "requiredWhen": null,
+          "scope": "runtime",
+          "material": "midnight-node-key",
+          "writeOnly": true,
+          "acceptedSources": [
+            "vaultStaticSecret"
+          ]
+        }
+      ],
+      "dependencies": [
+        "cardano-db-sync"
+      ],
+      "metrics": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "bestBlock": {
+            "description": "Current block number reported by the Midnight node sync state RPC.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "chain": {
+            "description": "Chain name reported by the Midnight `system_chain` RPC method.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "errors": {
+            "description": "Warnings or collection errors emitted by the metrics script.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "finalizedBlock": {
+            "description": "Highest known block reported by the Midnight node sync state RPC.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "healthPeers": {
+            "description": "Peer count reported by the Midnight `system_health` RPC method.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "nodeVersion": {
+            "description": "Node version reported by the Midnight `system_version` RPC method.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "peers": {
+            "description": "Current libp2p peer count reported by Prometheus metrics.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "shouldHavePeers": {
+            "description": "Whether the node reports that it should have peers.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "syncing": {
+            "description": "Whether the node reports it is still syncing.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "type": {
+            "const": "midnight"
+          }
+        },
+        "required": [
+          "type",
+          "errors"
+        ],
+        "title": "Midnight Node Metrics",
+        "type": "object"
+      },
+      "metricsCollection": {
+        "container": "midnight",
+        "command": [
+          "/opt/metis/bin/metrics.sh"
+        ]
+      },
+      "outputs": [
+        {
+          "name": "rpc",
+          "description": "Midnight JSON-RPC HTTP endpoint for local or in-cluster application access.",
+          "portName": "rpc",
+          "protocol": "HTTP"
+        },
+        {
+          "name": "ws",
+          "description": "Midnight WebSocket endpoint served on the same RPC service port.",
+          "portName": "rpc",
+          "protocol": "WebSocket"
+        },
+        {
+          "name": "p2p",
+          "description": "Midnight peer-to-peer networking endpoint.",
+          "portName": "p2p",
+          "protocol": "TCP"
+        },
+        {
+          "name": "metrics",
+          "description": "Midnight Prometheus metrics endpoint.",
+          "portName": "metrics",
+          "protocol": "HTTP"
+        }
+      ],
+      "chart": "oci://oci.supernode.store/extensions/midnight"
+    },
+    {
       "id": "hydra-node",
       "name": "Hydra Node",
       "description": "A Hydra Head protocol node for operating Cardano L2 state channels with low-latency off-chain transactions and L1 settlement.",

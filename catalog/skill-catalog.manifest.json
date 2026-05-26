@@ -294,6 +294,57 @@
       "contentPath": "../skills/hydra-node-troubleshooting.md"
     },
     {
+      "id": "midnight-boot-node-operations",
+      "title": "Midnight Boot Node Operations",
+      "description": "Inspect a Midnight node operating as a boot node.",
+      "tags": ["midnight", "boot-node", "operations"],
+      "extensions": ["midnight"],
+      "tools": [
+        "workloads.get",
+        "workloads.logs.get",
+        "workloads.metrics.get",
+        "cluster.events.list"
+      ],
+      "contentPath": "../skills/midnight-boot-node-operations.md"
+    },
+    {
+      "id": "midnight-node-deployment",
+      "title": "Midnight Node Deployment",
+      "description": "Install and validate a Midnight node with MCP-first workflows.",
+      "tags": ["midnight", "deploy"],
+      "extensions": ["midnight"],
+      "tools": [
+        "supernode.status.get",
+        "extensions.catalog.get",
+        "cluster.storage_classes.list",
+        "workloads.list",
+        "vault.runtime.metadata.get",
+        "vault.runtime.write",
+        "vault.runtime.patch",
+        "workloads.install",
+        "workloads.upgrade",
+        "workloads.get",
+        "workloads.logs.get",
+        "workloads.metrics.get",
+        "cluster.events.list"
+      ],
+      "contentPath": "../skills/midnight-node-deployment.md"
+    },
+    {
+      "id": "midnight-node-operations",
+      "title": "Midnight Node Operations",
+      "description": "Inspect Midnight node health, peer connectivity, and sync status.",
+      "tags": ["midnight", "operations"],
+      "extensions": ["midnight"],
+      "tools": [
+        "workloads.get",
+        "workloads.logs.get",
+        "workloads.metrics.get",
+        "cluster.events.list"
+      ],
+      "contentPath": "../skills/midnight-node-operations.md"
+    },
+    {
       "id": "kubernetes-extension-discovery",
       "title": "Kubernetes Extension Discovery",
       "description": "Discover installed catalog-managed workloads.",

@@ -289,12 +289,13 @@ mod tests {
     fn bundled_catalog_contains_cardano_extensions_dolos_and_hydra() {
         let catalog = ExtensionCatalog::testing();
 
-        assert_eq!(catalog.len(), 7);
+        assert_eq!(catalog.len(), 8);
         assert!(catalog.get("apex-fusion-relay").is_some());
         assert!(catalog.get("apex-fusion-block-producer").is_some());
         assert!(catalog.get("cardano-relay").is_some());
         assert!(catalog.get("cardano-block-producer").is_some());
         assert!(catalog.get("cardano-db-sync").is_some());
+        assert!(catalog.get("midnight").is_some());
         assert!(catalog.get("cardano-node").is_none());
         assert!(catalog.get("dolos").is_some());
         assert!(catalog.get("hydra-node").is_some());
@@ -492,6 +493,7 @@ mod tests {
             ("cardano-relay", "cardano-node"),
             ("cardano-block-producer", "cardano-node"),
             ("cardano-db-sync", "postgres"),
+            ("midnight", "midnight"),
             ("apex-fusion-relay", "apex-fusion"),
             ("apex-fusion-block-producer", "apex-fusion"),
             ("dolos", "dolos"),
@@ -555,6 +557,41 @@ mod tests {
         assert!(properties.contains_key("epoch"));
         assert!(properties.contains_key("dbSizeBytes"));
         assert!(properties.contains_key("latestBlockAgeSeconds"));
+    }
+
+    #[test]
+    fn midnight_extension_exposes_domain_contract() {
+        let catalog = ExtensionCatalog::testing();
+        let extension = catalog.get("midnight").unwrap();
+
+        assert_eq!(extension.name, "Midnight Node");
+        assert_eq!(extension.default_version, "0.3.0");
+        assert!(extension.versions.contains(&"0.3.0".to_string()));
+        assert_eq!(extension.configuration.get("type"), Some(&json!("object")));
+        assert_eq!(extension.metrics.get("type"), Some(&json!("object")));
+        assert_eq!(extension.outputs.len(), 4);
+        assert_eq!(extension.secrets.len(), 2);
+        assert_eq!(extension.dependencies, vec!["cardano-db-sync".to_string()]);
+    }
+
+    #[test]
+    fn midnight_metrics_schema_describes_rpc_and_peer_fields() {
+        let catalog = ExtensionCatalog::testing();
+        let metrics = &catalog.get("midnight").unwrap().metrics;
+        let properties = metrics
+            .get("properties")
+            .and_then(Value::as_object)
+            .unwrap();
+        let required = metrics.get("required").and_then(Value::as_array).unwrap();
+
+        assert!(required.contains(&json!("type")));
+        assert!(required.contains(&json!("errors")));
+        assert!(properties.contains_key("chain"));
+        assert!(properties.contains_key("nodeVersion"));
+        assert!(properties.contains_key("bestBlock"));
+        assert!(properties.contains_key("finalizedBlock"));
+        assert!(properties.contains_key("peers"));
+        assert!(properties.contains_key("syncing"));
     }
 
     #[test]
@@ -699,6 +736,7 @@ mod tests {
         let catalog = ExtensionCatalog::testing();
         let relay = catalog.get("cardano-relay").unwrap();
         let dolos = catalog.get("dolos").unwrap();
+        let midnight = catalog.get("midnight").unwrap();
         let hydra = catalog.get("hydra-node").unwrap();
 
         assert_eq!(relay.outputs[0].name, "n2n");
@@ -710,6 +748,13 @@ mod tests {
         assert_eq!(dolos.outputs[2].name, "kupo");
         assert_eq!(dolos.outputs[3].name, "utxorpc");
         assert_eq!(dolos.outputs[3].protocol, "gRPC");
+
+        assert_eq!(midnight.outputs[0].name, "rpc");
+        assert_eq!(midnight.outputs[0].protocol, "HTTP");
+        assert_eq!(midnight.outputs[1].name, "ws");
+        assert_eq!(midnight.outputs[1].protocol, "WebSocket");
+        assert_eq!(midnight.outputs[2].name, "p2p");
+        assert_eq!(midnight.outputs[3].name, "metrics");
 
         assert_eq!(hydra.outputs[0].name, "api");
         assert_eq!(hydra.outputs[1].name, "ws");
