@@ -5,9 +5,7 @@
       "id": "apex-fusion-block-producer",
       "name": "Apex Fusion Block Producer",
       "description": "A private Apex Fusion block producer workload with optional managed relays and Vault-synced runtime producer material.",
-      "versions": [
-        "0.1.0"
-      ],
+      "versions": ["0.1.0"],
       "defaultVersion": "0.1.0",
       "configuration": {
         "$schema": "https://json-schema.org/draft-07/schema#",
@@ -17,9 +15,7 @@
             "additionalProperties": false,
             "properties": {
               "accessModes": {
-                "default": [
-                  "ReadWriteOnce"
-                ],
+                "default": ["ReadWriteOnce"],
                 "items": {
                   "type": "string"
                 },
@@ -45,9 +41,7 @@
                 "x-supernodeCategory": "required"
               }
             },
-            "required": [
-              "storageClass"
-            ],
+            "required": ["storageClass"],
             "type": "object"
           },
           "resourceList": {
@@ -87,11 +81,7 @@
               },
               "externalTrafficPolicy": {
                 "default": "",
-                "enum": [
-                  "",
-                  "Cluster",
-                  "Local"
-                ],
+                "enum": ["", "Cluster", "Local"],
                 "type": "string"
               },
               "labels": {
@@ -103,10 +93,7 @@
               },
               "metricsNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "metricsPort": {
                 "default": 12789,
@@ -114,10 +101,7 @@
               },
               "n2cNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "n2cPort": {
                 "default": 3307,
@@ -125,10 +109,7 @@
               },
               "n2nNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "n2nPort": {
                 "default": 3000,
@@ -136,11 +117,7 @@
               },
               "type": {
                 "default": "ClusterIP",
-                "enum": [
-                  "ClusterIP",
-                  "NodePort",
-                  "LoadBalancer"
-                ],
+                "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
                 "type": "string"
               }
             },
@@ -171,9 +148,7 @@
                 "type": "integer"
               }
             },
-            "required": [
-              "address"
-            ],
+            "required": ["address"],
             "type": "object"
           },
           "vaultAuth": {
@@ -218,9 +193,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "path"
-            ],
+            "required": ["path"],
             "type": "object"
           }
         },
@@ -271,9 +244,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "vaultStaticSecret"
-            ],
+            "required": ["vaultStaticSecret"],
             "type": "object"
           },
           "displayName": {
@@ -326,21 +297,14 @@
               "network": {
                 "default": "vector-testnet",
                 "description": "Required. Apex Fusion network to join.",
-                "enum": [
-                  "vector-testnet",
-                  "prime-testnet",
-                  "prime-mainnet"
-                ],
+                "enum": ["vector-testnet", "prime-testnet", "prime-mainnet"],
                 "type": "string",
                 "x-supernodeCategory": "required"
               },
               "networkMagic": {
                 "default": null,
                 "description": "Advanced, usually not modified. Overrides derived testnet magic. vector-testnet derives 1 and prime-testnet derives 3311.",
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "socketPath": {
                 "default": "/ipc/node.socket",
@@ -348,9 +312,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "network"
-            ],
+            "required": ["network"],
             "type": "object"
           },
           "nodeSelector": {
@@ -460,9 +422,7 @@
           "scope": "runtime",
           "material": "apex-fusion-block-producer-runtime",
           "writeOnly": true,
-          "acceptedSources": [
-            "vaultStaticSecret"
-          ]
+          "acceptedSources": ["vaultStaticSecret"]
         }
       ],
       "dependencies": [],
@@ -472,17 +432,11 @@
         "properties": {
           "blockHeight": {
             "description": "Latest block number observed by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "epoch": {
             "description": "Current epoch observed by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "errors": {
             "items": {
@@ -492,41 +446,27 @@
           },
           "peersIncoming": {
             "description": "Incoming peer connection count.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "peersOutgoing": {
             "description": "Outgoing peer connection count.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "slotNum": {
             "description": "Absolute slot number observed by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "type": {
             "const": "apex-fusion"
           }
         },
-        "required": [
-          "type",
-          "errors"
-        ],
+        "required": ["type", "errors"],
         "title": "Apex Fusion Relay Metrics",
         "type": "object"
       },
       "metricsCollection": {
         "container": "apex-fusion",
-        "command": [
-          "/opt/metis/bin/metrics.sh"
-        ]
+        "command": ["/opt/metis/bin/metrics.sh"]
       },
       "outputs": [
         {
@@ -548,9 +488,7 @@
       "id": "apex-fusion-relay",
       "name": "Apex Fusion Relay",
       "description": "An Apex Fusion relay node workload for participating in Vector and Prime network topology without block-producing keys.",
-      "versions": [
-        "0.1.0"
-      ],
+      "versions": ["0.1.0"],
       "defaultVersion": "0.1.0",
       "configuration": {
         "$schema": "https://json-schema.org/draft-07/schema#",
@@ -584,9 +522,7 @@
                 "type": "integer"
               }
             },
-            "required": [
-              "releaseName"
-            ],
+            "required": ["releaseName"],
             "type": "object"
           },
           "resourceList": {
@@ -622,11 +558,7 @@
               },
               "mode": {
                 "default": "image-default",
-                "enum": [
-                  "image-default",
-                  "relay-service",
-                  "custom"
-                ],
+                "enum": ["image-default", "relay-service", "custom"],
                 "type": "string"
               },
               "publicRoots": {
@@ -716,21 +648,14 @@
               "network": {
                 "default": "vector-testnet",
                 "description": "Required. Apex Fusion network to join.",
-                "enum": [
-                  "vector-testnet",
-                  "prime-testnet",
-                  "prime-mainnet"
-                ],
+                "enum": ["vector-testnet", "prime-testnet", "prime-mainnet"],
                 "type": "string",
                 "x-supernodeCategory": "required"
               },
               "networkMagic": {
                 "default": null,
                 "description": "Advanced, usually not modified. Overrides derived testnet magic. vector-testnet derives 1 and prime-testnet derives 3311.",
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "replicas": {
                 "default": 1,
@@ -747,9 +672,7 @@
                 "$ref": "#/definitions/topology"
               }
             },
-            "required": [
-              "network"
-            ],
+            "required": ["network"],
             "type": "object"
           },
           "nodeSelector": {
@@ -766,9 +689,7 @@
             "description": "Required. Persistent storage for the Apex Fusion chain database. Persistence is always enabled for this chart.",
             "properties": {
               "accessModes": {
-                "default": [
-                  "ReadWriteOnce"
-                ],
+                "default": ["ReadWriteOnce"],
                 "description": "Advanced, usually not modified. PVC access modes.",
                 "items": {
                   "type": "string"
@@ -796,9 +717,7 @@
                 "x-supernodeCategory": "required"
               }
             },
-            "required": [
-              "storageClass"
-            ],
+            "required": ["storageClass"],
             "type": "object"
           },
           "proxy": {
@@ -839,11 +758,7 @@
               },
               "externalTrafficPolicy": {
                 "default": "",
-                "enum": [
-                  "",
-                  "Cluster",
-                  "Local"
-                ],
+                "enum": ["", "Cluster", "Local"],
                 "type": "string"
               },
               "labels": {
@@ -855,10 +770,7 @@
               },
               "metricsNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "metricsPort": {
                 "default": 12789,
@@ -867,10 +779,7 @@
               },
               "n2cNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "n2cPort": {
                 "default": 3307,
@@ -879,10 +788,7 @@
               },
               "n2nNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "n2nPort": {
                 "default": 3000,
@@ -891,11 +797,7 @@
               },
               "type": {
                 "default": "ClusterIP",
-                "enum": [
-                  "ClusterIP",
-                  "NodePort",
-                  "LoadBalancer"
-                ],
+                "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
                 "type": "string"
               }
             },
@@ -922,10 +824,7 @@
             "x-supernodeCategory": "advanced"
           }
         },
-        "required": [
-          "node",
-          "persistence"
-        ],
+        "required": ["node", "persistence"],
         "title": "Apex Fusion Relay Helm Values",
         "type": "object"
       },
@@ -937,17 +836,11 @@
         "properties": {
           "blockHeight": {
             "description": "Latest block number observed by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "epoch": {
             "description": "Current epoch observed by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "errors": {
             "items": {
@@ -957,41 +850,27 @@
           },
           "peersIncoming": {
             "description": "Incoming peer connection count.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "peersOutgoing": {
             "description": "Outgoing peer connection count.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "slotNum": {
             "description": "Absolute slot number observed by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "type": {
             "const": "apex-fusion"
           }
         },
-        "required": [
-          "type",
-          "errors"
-        ],
+        "required": ["type", "errors"],
         "title": "Apex Fusion Relay Metrics",
         "type": "object"
       },
       "metricsCollection": {
         "container": "apex-fusion",
-        "command": [
-          "/opt/metis/bin/metrics.sh"
-        ]
+        "command": ["/opt/metis/bin/metrics.sh"]
       },
       "outputs": [
         {
@@ -1013,9 +892,7 @@
       "id": "cardano-block-producer",
       "name": "Cardano Block Producer",
       "description": "A private Cardano block producer workload with optional managed relays and Vault-synced runtime producer material.",
-      "versions": [
-        "0.1.0"
-      ],
+      "versions": ["0.1.0"],
       "defaultVersion": "0.1.0",
       "configuration": {
         "$schema": "https://json-schema.org/draft-07/schema#",
@@ -1061,9 +938,7 @@
                 "type": "integer"
               }
             },
-            "required": [
-              "address"
-            ],
+            "required": ["address"],
             "type": "object"
           }
         },
@@ -1125,9 +1000,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "path"
-                ],
+                "required": ["path"],
                 "type": "object"
               },
               "vrfKeyFile": {
@@ -1136,10 +1009,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "poolId",
-              "vaultStaticSecret"
-            ],
+            "required": ["poolId", "vaultStaticSecret"],
             "type": "object"
           },
           "displayName": {
@@ -1194,11 +1064,7 @@
               "network": {
                 "default": "preview",
                 "description": "Required. Cardano network to join. The chart derives network magic internally for preview and preprod.",
-                "enum": [
-                  "mainnet",
-                  "preprod",
-                  "preview"
-                ],
+                "enum": ["mainnet", "preprod", "preview"],
                 "type": "string",
                 "x-supernodeCategory": "required"
               },
@@ -1208,9 +1074,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "network"
-            ],
+            "required": ["network"],
             "type": "object"
           },
           "nodeSelector": {
@@ -1227,9 +1091,7 @@
             "description": "Required. Persistent storage for the block producer chain database. Persistence is always enabled.",
             "properties": {
               "accessModes": {
-                "default": [
-                  "ReadWriteOnce"
-                ],
+                "default": ["ReadWriteOnce"],
                 "items": {
                   "type": "string"
                 },
@@ -1256,9 +1118,7 @@
                 "x-supernodeCategory": "required"
               }
             },
-            "required": [
-              "storageClass"
-            ],
+            "required": ["storageClass"],
             "type": "object"
           },
           "proxy": {
@@ -1277,9 +1137,7 @@
             "description": "Required when relays.count is greater than zero. Persistent storage settings for each managed relay.",
             "properties": {
               "accessModes": {
-                "default": [
-                  "ReadWriteOnce"
-                ],
+                "default": ["ReadWriteOnce"],
                 "items": {
                   "type": "string"
                 },
@@ -1338,9 +1196,7 @@
                 "type": "integer"
               }
             },
-            "required": [
-              "count"
-            ],
+            "required": ["count"],
             "type": "object"
           },
           "resources": {
@@ -1369,11 +1225,7 @@
               },
               "externalTrafficPolicy": {
                 "default": "",
-                "enum": [
-                  "",
-                  "Cluster",
-                  "Local"
-                ],
+                "enum": ["", "Cluster", "Local"],
                 "type": "string"
               },
               "labels": {
@@ -1385,10 +1237,7 @@
               },
               "metricsNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "metricsPort": {
                 "default": 12798,
@@ -1397,10 +1246,7 @@
               },
               "n2cNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "n2cPort": {
                 "default": 3307,
@@ -1409,10 +1255,7 @@
               },
               "n2nNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "n2nPort": {
                 "default": 3000,
@@ -1421,11 +1264,7 @@
               },
               "type": {
                 "default": "ClusterIP",
-                "enum": [
-                  "ClusterIP",
-                  "NodePort",
-                  "LoadBalancer"
-                ],
+                "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
                 "type": "string"
               }
             },
@@ -1478,12 +1317,7 @@
             "type": "object"
           }
         },
-        "required": [
-          "node",
-          "persistence",
-          "blockProducer",
-          "relays"
-        ],
+        "required": ["node", "persistence", "blockProducer", "relays"],
         "title": "Cardano Block Producer Helm Values",
         "type": "object"
       },
@@ -1496,9 +1330,7 @@
           "scope": "runtime",
           "material": "cardano-block-producer-runtime",
           "writeOnly": true,
-          "acceptedSources": [
-            "vaultStaticSecret"
-          ]
+          "acceptedSources": ["vaultStaticSecret"]
         }
       ],
       "dependencies": [],
@@ -1508,115 +1340,67 @@
         "properties": {
           "aboutToLeadCount": {
             "description": "Times the node was about to lead a slot since startup, for block-producing nodes.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "adoptedCount": {
             "description": "Forged blocks adopted by the chain since startup, for block-producing nodes.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "blockHeight": {
             "description": "Latest block number observed by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "blocksLate": {
             "description": "Blocks observed later than five seconds by the block fetch client.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "blocksServed": {
             "description": "Blocks served to peers by this node since startup.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "blocksWithin1s": {
             "description": "Percentage of observed blocks arriving within 1 second.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "blocksWithin3s": {
             "description": "Percentage of observed blocks arriving within 3 seconds.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "blocksWithin5s": {
             "description": "Percentage of observed blocks arriving within 5 seconds.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "connectionBiDir": {
             "description": "Current bidirectional connection count.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "connectionDuplex": {
             "description": "Current full duplex connection count.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "connectionUniDir": {
             "description": "Current unidirectional connection count.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "density": {
             "description": "Recent chain density reported by the node, expressed as a percentage.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "epoch": {
             "description": "Current epoch observed by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "epochLength": {
             "description": "Number of slots in the current Cardano epoch from Shelley genesis.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "epochProgressPercent": {
             "description": "Percentage of the current epoch completed from slot-in-epoch and Shelley genesis epoch length.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "epochTimeRemainingSeconds": {
             "description": "Approximate time remaining in the current epoch derived from Shelley genesis timing.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "errors": {
             "description": "Warnings or collection errors emitted by the metrics script.",
@@ -1627,318 +1411,186 @@
           },
           "forgedCount": {
             "description": "Blocks forged by the node since startup, for block-producing nodes.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "forgingEnabled": {
             "description": "Whether this node currently has forging enabled.",
-            "type": [
-              "boolean",
-              "null"
-            ]
+            "type": ["boolean", "null"]
           },
           "forks": {
             "description": "Number of chain forks the node has observed since startup.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "gcMajorCount": {
             "description": "Number of major garbage collections since startup.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "gcMinorCount": {
             "description": "Number of minor garbage collections since startup.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "inboundGovernorHot": {
             "description": "Inbound governor hot connection count reported by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "inboundGovernorWarm": {
             "description": "Inbound governor warm connection count reported by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "invalidCount": {
             "description": "Derived count of forged blocks that were not adopted, clamped at zero.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "kesExpirationSeconds": {
             "description": "Approximate seconds until KES key expiry, when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "kesExpirationTime": {
             "description": "Estimated KES key expiry time as an ISO-8601 timestamp, when available.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "kesPeriod": {
             "description": "Current KES period reported by the node, when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "kesRemaining": {
             "description": "Remaining KES periods before key expiry, when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "lastBlockDelaySeconds": {
             "description": "Latest observed block propagation delay.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "leaderCount": {
             "description": "Slots where the node was leader since startup, for block-producing nodes.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "memHeapBytes": {
             "description": "Heap memory currently reserved by the node RTS.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "memLiveBytes": {
             "description": "Live RTS memory currently retained by the node process.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "missedSlots": {
             "description": "Slots missed by the node since startup, when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "nextLeaderSlot": {
             "description": "Next scheduled leadership slot number, for block-producing nodes.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "nextLeaderTime": {
             "description": "Next scheduled leadership slot time as an ISO-8601 timestamp.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "nextLeaderTimeRemainingSeconds": {
             "description": "Approximate seconds until the next scheduled leadership slot.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "nodeRevision": {
             "description": "Cardano node build revision reported by the metrics endpoint.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "nodeVersion": {
             "description": "Cardano node build version reported by the metrics endpoint.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "opCertOnChain": {
             "description": "Operational certificate counter observed on chain, when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "opCertOnDisk": {
             "description": "Operational certificate counter found on disk, when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "peerSelectionCold": {
             "description": "Peer selection cold state count for outbound connections.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "peerSelectionHot": {
             "description": "Peer selection hot state count for outbound connections.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "peerSelectionWarm": {
             "description": "Peer selection warm state count for outbound connections.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "peersIncoming": {
             "description": "Active inbound node connections.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "peersOutgoing": {
             "description": "Active outbound node connections.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "pendingTx": {
             "description": "Transactions currently in the mempool.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "pendingTxBytes": {
             "description": "Buffered mempool transaction size when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "role": {
             "const": "block-producer"
           },
           "scheduledIdealCount": {
             "description": "Expected leadership slots for the current epoch based on active stake.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "scheduledLeaderCount": {
             "description": "Leadership slots scheduled for the current epoch, for block-producing nodes.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "scheduledLuckPercent": {
             "description": "Scheduled leader slots as a percentage of ideal expected slots.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "slotInEpoch": {
             "description": "Current slot within the active epoch observed by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "slotLength": {
             "description": "Slot duration in seconds from Shelley genesis.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "slotNum": {
             "description": "Absolute slot number observed by the node across the chain timeline.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "syncPercent": {
             "description": "Estimated sync percentage against the computed reference tip.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "systemStartUnix": {
             "description": "Shelley system start timestamp as Unix seconds.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "tipDiffSlots": {
             "description": "Difference between the computed reference tip and the node tip.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "tipRefSlot": {
             "description": "Reference chain tip computed from the Shelley genesis system start and slot length.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "txProcessed": {
             "description": "Total transactions processed by the node since startup.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "type": {
             "const": "cardano-node"
           }
         },
-        "required": [
-          "type",
-          "role",
-          "errors"
-        ],
+        "required": ["type", "role", "errors"],
         "title": "Cardano Block Producer Metrics",
         "type": "object"
       },
       "metricsCollection": {
         "container": "cardano-node",
-        "command": [
-          "/opt/metis/bin/metrics.sh"
-        ]
+        "command": ["/opt/metis/bin/metrics.sh"]
       },
       "outputs": [
         {
@@ -1960,9 +1612,7 @@
       "id": "cardano-relay",
       "name": "Cardano Relay",
       "description": "A Cardano relay node workload for participating in Cardano network topology without block-producing keys.",
-      "versions": [
-        "0.1.0"
-      ],
+      "versions": ["0.1.0"],
       "defaultVersion": "0.1.0",
       "configuration": {
         "$schema": "https://json-schema.org/draft-07/schema#",
@@ -1996,9 +1646,7 @@
                 "type": "integer"
               }
             },
-            "required": [
-              "releaseName"
-            ],
+            "required": ["releaseName"],
             "type": "object"
           },
           "resourceList": {
@@ -2036,11 +1684,7 @@
               },
               "mode": {
                 "default": "image-default",
-                "enum": [
-                  "image-default",
-                  "relay-service",
-                  "custom"
-                ],
+                "enum": ["image-default", "relay-service", "custom"],
                 "type": "string"
               },
               "publicRoots": {
@@ -2131,11 +1775,7 @@
               "network": {
                 "default": "preview",
                 "description": "Required. Cardano network to join. The chart derives network magic internally for preview and preprod.",
-                "enum": [
-                  "mainnet",
-                  "preprod",
-                  "preview"
-                ],
+                "enum": ["mainnet", "preprod", "preview"],
                 "type": "string",
                 "x-supernodeCategory": "required"
               },
@@ -2154,9 +1794,7 @@
                 "$ref": "#/definitions/topology"
               }
             },
-            "required": [
-              "network"
-            ],
+            "required": ["network"],
             "type": "object",
             "x-supernodeCategory": "required"
           },
@@ -2174,9 +1812,7 @@
             "description": "Required. Persistent storage for the Cardano chain database. Persistence is always enabled for this chart.",
             "properties": {
               "accessModes": {
-                "default": [
-                  "ReadWriteOnce"
-                ],
+                "default": ["ReadWriteOnce"],
                 "description": "Advanced, usually not modified. PVC access modes.",
                 "items": {
                   "type": "string"
@@ -2204,9 +1840,7 @@
                 "x-supernodeCategory": "required"
               }
             },
-            "required": [
-              "storageClass"
-            ],
+            "required": ["storageClass"],
             "type": "object",
             "x-supernodeCategory": "required"
           },
@@ -2250,11 +1884,7 @@
               },
               "externalTrafficPolicy": {
                 "default": "",
-                "enum": [
-                  "",
-                  "Cluster",
-                  "Local"
-                ],
+                "enum": ["", "Cluster", "Local"],
                 "type": "string"
               },
               "labels": {
@@ -2266,10 +1896,7 @@
               },
               "metricsNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "metricsPort": {
                 "default": 12798,
@@ -2278,10 +1905,7 @@
               },
               "n2cNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "n2cPort": {
                 "default": 3307,
@@ -2290,10 +1914,7 @@
               },
               "n2nNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "n2nPort": {
                 "default": 3000,
@@ -2302,11 +1923,7 @@
               },
               "type": {
                 "default": "ClusterIP",
-                "enum": [
-                  "ClusterIP",
-                  "NodePort",
-                  "LoadBalancer"
-                ],
+                "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
                 "type": "string"
               }
             },
@@ -2334,10 +1951,7 @@
             "x-supernodeCategory": "advanced"
           }
         },
-        "required": [
-          "node",
-          "persistence"
-        ],
+        "required": ["node", "persistence"],
         "title": "Cardano Relay Helm Values",
         "type": "object"
       },
@@ -2349,115 +1963,67 @@
         "properties": {
           "aboutToLeadCount": {
             "description": "Times the node was about to lead a slot since startup, for block-producing nodes.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "adoptedCount": {
             "description": "Forged blocks adopted by the chain since startup, for block-producing nodes.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "blockHeight": {
             "description": "Latest block number observed by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "blocksLate": {
             "description": "Blocks observed later than five seconds by the block fetch client.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "blocksServed": {
             "description": "Blocks served to peers by this node since startup.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "blocksWithin1s": {
             "description": "Percentage of observed blocks arriving within 1 second.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "blocksWithin3s": {
             "description": "Percentage of observed blocks arriving within 3 seconds.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "blocksWithin5s": {
             "description": "Percentage of observed blocks arriving within 5 seconds.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "connectionBiDir": {
             "description": "Current bidirectional connection count.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "connectionDuplex": {
             "description": "Current full duplex connection count.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "connectionUniDir": {
             "description": "Current unidirectional connection count.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "density": {
             "description": "Recent chain density reported by the node, expressed as a percentage.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "epoch": {
             "description": "Current epoch observed by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "epochLength": {
             "description": "Number of slots in the current Cardano epoch from Shelley genesis.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "epochProgressPercent": {
             "description": "Percentage of the current epoch completed from slot-in-epoch and Shelley genesis epoch length.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "epochTimeRemainingSeconds": {
             "description": "Approximate time remaining in the current epoch derived from Shelley genesis timing.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "errors": {
             "description": "Warnings or collection errors emitted by the metrics script.",
@@ -2468,318 +2034,186 @@
           },
           "forgedCount": {
             "description": "Blocks forged by the node since startup, for block-producing nodes.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "forgingEnabled": {
             "description": "Whether this node currently has forging enabled.",
-            "type": [
-              "boolean",
-              "null"
-            ]
+            "type": ["boolean", "null"]
           },
           "forks": {
             "description": "Number of chain forks the node has observed since startup.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "gcMajorCount": {
             "description": "Number of major garbage collections since startup.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "gcMinorCount": {
             "description": "Number of minor garbage collections since startup.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "inboundGovernorHot": {
             "description": "Inbound governor hot connection count reported by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "inboundGovernorWarm": {
             "description": "Inbound governor warm connection count reported by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "invalidCount": {
             "description": "Derived count of forged blocks that were not adopted, clamped at zero.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "kesExpirationSeconds": {
             "description": "Approximate seconds until KES key expiry, when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "kesExpirationTime": {
             "description": "Estimated KES key expiry time as an ISO-8601 timestamp, when available.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "kesPeriod": {
             "description": "Current KES period reported by the node, when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "kesRemaining": {
             "description": "Remaining KES periods before key expiry, when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "lastBlockDelaySeconds": {
             "description": "Latest observed block propagation delay.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "leaderCount": {
             "description": "Slots where the node was leader since startup, for block-producing nodes.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "memHeapBytes": {
             "description": "Heap memory currently reserved by the node RTS.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "memLiveBytes": {
             "description": "Live RTS memory currently retained by the node process.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "missedSlots": {
             "description": "Slots missed by the node since startup, when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "nextLeaderSlot": {
             "description": "Next scheduled leadership slot number, for block-producing nodes.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "nextLeaderTime": {
             "description": "Next scheduled leadership slot time as an ISO-8601 timestamp.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "nextLeaderTimeRemainingSeconds": {
             "description": "Approximate seconds until the next scheduled leadership slot.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "nodeRevision": {
             "description": "Cardano node build revision reported by the metrics endpoint.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "nodeVersion": {
             "description": "Cardano node build version reported by the metrics endpoint.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "opCertOnChain": {
             "description": "Operational certificate counter observed on chain, when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "opCertOnDisk": {
             "description": "Operational certificate counter found on disk, when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "peerSelectionCold": {
             "description": "Peer selection cold state count for outbound connections.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "peerSelectionHot": {
             "description": "Peer selection hot state count for outbound connections.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "peerSelectionWarm": {
             "description": "Peer selection warm state count for outbound connections.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "peersIncoming": {
             "description": "Active inbound node connections.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "peersOutgoing": {
             "description": "Active outbound node connections.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "pendingTx": {
             "description": "Transactions currently in the mempool.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "pendingTxBytes": {
             "description": "Buffered mempool transaction size when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "role": {
             "const": "relay"
           },
           "scheduledIdealCount": {
             "description": "Expected leadership slots for the current epoch based on active stake.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "scheduledLeaderCount": {
             "description": "Leadership slots scheduled for the current epoch, for block-producing nodes.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "scheduledLuckPercent": {
             "description": "Scheduled leader slots as a percentage of ideal expected slots.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "slotInEpoch": {
             "description": "Current slot within the active epoch observed by the node.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "slotLength": {
             "description": "Slot duration in seconds from Shelley genesis.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "slotNum": {
             "description": "Absolute slot number observed by the node across the chain timeline.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "syncPercent": {
             "description": "Estimated sync percentage against the computed reference tip.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "systemStartUnix": {
             "description": "Shelley system start timestamp as Unix seconds.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "tipDiffSlots": {
             "description": "Difference between the computed reference tip and the node tip.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "tipRefSlot": {
             "description": "Reference chain tip computed from the Shelley genesis system start and slot length.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "txProcessed": {
             "description": "Total transactions processed by the node since startup.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "type": {
             "const": "cardano-node"
           }
         },
-        "required": [
-          "type",
-          "role",
-          "errors"
-        ],
+        "required": ["type", "role", "errors"],
         "title": "Cardano Relay Metrics",
         "type": "object"
       },
       "metricsCollection": {
         "container": "cardano-node",
-        "command": [
-          "/opt/metis/bin/metrics.sh"
-        ]
+        "command": ["/opt/metis/bin/metrics.sh"]
       },
       "outputs": [
         {
@@ -2801,21 +2235,14 @@
       "id": "cardano-db-sync",
       "name": "Cardano DB Sync",
       "description": "A Cardano DB Sync workload with a chart-managed PostgreSQL database for serving downstream Cardano chain data consumers.",
-      "versions": [
-        "0.1.0"
-      ],
+      "versions": ["0.1.0"],
       "defaultVersion": "0.1.0",
       "configuration": {
         "$schema": "https://json-schema.org/draft-07/schema#",
         "title": "Cardano DB Sync Helm Values",
         "description": "Supernode-opinionated Cardano DB Sync chart values. Secrets are sourced only through VaultStaticSecret; the chart-managed Kubernetes Secret is an internal delivery mechanism created by the Vault Secrets Operator.",
         "type": "object",
-        "required": [
-          "credentials",
-          "postgres",
-          "dbSync",
-          "cardanoNode"
-        ],
+        "required": ["credentials", "postgres", "dbSync", "cardanoNode"],
         "additionalProperties": false,
         "properties": {
           "nameOverride": {
@@ -2843,9 +2270,7 @@
             "type": "object",
             "description": "Required. Vault location for PostgreSQL credentials consumed by both Postgres and Cardano DB Sync. The Vault record should include username, password, database, and connection keys. The connection key is for downstream Midnight workloads.",
             "x-supernodeCategory": "required",
-            "required": [
-              "vaultStaticSecret"
-            ],
+            "required": ["vaultStaticSecret"],
             "additionalProperties": false,
             "properties": {
               "vaultStaticSecret": {
@@ -2920,9 +2345,7 @@
             "type": "object",
             "description": "Required. Cardano DB Sync runtime settings. Set dbSync.network to match the upstream Cardano relay and Midnight environment.",
             "x-supernodeCategory": "required",
-            "required": [
-              "network"
-            ],
+            "required": ["network"],
             "additionalProperties": false,
             "properties": {
               "image": {
@@ -2938,11 +2361,7 @@
               "network": {
                 "type": "string",
                 "description": "Required. Cardano network DB Sync follows.",
-                "enum": [
-                  "mainnet",
-                  "preprod",
-                  "preview"
-                ],
+                "enum": ["mainnet", "preprod", "preview"],
                 "default": "preview",
                 "x-supernodeCategory": "required"
               },
@@ -2985,9 +2404,7 @@
                     "items": {
                       "type": "string"
                     },
-                    "default": [
-                      "ReadWriteOnce"
-                    ]
+                    "default": ["ReadWriteOnce"]
                   },
                   "annotations": {
                     "$ref": "#/definitions/stringMap"
@@ -3011,9 +2428,7 @@
             "type": "object",
             "description": "Required. Upstream Cardano relay used by the built-in socket proxy. MCP should use workloads.list to find same-network Cardano relay candidates and ask the operator to approve the exact host:port.",
             "x-supernodeCategory": "required",
-            "required": [
-              "upstreamAddress"
-            ],
+            "required": ["upstreamAddress"],
             "additionalProperties": false,
             "properties": {
               "upstreamAddress": {
@@ -3130,9 +2545,7 @@
           },
           "requiredVaultStaticSecret": {
             "type": "object",
-            "required": [
-              "path"
-            ],
+            "required": ["path"],
             "additionalProperties": false,
             "properties": {
               "mount": {
@@ -3165,9 +2578,7 @@
                 "items": {
                   "type": "string"
                 },
-                "default": [
-                  "ReadWriteOnce"
-                ]
+                "default": ["ReadWriteOnce"]
               },
               "annotations": {
                 "$ref": "#/definitions/stringMap"
@@ -3193,9 +2604,7 @@
           "scope": "runtime",
           "material": "cardano-db-sync-postgres-credentials",
           "writeOnly": true,
-          "acceptedSources": [
-            "vaultStaticSecret"
-          ]
+          "acceptedSources": ["vaultStaticSecret"]
         }
       ],
       "dependencies": [],
@@ -3205,31 +2614,19 @@
         "properties": {
           "blockHeight": {
             "description": "Latest Cardano block height committed by DB Sync.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "dbConnections": {
             "description": "Current PostgreSQL connection count for the DB Sync database.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "dbSizeBytes": {
             "description": "Approximate PostgreSQL database size in bytes.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "epoch": {
             "description": "Latest Cardano epoch committed by DB Sync.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "errors": {
             "description": "Warnings or collection errors emitted by the metrics script.",
@@ -3240,41 +2637,27 @@
           },
           "latestBlockAgeSeconds": {
             "description": "Approximate age of the latest synced block relative to the current wall clock.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "latestBlockTime": {
             "description": "Latest synced block timestamp as an ISO-8601 UTC string.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "slotNum": {
             "description": "Latest Cardano slot number committed by DB Sync.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "type": {
             "const": "cardano-db-sync"
           }
         },
-        "required": [
-          "type",
-          "errors"
-        ],
+        "required": ["type", "errors"],
         "title": "Cardano DB Sync Metrics",
         "type": "object"
       },
       "metricsCollection": {
         "container": "postgres",
-        "command": [
-          "/opt/metis/bin/metrics.sh"
-        ],
+        "command": ["/opt/metis/bin/metrics.sh"],
         "podLabelSelector": "app.kubernetes.io/component=postgres"
       },
       "outputs": [
@@ -3291,9 +2674,7 @@
       "id": "dolos",
       "name": "Dolos",
       "description": "A Dolos chain data service workload for serving Cardano chain data APIs from the supernode cluster.",
-      "versions": [
-        "0.1.0"
-      ],
+      "versions": ["0.1.0"],
       "defaultVersion": "0.1.0",
       "configuration": {
         "$schema": "https://json-schema.org/draft-07/schema#",
@@ -3353,9 +2734,7 @@
                 "x-supernodeCategory": "required"
               }
             },
-            "required": [
-              "upstreamAddress"
-            ],
+            "required": ["upstreamAddress"],
             "type": "object",
             "x-supernodeCategory": "required"
           },
@@ -3370,11 +2749,7 @@
             "description": "Required. Dolos runtime settings. For normal Supernode installs, set dolos.network and leave command, args, and bootstrap defaults unchanged.",
             "properties": {
               "args": {
-                "default": [
-                  "-c",
-                  "/etc/config/dolos.toml",
-                  "daemon"
-                ],
+                "default": ["-c", "/etc/config/dolos.toml", "daemon"],
                 "description": "Advanced, usually not modified. Dolos daemon arguments. The default runs `dolos -c /etc/config/dolos.toml daemon`.",
                 "items": {
                   "type": "string"
@@ -3440,9 +2815,7 @@
                 "type": "integer"
               }
             },
-            "required": [
-              "network"
-            ],
+            "required": ["network"],
             "type": "object",
             "x-supernodeCategory": "required"
           },
@@ -3490,9 +2863,7 @@
             "description": "Required. Persistent storage for the Dolos chain database. At minimum set persistence.storageClass for Supernode installs.",
             "properties": {
               "accessModes": {
-                "default": [
-                  "ReadWriteOnce"
-                ],
+                "default": ["ReadWriteOnce"],
                 "description": "Advanced, usually not modified. PVC access modes. ReadWriteOnce is appropriate for the single-replica StatefulSet.",
                 "items": {
                   "type": "string"
@@ -3521,9 +2892,7 @@
                 "x-supernodeCategory": "required"
               }
             },
-            "required": [
-              "storageClass"
-            ],
+            "required": ["storageClass"],
             "type": "object",
             "x-supernodeCategory": "required"
           },
@@ -3559,20 +2928,13 @@
               "externalTrafficPolicy": {
                 "default": "",
                 "description": "Advanced, usually not modified. External traffic policy for NodePort or LoadBalancer services. Leave empty unless the cluster networking policy requires Local or Cluster.",
-                "enum": [
-                  "",
-                  "Cluster",
-                  "Local"
-                ],
+                "enum": ["", "Cluster", "Local"],
                 "type": "string"
               },
               "grpcNodePort": {
                 "default": null,
                 "description": "Advanced, usually not modified. Explicit NodePort for grpc when service.type is NodePort or LoadBalancer. Leave null for Kubernetes allocation.",
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "grpcPort": {
                 "default": 50051,
@@ -3591,10 +2953,7 @@
               "minibfNodePort": {
                 "default": null,
                 "description": "Advanced, usually not modified. Explicit NodePort for minibf when service.type is NodePort or LoadBalancer. Leave null for Kubernetes allocation.",
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "minibfPort": {
                 "default": 3001,
@@ -3604,10 +2963,7 @@
               "minikupoNodePort": {
                 "default": null,
                 "description": "Advanced, usually not modified. Explicit NodePort for minikupo when service.type is NodePort or LoadBalancer. Leave null for Kubernetes allocation.",
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "minikupoPort": {
                 "default": 1442,
@@ -3617,10 +2973,7 @@
               "ouroborosNodePort": {
                 "default": null,
                 "description": "Advanced, usually not modified. Reserved for compatibility with values consumers; the opinionated Service does not expose ouroboros.",
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "ouroborosPort": {
                 "default": 30013,
@@ -3630,10 +2983,7 @@
               "trpNodePort": {
                 "default": null,
                 "description": "Advanced, usually not modified. Explicit NodePort for trp when service.type is NodePort or LoadBalancer. Leave null for Kubernetes allocation.",
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "trpPort": {
                 "default": 8164,
@@ -3643,11 +2993,7 @@
               "type": {
                 "default": "ClusterIP",
                 "description": "Optional. Kubernetes Service type. ClusterIP keeps Dolos internal to the cluster. LoadBalancer exposes the service externally when the cluster supports it.",
-                "enum": [
-                  "ClusterIP",
-                  "NodePort",
-                  "LoadBalancer"
-                ],
+                "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
                 "type": "string"
               }
             },
@@ -3675,11 +3021,7 @@
             "x-supernodeCategory": "advanced"
           }
         },
-        "required": [
-          "dolos",
-          "config",
-          "persistence"
-        ],
+        "required": ["dolos", "config", "persistence"],
         "title": "Dolos Helm Values",
         "type": "object"
       },
@@ -3691,17 +3033,11 @@
         "properties": {
           "blockHeight": {
             "description": "Latest block height served by Dolos.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "epoch": {
             "description": "Current epoch served by Dolos.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "errors": {
             "description": "Warnings or collection errors emitted by the metrics script.",
@@ -3712,27 +3048,19 @@
           },
           "slotNum": {
             "description": "Latest block slot served by Dolos.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "type": {
             "const": "dolos"
           }
         },
-        "required": [
-          "type",
-          "errors"
-        ],
+        "required": ["type", "errors"],
         "title": "Dolos Metrics",
         "type": "object"
       },
       "metricsCollection": {
         "container": "dolos",
-        "command": [
-          "/opt/metis/bin/metrics.sh"
-        ]
+        "command": ["/opt/metis/bin/metrics.sh"]
       },
       "outputs": [
         {
@@ -3766,21 +3094,14 @@
       "id": "midnight",
       "name": "Midnight Node",
       "description": "A Midnight node workload for running Partner Chain RPC, full, archive, or boot-node style infrastructure backed by Cardano DB Sync.",
-      "versions": [
-        "0.3.0"
-      ],
+      "versions": ["0.3.0"],
       "defaultVersion": "0.3.0",
       "configuration": {
         "$schema": "https://json-schema.org/draft-07/schema#",
         "title": "Midnight Helm Values",
         "description": "Supernode-opinionated Midnight node chart values. Secrets are sourced only through VaultStaticSecret; chart-managed Kubernetes Secrets are internal delivery mechanisms created by the Vault Secrets Operator.",
         "type": "object",
-        "required": [
-          "node",
-          "persistence",
-          "dbSync",
-          "nodeKey"
-        ],
+        "required": ["node", "persistence", "dbSync", "nodeKey"],
         "additionalProperties": false,
         "properties": {
           "nameOverride": {
@@ -3848,9 +3169,7 @@
             "type": "object",
             "description": "Required. Persistent storage for Midnight chain data. At minimum set persistence.storageClass for normal Supernode installs.",
             "x-supernodeCategory": "required",
-            "required": [
-              "storageClass"
-            ],
+            "required": ["storageClass"],
             "additionalProperties": false,
             "properties": {
               "storageClass": {
@@ -3864,9 +3183,7 @@
                 "items": {
                   "type": "string"
                 },
-                "default": [
-                  "ReadWriteOnce"
-                ]
+                "default": ["ReadWriteOnce"]
               },
               "annotations": {
                 "$ref": "#/definitions/stringMap",
@@ -3889,9 +3206,7 @@
             "type": "object",
             "description": "Required. Midnight node runtime settings. Normal installs set node.network and use the default bootnodes for Preview or documented bootnodes for Preprod.",
             "x-supernodeCategory": "required",
-            "required": [
-              "network"
-            ],
+            "required": ["network"],
             "additionalProperties": false,
             "properties": {
               "replicas": {
@@ -3903,12 +3218,7 @@
               "network": {
                 "type": "string",
                 "description": "Required. Midnight environment represented by this workload. Choose the environment that matches image.tag and the external Cardano DB Sync instance.",
-                "enum": [
-                  "preview",
-                  "preprod",
-                  "mainnet",
-                  "testnet-02"
-                ],
+                "enum": ["preview", "preprod", "mainnet", "testnet-02"],
                 "default": "preview",
                 "x-supernodeCategory": "required"
               },
@@ -3947,9 +3257,7 @@
             "type": "object",
             "description": "Required. Vault source for the Cardano DB Sync PostgreSQL connection string. The Vault record must contain a `connection` key.",
             "x-supernodeCategory": "required",
-            "required": [
-              "vaultStaticSecret"
-            ],
+            "required": ["vaultStaticSecret"],
             "additionalProperties": false,
             "properties": {
               "vaultStaticSecret": {
@@ -3961,9 +3269,7 @@
             "type": "object",
             "description": "Required. Vault source for the Midnight node private key. The Vault record must contain a `node.key` key unless the chart helper is changed.",
             "x-supernodeCategory": "required",
-            "required": [
-              "vaultStaticSecret"
-            ],
+            "required": ["vaultStaticSecret"],
             "additionalProperties": false,
             "properties": {
               "vaultStaticSecret": {
@@ -4057,9 +3363,7 @@
           },
           "requiredVaultStaticSecret": {
             "type": "object",
-            "required": [
-              "path"
-            ],
+            "required": ["path"],
             "additionalProperties": false,
             "properties": {
               "mount": {
@@ -4089,9 +3393,7 @@
           "scope": "runtime",
           "material": "midnight-dbsync-connection",
           "writeOnly": true,
-          "acceptedSources": [
-            "vaultStaticSecret"
-          ]
+          "acceptedSources": ["vaultStaticSecret"]
         },
         {
           "name": "nodeKey",
@@ -4101,31 +3403,21 @@
           "scope": "runtime",
           "material": "midnight-node-key",
           "writeOnly": true,
-          "acceptedSources": [
-            "vaultStaticSecret"
-          ]
+          "acceptedSources": ["vaultStaticSecret"]
         }
       ],
-      "dependencies": [
-        "cardano-db-sync"
-      ],
+      "dependencies": ["cardano-db-sync"],
       "metrics": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
           "bestBlock": {
             "description": "Current block number reported by the Midnight node sync state RPC.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "chain": {
             "description": "Chain name reported by the Midnight `system_chain` RPC method.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "errors": {
             "description": "Warnings or collection errors emitted by the metrics script.",
@@ -4136,62 +3428,39 @@
           },
           "finalizedBlock": {
             "description": "Highest known block reported by the Midnight node sync state RPC.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "healthPeers": {
             "description": "Peer count reported by the Midnight `system_health` RPC method.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "nodeVersion": {
             "description": "Node version reported by the Midnight `system_version` RPC method.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "peers": {
             "description": "Current libp2p peer count reported by Prometheus metrics.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "shouldHavePeers": {
             "description": "Whether the node reports that it should have peers.",
-            "type": [
-              "boolean",
-              "null"
-            ]
+            "type": ["boolean", "null"]
           },
           "syncing": {
             "description": "Whether the node reports it is still syncing.",
-            "type": [
-              "boolean",
-              "null"
-            ]
+            "type": ["boolean", "null"]
           },
           "type": {
             "const": "midnight"
           }
         },
-        "required": [
-          "type",
-          "errors"
-        ],
+        "required": ["type", "errors"],
         "title": "Midnight Node Metrics",
         "type": "object"
       },
       "metricsCollection": {
         "container": "midnight",
-        "command": [
-          "/opt/metis/bin/metrics.sh"
-        ]
+        "command": ["/opt/metis/bin/metrics.sh"]
       },
       "outputs": [
         {
@@ -4225,9 +3494,7 @@
       "id": "hydra-node",
       "name": "Hydra Node",
       "description": "A Hydra Head protocol node for operating Cardano L2 state channels with low-latency off-chain transactions and L1 settlement.",
-      "versions": [
-        "0.2.0"
-      ],
+      "versions": ["0.2.0"],
       "defaultVersion": "0.2.0",
       "configuration": {
         "$schema": "https://json-schema.org/draft-07/schema#",
@@ -4412,15 +3679,11 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "path"
-                ],
+                "required": ["path"],
                 "type": "object"
               }
             },
-            "required": [
-              "vaultStaticSecret"
-            ],
+            "required": ["vaultStaticSecret"],
             "type": "object"
           },
           "hydraVerification": {
@@ -4446,9 +3709,7 @@
                 "type": "array"
               }
             },
-            "required": [
-              "items"
-            ],
+            "required": ["items"],
             "type": "object"
           },
           "peer": {
@@ -4464,10 +3725,7 @@
                 "type": "integer"
               }
             },
-            "required": [
-              "host",
-              "port"
-            ],
+            "required": ["host", "port"],
             "type": "object"
           },
           "resourceList": {
@@ -4549,9 +3807,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "filename"
-            ],
+            "required": ["filename"],
             "type": "object"
           }
         },
@@ -4616,10 +3872,7 @@
                 "$ref": "#/definitions/vaultAuth"
               }
             },
-            "required": [
-              "hydraSigning",
-              "hydraVerification"
-            ],
+            "required": ["hydraSigning", "hydraVerification"],
             "type": "object",
             "x-supernodeCategory": "required"
           },
@@ -4690,12 +3943,7 @@
               "network": {
                 "default": "",
                 "description": "Optional. Cardano network passed to hydra-node in online mode.",
-                "enum": [
-                  "",
-                  "mainnet",
-                  "preprod",
-                  "preview"
-                ],
+                "enum": ["", "mainnet", "preprod", "preview"],
                 "type": "string"
               },
               "nodeId": {
@@ -4754,10 +4002,7 @@
                 "default": null,
                 "description": "Optional. Seconds after which the node considers itself out of sync with L1.",
                 "minimum": 1,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               }
             },
             "type": "object",
@@ -4777,9 +4022,7 @@
             "description": "Required. Persistent storage for the Hydra persistence directory. Persistence is always enabled for this chart.",
             "properties": {
               "accessModes": {
-                "default": [
-                  "ReadWriteOnce"
-                ],
+                "default": ["ReadWriteOnce"],
                 "description": "Advanced, usually not modified. PVC access modes.",
                 "items": {
                   "type": "string"
@@ -4807,9 +4050,7 @@
                 "x-supernodeCategory": "required"
               }
             },
-            "required": [
-              "storageClass"
-            ],
+            "required": ["storageClass"],
             "type": "object",
             "x-supernodeCategory": "required"
           },
@@ -4836,10 +4077,7 @@
               },
               "apiNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "apiPort": {
                 "default": 4001,
@@ -4852,11 +4090,7 @@
               },
               "externalTrafficPolicy": {
                 "default": "",
-                "enum": [
-                  "",
-                  "Cluster",
-                  "Local"
-                ],
+                "enum": ["", "Cluster", "Local"],
                 "type": "string"
               },
               "labels": {
@@ -4868,10 +4102,7 @@
               },
               "monitoringNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "monitoringPort": {
                 "default": 6001,
@@ -4880,10 +4111,7 @@
               },
               "p2pNodePort": {
                 "default": null,
-                "type": [
-                  "integer",
-                  "null"
-                ]
+                "type": ["integer", "null"]
               },
               "p2pPort": {
                 "default": 5001,
@@ -4892,11 +4120,7 @@
               },
               "type": {
                 "default": "ClusterIP",
-                "enum": [
-                  "ClusterIP",
-                  "NodePort",
-                  "LoadBalancer"
-                ],
+                "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
                 "type": "string"
               }
             },
@@ -4924,10 +4148,7 @@
             "x-supernodeCategory": "advanced"
           }
         },
-        "required": [
-          "persistence",
-          "keys"
-        ],
+        "required": ["persistence", "keys"],
         "title": "Hydra Node Helm Values",
         "type": "object"
       },
@@ -4940,9 +4161,7 @@
           "scope": "runtime",
           "material": "hydra-signing-key",
           "writeOnly": true,
-          "acceptedSources": [
-            "vaultStaticSecret"
-          ]
+          "acceptedSources": ["vaultStaticSecret"]
         },
         {
           "name": "cardanoSigningKey",
@@ -4952,9 +4171,7 @@
           "scope": "runtime",
           "material": "cardano-signing-key",
           "writeOnly": true,
-          "acceptedSources": [
-            "vaultStaticSecret"
-          ]
+          "acceptedSources": ["vaultStaticSecret"]
         }
       ],
       "dependencies": [],
@@ -4964,38 +4181,23 @@
         "properties": {
           "chainSyncedStatus": {
             "description": "Hydra chain sync status when connected to L1.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "confirmedLovelace": {
             "description": "Sum of lovelace in the latest confirmed snapshot UTxO.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "confirmedTx": {
             "description": "Total confirmed L2 transactions from hydra_head_confirmed_tx.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "confirmedUtxoCount": {
             "description": "Number of entries in the latest confirmed snapshot UTxO.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "currentSlot": {
             "description": "Current chain slot reported by the Hydra API when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "errors": {
             "description": "Warnings or collection errors emitted by the metrics script.",
@@ -5006,118 +4208,71 @@
           },
           "headId": {
             "description": "Current Hydra head identifier when a head is known.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "headStatus": {
             "description": "Latest head state tag reported by the Hydra HTTP API.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "hydraNodeVersion": {
             "description": "Hydra node version reported by the HTTP API.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "inputs": {
             "description": "Total processed head inputs from hydra_head_inputs.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "lastSeenSnapshotTag": {
             "description": "Tag returned by /snapshot/last-seen for diagnosing in-flight snapshot consensus.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "mode": {
             "description": "Hydra node mode as configured by the chart: offline or online.",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "peersConnected": {
             "description": "Connected Hydra peers from the Prometheus metrics endpoint.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "pendingDeposits": {
             "description": "Number of pending deposit transaction IDs returned by /commits.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "requestedTx": {
             "description": "Total requested L2 transactions from hydra_head_requested_tx.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "snapshotNumber": {
             "description": "Latest confirmed snapshot number when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "snapshotVersion": {
             "description": "Latest confirmed snapshot version when available.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "txConfirmationTimeMsAvg": {
             "description": "Derived average confirmation time in milliseconds.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "txConfirmationTimeMsCount": {
             "description": "Confirmation-time histogram sample count.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "txConfirmationTimeMsSum": {
             "description": "Confirmation-time histogram sample sum in milliseconds.",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "type": {
             "const": "hydra-node"
           }
         },
-        "required": [
-          "type",
-          "errors"
-        ],
+        "required": ["type", "errors"],
         "title": "Hydra Node Metrics",
         "type": "object"
       },
       "metricsCollection": {
         "container": "hydra-node",
-        "command": [
-          "/opt/metis/bin/metrics.sh"
-        ]
+        "command": ["/opt/metis/bin/metrics.sh"]
       },
       "outputs": [
         {
