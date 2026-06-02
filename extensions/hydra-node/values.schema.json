@@ -71,7 +71,7 @@
       "required": ["storageClass"],
       "additionalProperties": false,
       "properties": {
-        "storageClass": { "type": "string", "description": "Required. Kubernetes StorageClass used for the Hydra state PVC.", "minLength": 1, "x-supernodeCategory": "required" },
+        "storageClass": { "type": "string", "description": "Required. Kubernetes StorageClass used for the Hydra state PVC.", "minLength": 1, "x-supernodeCategory": "required", "x-supernodeRole": "storageClass" },
         "accessModes": { "type": "array", "description": "Advanced, usually not modified. PVC access modes.", "items": { "type": "string" }, "default": ["ReadWriteOnce"] },
         "annotations": { "$ref": "#/definitions/stringMap" },
         "size": { "type": "string", "description": "Optional. Requested Hydra persistence PVC size.", "pattern": "^[0-9]+(Mi|Gi|Ti)$", "default": "5Gi" },

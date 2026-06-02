@@ -79,7 +79,7 @@
       "required": ["storageClass"],
       "additionalProperties": false,
       "properties": {
-        "storageClass": { "type": "string", "description": "Required. Kubernetes StorageClass used for the chain-data PVC.", "minLength": 1, "x-supernodeCategory": "required" },
+        "storageClass": { "type": "string", "description": "Required. Kubernetes StorageClass used for the chain-data PVC.", "minLength": 1, "x-supernodeCategory": "required", "x-supernodeRole": "storageClass" },
         "accessModes": { "type": "array", "description": "Advanced, usually not modified. PVC access modes.", "items": { "type": "string" }, "default": ["ReadWriteOnce"] },
         "annotations": { "$ref": "#/definitions/stringMap" },
         "size": { "type": "string", "description": "Optional. Requested chain database PVC size. Use roughly 250Gi for mainnet and 80Gi to 120Gi for preview or preprod.", "pattern": "^[0-9]+(Mi|Gi|Ti)$", "default": "80Gi" },

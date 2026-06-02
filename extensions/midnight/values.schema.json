@@ -68,7 +68,8 @@
         "storageClass": {
           "type": "string",
           "description": "Required. Kubernetes StorageClass used for the Midnight chain-data PVC.",
-          "x-supernodeCategory": "required"
+          "x-supernodeCategory": "required",
+          "x-supernodeRole": "storageClass"
         },
         "accessModes": {
           "type": "array",

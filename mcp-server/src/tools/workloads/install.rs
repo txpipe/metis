@@ -16,7 +16,7 @@ use crate::tools::common::kube_error;
 use crate::tools::common::success;
 use crate::tools::common::tool_error;
 use crate::tools::k8s_summaries::storage_class_summary;
-use crate::tools::schema_validation::validate_configuration_schema;
+use crate::tools::schema_validation::{annotated_field_paths, validate_configuration_schema};
 
 const TOOL_NAME: &str = "workloads.install";
 
@@ -264,32 +264,38 @@ pub(crate) async fn resolve_configuration(
             .collect();
         recommended_storage_classes = recommended_storage_class_names(&storage_classes.items);
 
-        let Some(storage_class) =
-            input_string_at(&resolved_configuration, &["persistence", "storageClass"])
-                .filter(|value| !value.trim().is_empty())
-        else {
-            return Err(tool_error(
-                "invalid_extension_configuration",
-                "missing required extension configuration value: persistence.storageClass",
-                json!({ "field": "persistence.storageClass" }),
-            ));
-        };
+        for field in annotated_field_paths(
+            &extension.configuration,
+            "x-supernodeRole",
+            "storageClass",
+        ) {
+            let Some(storage_class) =
+                input_string_at_path(&resolved_configuration, &field)
+                    .filter(|value| !value.trim().is_empty())
+            else {
+                return Err(tool_error(
+                    "invalid_extension_configuration",
+                    format!("missing required extension configuration value: {field}"),
+                    json!({ "field": field }),
+                ));
+            };
 
-        if !storage_classes
-            .items
-            .iter()
-            .any(|candidate| candidate.metadata.name.as_deref() == Some(storage_class))
-        {
-            return Err(tool_error(
-                "invalid_extension_configuration",
-                "unsupported storage class for extension configuration field: persistence.storageClass",
-                json!({
-                    "field": "persistence.storageClass",
-                    "actualValue": storage_class,
-                    "availableStorageClasses": available_storage_classes,
-                    "recommendedStorageClasses": recommended_storage_classes,
-                }),
-            ));
+            if !storage_classes
+                .items
+                .iter()
+                .any(|candidate| candidate.metadata.name.as_deref() == Some(storage_class))
+            {
+                return Err(tool_error(
+                    "invalid_extension_configuration",
+                    format!("unsupported storage class for extension configuration field: {field}"),
+                    json!({
+                        "field": field,
+                        "actualValue": storage_class,
+                        "availableStorageClasses": available_storage_classes,
+                        "recommendedStorageClasses": recommended_storage_classes,
+                    }),
+                ));
+            }
         }
     } else if !extension.dependencies.is_empty() {
         dependency_check_skipped = true;
@@ -430,6 +436,12 @@ fn input_string_at<'a>(inputs: &'a Value, path: &[&str]) -> Option<&'a str> {
         .and_then(Value::as_str)
 }
 
+fn input_string_at_path<'a>(inputs: &'a Value, path: &str) -> Option<&'a str> {
+    path.split('.')
+        .try_fold(inputs, |current, segment| current.get(segment))
+        .and_then(Value::as_str)
+}
+
 fn recommended_storage_class_names(storage_classes: &[StorageClass]) -> Vec<String> {
     let mut defaults = storage_classes
         .iter()
@@ -461,4 +473,46 @@ fn recommended_storage_class_names(storage_classes: &[StorageClass]) -> Vec<Stri
         .collect::<Vec<_>>();
     names.sort();
     names
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::catalog::ExtensionCatalog;
+    use crate::tools::schema_validation::annotated_field_paths;
+
+    #[test]
+    fn cardano_db_sync_discovers_nested_storage_class_fields_from_annotations() {
+        let catalog = ExtensionCatalog::testing();
+        let extension = catalog.get("cardano-db-sync").unwrap();
+
+        assert_eq!(
+            annotated_field_paths(&extension.configuration, "x-supernodeRole", "storageClass"),
+            vec![
+                "dbSync.persistence.storageClass".to_string(),
+                "postgres.persistence.storageClass".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn relay_discovers_top_level_storage_class_field_from_annotations() {
+        let catalog = ExtensionCatalog::testing();
+        let extension = catalog.get("cardano-relay").unwrap();
+
+        assert_eq!(
+            annotated_field_paths(&extension.configuration, "x-supernodeRole", "storageClass"),
+            vec!["persistence.storageClass".to_string()]
+        );
+    }
+
+    #[test]
+    fn cardano_block_producer_discovers_only_always_required_storage_class_fields() {
+        let catalog = ExtensionCatalog::testing();
+        let extension = catalog.get("cardano-block-producer").unwrap();
+
+        assert_eq!(
+            annotated_field_paths(&extension.configuration, "x-supernodeRole", "storageClass"),
+            vec!["persistence.storageClass".to_string()]
+        );
+    }
 }

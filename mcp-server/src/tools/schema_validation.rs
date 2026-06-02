@@ -1,5 +1,6 @@
 use rmcp::model::{CallToolResult, JsonObject};
 use serde_json::{Value, json};
+use std::collections::BTreeSet;
 
 use crate::tools::args::value_type_name;
 use crate::tools::common::tool_error;
@@ -9,6 +10,25 @@ pub(crate) fn validate_configuration_schema(
     schema: &Value,
 ) -> Result<(), CallToolResult> {
     validate_object_value("", values, schema, schema)
+}
+
+pub(crate) fn annotated_field_paths(
+    schema: &Value,
+    annotation_name: &str,
+    annotation_value: &str,
+) -> Vec<String> {
+    let mut paths = Vec::new();
+    let mut visited_refs = BTreeSet::new();
+    collect_annotated_field_paths(
+        "",
+        schema,
+        schema,
+        annotation_name,
+        annotation_value,
+        &mut visited_refs,
+        &mut paths,
+    );
+    paths
 }
 
 fn validate_object_value(
@@ -134,22 +154,74 @@ fn validate_property_value(
     Ok(())
 }
 
+fn collect_annotated_field_paths(
+    path: &str,
+    schema: &Value,
+    root_schema: &Value,
+    annotation_name: &str,
+    annotation_value: &str,
+    visited_refs: &mut BTreeSet<String>,
+    paths: &mut Vec<String>,
+) {
+    let (schema, reference) = dereference_schema_with_ref(schema, root_schema);
+    if let Some(reference) = reference
+        && !visited_refs.insert(reference.to_string())
+    {
+        return;
+    }
+
+    if !path.is_empty()
+        && schema.get(annotation_name).and_then(Value::as_str) == Some(annotation_value)
+        && !paths.iter().any(|existing| existing == path)
+    {
+        paths.push(path.to_string());
+    }
+
+    if let Some(properties) = schema.get("properties").and_then(Value::as_object) {
+        for (field, property_schema) in properties {
+            let child_path = field_path(path, field);
+            collect_annotated_field_paths(
+                &child_path,
+                property_schema,
+                root_schema,
+                annotation_name,
+                annotation_value,
+                visited_refs,
+                paths,
+            );
+        }
+    }
+
+    if let Some(reference) = reference {
+        visited_refs.remove(reference);
+    }
+}
+
 fn dereference_schema<'a>(schema: &'a Value, root_schema: &'a Value) -> &'a Value {
+    dereference_schema_with_ref(schema, root_schema).0
+}
+
+fn dereference_schema_with_ref<'a>(
+    schema: &'a Value,
+    root_schema: &'a Value,
+) -> (&'a Value, Option<&'a str>) {
     let Some(reference) = schema.get("$ref").and_then(Value::as_str) else {
-        return schema;
+        return (schema, None);
     };
     let Some(name) = reference
         .strip_prefix("#/definitions/")
         .or_else(|| reference.strip_prefix("#/$defs/"))
     else {
-        return schema;
+        return (schema, None);
     };
 
-    root_schema
+    let dereferenced = root_schema
         .get("definitions")
         .or_else(|| root_schema.get("$defs"))
         .and_then(|definitions| definitions.get(name))
-        .unwrap_or(schema)
+        .unwrap_or(schema);
+
+    (dereferenced, Some(reference))
 }
 
 fn expected_type_matches(value: &Value, expected_type: &Value) -> bool {
@@ -183,5 +255,60 @@ fn field_path(parent: &str, child: &str) -> String {
         child.to_string()
     } else {
         format!("{parent}.{child}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn discovers_annotated_storage_class_fields_through_refs_and_nested_objects() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "postgres": {
+                    "type": "object",
+                    "properties": {
+                        "persistence": {
+                            "$ref": "#/definitions/persistence"
+                        }
+                    }
+                },
+                "dbSync": {
+                    "type": "object",
+                    "properties": {
+                        "persistence": {
+                            "type": "object",
+                            "properties": {
+                                "storageClass": {
+                                    "type": "string",
+                                    "x-supernodeRole": "storageClass"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "definitions": {
+                "persistence": {
+                    "type": "object",
+                    "properties": {
+                        "storageClass": {
+                            "type": "string",
+                            "x-supernodeRole": "storageClass"
+                        }
+                    }
+                }
+            }
+        });
+
+        assert_eq!(
+            annotated_field_paths(&schema, "x-supernodeRole", "storageClass"),
+            vec![
+                "dbSync.persistence.storageClass".to_string(),
+                "postgres.persistence.storageClass".to_string(),
+            ]
+        );
     }
 }
