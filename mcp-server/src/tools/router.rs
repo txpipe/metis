@@ -724,6 +724,65 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn cardano_db_sync_install_dry_run_accepts_annotated_nested_storage_classes() {
+        let router = ToolRouter::new();
+        let catalog = ExtensionCatalog::testing();
+        let definition = router.get_with_dynamic("workloads.install", &[]).unwrap();
+        let mut arguments = JsonObject::new();
+        arguments.insert(
+            "extensionId".to_string(),
+            Value::String("cardano-db-sync".to_string()),
+        );
+        arguments.insert(
+            "releaseName".to_string(),
+            Value::String("db-sync-preview".to_string()),
+        );
+        arguments.insert(
+            "namespace".to_string(),
+            Value::String("cardano".to_string()),
+        );
+        arguments.insert("dryRun".to_string(), Value::Bool(true));
+        arguments.insert(
+            "configuration".to_string(),
+            json!({
+                "credentials": {
+                    "vaultStaticSecret": {
+                        "path": "runtime/cardano-db-sync/preview/postgres"
+                    }
+                },
+                "postgres": {
+                    "persistence": {
+                        "storageClass": "standard"
+                    }
+                },
+                "dbSync": {
+                    "network": "preview",
+                    "persistence": {
+                        "storageClass": "standard"
+                    }
+                },
+                "cardanoNode": {
+                    "upstreamAddress": "cardano-relay.default.svc.cluster.local:3000"
+                }
+            }),
+        );
+
+        let result = router.call(definition, Some(&arguments), &catalog).await;
+
+        assert_eq!(result.is_error, Some(false));
+        let content = result.structured_content.as_ref().unwrap();
+        assert_eq!(content.pointer("/extension/id"), Some(&json!("cardano-db-sync")));
+        assert_eq!(
+            content.pointer("/helmValues/postgres/persistence/storageClass"),
+            Some(&json!("standard"))
+        );
+        assert_eq!(
+            content.pointer("/helmValues/dbSync/persistence/storageClass"),
+            Some(&json!("standard"))
+        );
+    }
+
+    #[tokio::test]
     async fn midnight_install_dry_run_reports_declared_dependency() {
         let router = ToolRouter::new();
         let catalog = ExtensionCatalog::testing();

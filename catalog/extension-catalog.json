@@ -38,7 +38,8 @@
                 "description": "Required. Kubernetes StorageClass used for the chain-data PVC.",
                 "minLength": 1,
                 "type": "string",
-                "x-supernodeCategory": "required"
+                "x-supernodeCategory": "required",
+                "x-supernodeRole": "storageClass"
               }
             },
             "required": ["storageClass"],
@@ -714,7 +715,8 @@
                 "description": "Required. Kubernetes StorageClass used for the chain-data PVC.",
                 "minLength": 1,
                 "type": "string",
-                "x-supernodeCategory": "required"
+                "x-supernodeCategory": "required",
+                "x-supernodeRole": "storageClass"
               }
             },
             "required": ["storageClass"],
@@ -1115,7 +1117,8 @@
                 "description": "Required. Kubernetes StorageClass used for the producer chain-data PVC.",
                 "minLength": 1,
                 "type": "string",
-                "x-supernodeCategory": "required"
+                "x-supernodeCategory": "required",
+                "x-supernodeRole": "storageClass"
               }
             },
             "required": ["storageClass"],
@@ -1837,7 +1840,8 @@
                 "description": "Required. Kubernetes StorageClass used for the chain-data PVC.",
                 "minLength": 1,
                 "type": "string",
-                "x-supernodeCategory": "required"
+                "x-supernodeCategory": "required",
+                "x-supernodeRole": "storageClass"
               }
             },
             "required": ["storageClass"],
@@ -2384,6 +2388,7 @@
                 "default": {}
               },
               "persistence": {
+                "required": ["storageClass"],
                 "type": "object",
                 "description": "Required. Persistent storage for DB Sync state.",
                 "x-supernodeCategory": "required",
@@ -2397,7 +2402,9 @@
                   "storageClass": {
                     "type": "string",
                     "description": "Required. Kubernetes StorageClass used for DB Sync state.",
-                    "x-supernodeCategory": "required"
+                    "minLength": 1,
+                    "x-supernodeCategory": "required",
+                    "x-supernodeRole": "storageClass"
                   },
                   "accessModes": {
                     "type": "array",
@@ -2567,11 +2574,14 @@
           "persistence": {
             "type": "object",
             "additionalProperties": false,
+            "required": ["storageClass"],
             "properties": {
               "storageClass": {
                 "type": "string",
                 "description": "Required. Kubernetes StorageClass for persistent data.",
-                "x-supernodeCategory": "required"
+                "minLength": 1,
+                "x-supernodeCategory": "required",
+                "x-supernodeRole": "storageClass"
               },
               "accessModes": {
                 "type": "array",
@@ -2889,7 +2899,8 @@
                 "description": "Required. Kubernetes StorageClass used for the Dolos data PVC. Choose a StorageClass available in the target cluster.",
                 "minLength": 1,
                 "type": "string",
-                "x-supernodeCategory": "required"
+                "x-supernodeCategory": "required",
+                "x-supernodeRole": "storageClass"
               }
             },
             "required": ["storageClass"],
@@ -3175,7 +3186,8 @@
               "storageClass": {
                 "type": "string",
                 "description": "Required. Kubernetes StorageClass used for the Midnight chain-data PVC.",
-                "x-supernodeCategory": "required"
+                "x-supernodeCategory": "required",
+                "x-supernodeRole": "storageClass"
               },
               "accessModes": {
                 "type": "array",
@@ -4047,7 +4059,8 @@
                 "description": "Required. Kubernetes StorageClass used for the Hydra state PVC.",
                 "minLength": 1,
                 "type": "string",
-                "x-supernodeCategory": "required"
+                "x-supernodeCategory": "required",
+                "x-supernodeRole": "storageClass"
               }
             },
             "required": ["storageClass"],

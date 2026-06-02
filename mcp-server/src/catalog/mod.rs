@@ -529,15 +529,36 @@ mod tests {
     fn cardano_db_sync_extension_exposes_domain_contract() {
         let catalog = ExtensionCatalog::testing();
         let extension = catalog.get("cardano-db-sync").unwrap();
+        let configuration = &extension.configuration;
 
         assert_eq!(extension.name, "Cardano DB Sync");
         assert_eq!(extension.default_version, "0.1.0");
         assert!(extension.versions.contains(&"0.1.0".to_string()));
-        assert_eq!(extension.configuration.get("type"), Some(&json!("object")));
+        assert_eq!(configuration.get("type"), Some(&json!("object")));
         assert_eq!(extension.metrics.get("type"), Some(&json!("object")));
         assert_eq!(extension.outputs.len(), 1);
         assert_eq!(extension.secrets.len(), 1);
         assert!(extension.dependencies.is_empty());
+        assert_eq!(
+            configuration.pointer("/properties/postgres/properties/persistence/$ref"),
+            Some(&json!("#/definitions/persistence"))
+        );
+        assert_eq!(
+            configuration.pointer("/definitions/persistence/properties/storageClass/x-supernodeRole"),
+            Some(&json!("storageClass"))
+        );
+        assert_eq!(
+            configuration.pointer("/definitions/persistence/required/0"),
+            Some(&json!("storageClass"))
+        );
+        assert_eq!(
+            configuration.pointer("/properties/dbSync/properties/persistence/properties/storageClass/x-supernodeRole"),
+            Some(&json!("storageClass"))
+        );
+        assert_eq!(
+            configuration.pointer("/properties/dbSync/properties/persistence/required/0"),
+            Some(&json!("storageClass"))
+        );
     }
 
     #[test]

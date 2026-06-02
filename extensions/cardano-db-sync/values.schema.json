@@ -134,6 +134,7 @@
           "default": {}
         },
         "persistence": {
+          "required": ["storageClass"],
           "type": "object",
           "description": "Required. Persistent storage for DB Sync state.",
           "x-supernodeCategory": "required",
@@ -147,7 +148,9 @@
             "storageClass": {
               "type": "string",
               "description": "Required. Kubernetes StorageClass used for DB Sync state.",
-              "x-supernodeCategory": "required"
+              "minLength": 1,
+              "x-supernodeCategory": "required",
+              "x-supernodeRole": "storageClass"
             },
             "accessModes": {
               "type": "array",
@@ -281,11 +284,14 @@
     "persistence": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["storageClass"],
       "properties": {
         "storageClass": {
           "type": "string",
           "description": "Required. Kubernetes StorageClass for persistent data.",
-          "x-supernodeCategory": "required"
+          "minLength": 1,
+          "x-supernodeCategory": "required",
+          "x-supernodeRole": "storageClass"
         },
         "accessModes": {
           "type": "array",
