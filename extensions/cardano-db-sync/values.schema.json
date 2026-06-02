@@ -188,6 +188,18 @@
           "description": "Advanced, usually not modified. Unix socket path exposed inside the DB Sync pod.",
           "default": "/node-ipc/node.socket"
         },
+        "socketProxyTls": {
+          "type": "object",
+          "description": "Optional. Enables TLS for the built-in socat socket proxy when the upstream Cardano node endpoint is behind TLS termination. Plain TCP is used by default.",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Optional. Use socat OPENSSL mode instead of TCP for the upstream Cardano node connection.",
+              "default": false
+            }
+          }
+        },
         "socketProxyImage": {
           "$ref": "#/definitions/image",
           "description": "Advanced, usually not modified. Socat image used for the Cardano socket proxy."

@@ -10,7 +10,7 @@ Cardano/partner-chain workloads that need a DB Sync PostgreSQL source.
 - Cardano DB Sync StatefulSet with persistent state storage.
 - Configurable Cardano network: `preview`, `preprod`, or `mainnet`.
 - Opinionated Cardano node connectivity through a built-in `socat` socket proxy
-  to an approved Cardano relay `host:port`.
+  to an approved Cardano relay `host:port`, using plain TCP by default.
 - Vault-only credentials. VaultStaticSecret creates the internal Kubernetes
   Secret consumed by Postgres, DB Sync, and downstream Midnight workloads.
 - `values.schema.json` as the public Helm, MCP, and LLM configuration contract.
@@ -35,6 +35,16 @@ credentials:
 For MCP workflows, inspect candidate Cardano relay workloads with
 `workloads.list` and ask the operator to approve the exact `host:port` value for
 `cardanoNode.upstreamAddress`.
+
+If the approved Cardano node endpoint is behind a proxy that performs TLS
+termination, enable `socat` OpenSSL mode explicitly:
+
+```yaml
+cardanoNode:
+  upstreamAddress: cardano-relay.default.svc.cluster.local:3000
+  socketProxyTls:
+    enabled: true
+```
 
 ## Vault Record
 
@@ -75,6 +85,7 @@ helm template cardano-db-sync . -f ci/values-socket-proxy.yaml
 | `dbSync.persistence.storageClass` | StorageClass for DB Sync state | empty |
 | `cardanoNode.upstreamAddress` | Approved Cardano relay endpoint in `host:port` form | empty |
 | `cardanoNode.socketPath` | Unix socket path exposed inside the DB Sync pod | `/node-ipc/node.socket` |
+| `cardanoNode.socketProxyTls.enabled` | Use `socat` OpenSSL mode for TLS-terminated upstream node endpoints | `false` |
 | `credentials.vaultStaticSecret.path` | Vault path containing PostgreSQL credentials | empty |
 
 Consult `values.schema.json` for the full public configuration contract.

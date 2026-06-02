@@ -58,6 +58,8 @@ dbSync:
 cardanoNode:
   upstreamAddress: ""
   socketPath: /node-ipc/node.socket
+  socketProxyTls:
+    enabled: false
   socketProxyImage:
     repository: alpine/socat
     tag: "1.7.4.4-r0"

@@ -9,3 +9,5 @@ dbSync:
     storageClass: standard
 cardanoNode:
   upstreamAddress: cardano-relay.default.svc.cluster.local:3000
+  socketProxyTls:
+    enabled: true
