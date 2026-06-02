@@ -530,6 +530,10 @@ mod tests {
         let catalog = ExtensionCatalog::testing();
         let extension = catalog.get("cardano-db-sync").unwrap();
         let configuration = &extension.configuration;
+        let credential_keys = configuration
+            .pointer("/properties/credentials/properties/keys/properties")
+            .and_then(Value::as_object)
+            .unwrap();
 
         assert_eq!(extension.name, "Cardano DB Sync");
         assert_eq!(extension.default_version, "0.1.0");
@@ -559,6 +563,14 @@ mod tests {
             configuration.pointer("/properties/dbSync/properties/persistence/required/0"),
             Some(&json!("storageClass"))
         );
+        assert_eq!(
+            configuration.pointer("/properties/credentials/description"),
+            Some(&json!("Required. Vault location for PostgreSQL credentials consumed by both Postgres and Cardano DB Sync. The Vault record should include username, password, and database keys."))
+        );
+        assert!(credential_keys.contains_key("username"));
+        assert!(credential_keys.contains_key("password"));
+        assert!(credential_keys.contains_key("database"));
+        assert!(!credential_keys.contains_key("connection"));
     }
 
     #[test]
@@ -578,12 +590,55 @@ mod tests {
         assert!(properties.contains_key("epoch"));
         assert!(properties.contains_key("dbSizeBytes"));
         assert!(properties.contains_key("latestBlockAgeSeconds"));
+        assert!(properties.contains_key("blockTimestamp"));
+        assert!(!properties.contains_key("latestBlockTime"));
     }
 
     #[test]
     fn midnight_extension_exposes_domain_contract() {
         let catalog = ExtensionCatalog::testing();
         let extension = catalog.get("midnight").unwrap();
+        let configuration = &extension.configuration;
+        let properties = configuration
+            .get("properties")
+            .and_then(Value::as_object)
+            .unwrap();
+        let db_sync = properties
+            .get("dbSync")
+            .and_then(Value::as_object)
+            .unwrap();
+        let db_sync_properties = db_sync
+            .get("properties")
+            .and_then(Value::as_object)
+            .unwrap();
+        let db_sync_required = db_sync
+            .get("required")
+            .and_then(Value::as_array)
+            .unwrap();
+        let definitions = configuration
+            .get("definitions")
+            .and_then(Value::as_object)
+            .unwrap();
+        let workload = definitions
+            .get("requiredDbSyncWorkload")
+            .and_then(Value::as_object)
+            .unwrap();
+        let workload_properties = workload
+            .get("properties")
+            .and_then(Value::as_object)
+            .unwrap();
+        let workload_required = workload
+            .get("required")
+            .and_then(Value::as_array)
+            .unwrap();
+        let vault_static_secret = definitions
+            .get("requiredVaultStaticSecret")
+            .and_then(Value::as_object)
+            .unwrap();
+        let vault_static_secret_properties = vault_static_secret
+            .get("properties")
+            .and_then(Value::as_object)
+            .unwrap();
 
         assert_eq!(extension.name, "Midnight Node");
         assert_eq!(extension.default_version, "0.3.0");
@@ -593,6 +648,53 @@ mod tests {
         assert_eq!(extension.outputs.len(), 4);
         assert_eq!(extension.secrets.len(), 2);
         assert_eq!(extension.dependencies, vec!["cardano-db-sync".to_string()]);
+        assert_eq!(
+            db_sync_properties
+                .get("workload")
+                .and_then(|value| value.get("$ref")),
+            Some(&json!("#/definitions/requiredDbSyncWorkload"))
+        );
+        assert!(db_sync_required.contains(&json!("workload")));
+        assert!(db_sync_required.contains(&json!("vaultStaticSecret")));
+        assert!(workload_required.contains(&json!("releaseName")));
+        assert!(workload_required.contains(&json!("namespace")));
+        assert_eq!(
+            workload_properties
+                .get("releaseName")
+                .and_then(|value| value.get("minLength")),
+            Some(&json!(1))
+        );
+        assert!(workload_properties.contains_key("postgresServiceName"));
+        assert_eq!(
+            workload_properties
+                .get("postgresServiceName")
+                .and_then(|value| value.get("type")),
+            Some(&json!("string"))
+        );
+        assert!(workload_properties.contains_key("postgresPort"));
+        assert_eq!(
+            workload_properties
+                .get("postgresPort")
+                .and_then(|value| value.get("default")),
+            Some(&json!(5432))
+        );
+        assert_eq!(
+            db_sync
+                .get("description")
+                .and_then(Value::as_str),
+            Some("Required. Cardano DB Sync workload reference plus Vault-sourced PostgreSQL credentials. The Vault record must contain `username`, `password`, and `database` keys. The chart derives the PostgreSQL libpq connection string locally from those credentials and the referenced workload endpoint.")
+        );
+        assert_eq!(
+            vault_static_secret_properties
+                .get("path")
+                .and_then(|value| value.get("description"))
+                .and_then(Value::as_str),
+            Some("Required. Runtime Vault path without kv/data prefix. The Vault record must contain `username`, `password`, and `database` keys. The chart derives the PostgreSQL libpq connection string locally from those credentials and the referenced workload endpoint.")
+        );
+        assert_eq!(
+            extension.secrets[0].description,
+            "Cardano DB Sync PostgreSQL credentials synced from Vault. The Vault record must expose the approved `username`, `password`, and `database` keys. The chart derives the PostgreSQL libpq connection string locally from those credentials; host, service name, and port are derived from the referenced workload unless `postgresServiceName` overrides the default service-name convention."
+        );
     }
 
     #[test]

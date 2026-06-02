@@ -2,7 +2,8 @@
 {{- $selectorLabels := include "midnight.selectorLabels" . -}}
 {{- $serviceAccountName := include "midnight.serviceAccountName" . -}}
 {{- $dbSyncSecretName := include "midnight.dbSyncSecretName" . -}}
-{{- $dbSyncSecretKey := include "midnight.dbSyncSecretKey" . -}}
+{{- $dbSyncHost := include "midnight.dbSyncPostgresHost" . -}}
+{{- $dbSyncPort := include "midnight.dbSyncPostgresPort" . -}}
 {{- $nodeKeySecretName := include "midnight.nodeKeySecretName" . -}}
 {{- $nodeKeySecretKey := include "midnight.nodeKeySecretKey" . -}}
 {{- $metricsConfigMapName := include "midnight.metricsConfigMapName" . -}}
@@ -40,11 +41,27 @@ spec:
               value: {{ include "midnight.bootnodes" . | quote }}
             - name: APPEND_ARGS
               value: {{ include "midnight.appendArgs" . | quote }}
-            - name: DB_SYNC_POSTGRES_CONNECTION_STRING
+            - name: DB_SYNC_POSTGRES_HOST
+              value: {{ $dbSyncHost | quote }}
+            - name: DB_SYNC_POSTGRES_PORT
+              value: {{ $dbSyncPort | quote }}
+            - name: DB_SYNC_POSTGRES_USER
               valueFrom:
                 secretKeyRef:
                   name: {{ $dbSyncSecretName }}
-                  key: {{ $dbSyncSecretKey }}
+                  key: username
+            - name: DB_SYNC_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $dbSyncSecretName }}
+                  key: password
+            - name: DB_SYNC_POSTGRES_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $dbSyncSecretName }}
+                  key: database
+            - name: DB_SYNC_POSTGRES_CONNECTION_STRING
+              value: "host=$(DB_SYNC_POSTGRES_HOST) port=$(DB_SYNC_POSTGRES_PORT) dbname=$(DB_SYNC_POSTGRES_DATABASE) user=$(DB_SYNC_POSTGRES_USER) password=$(DB_SYNC_POSTGRES_PASSWORD)"
             - name: NODE_KEY
               valueFrom:
                 secretKeyRef:

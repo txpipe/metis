@@ -27,7 +27,7 @@
     "vaultAuth": { "$ref": "#/definitions/vaultAuth" },
     "credentials": {
       "type": "object",
-      "description": "Required. Vault location for PostgreSQL credentials consumed by both Postgres and Cardano DB Sync. The Vault record should include username, password, database, and connection keys. The connection key is for downstream Midnight workloads.",
+      "description": "Required. Vault location for PostgreSQL credentials consumed by both Postgres and Cardano DB Sync. The Vault record should include username, password, and database keys.",
       "x-supernodeCategory": "required",
       "required": ["vaultStaticSecret"],
       "additionalProperties": false,
@@ -42,12 +42,7 @@
           "properties": {
             "username": { "type": "string", "default": "username" },
             "password": { "type": "string", "default": "password" },
-            "database": { "type": "string", "default": "database" },
-            "connection": {
-              "type": "string",
-              "description": "Key containing the downstream PostgreSQL connection string for Midnight.",
-              "default": "connection"
-            }
+            "database": { "type": "string", "default": "database" }
           }
         }
       }
@@ -69,7 +64,7 @@
         },
         "resources": {
           "$ref": "#/definitions/resources",
-          "description": "Optional. Kubernetes CPU and memory requests and limits for PostgreSQL."
+          "description": "Optional. Kubernetes CPU and memory requests and limits for PostgreSQL. Recommended starting points: preview/preprod request 500m CPU and 4Gi memory with a 2 CPU limit; mainnet request 500m CPU and 16Gi memory with a 4 CPU limit."
         },
         "nodeSelector": {
           "$ref": "#/definitions/stringMap",
@@ -87,7 +82,7 @@
         },
         "persistence": {
           "$ref": "#/definitions/persistence",
-          "description": "Required. Persistent storage for PostgreSQL data."
+          "description": "Required. Persistent storage for PostgreSQL data. Recommended starting points: 50Gi for preview/preprod and 600Gi for mainnet."
         }
       }
     },
@@ -117,7 +112,7 @@
         },
         "resources": {
           "$ref": "#/definitions/resources",
-          "description": "Optional. Kubernetes CPU and memory requests and limits for Cardano DB Sync."
+          "description": "Optional. Kubernetes CPU and memory requests and limits for Cardano DB Sync. Recommended starting points: preview/preprod request 500m CPU and 4Gi memory with a 2 CPU limit; mainnet request 500m CPU and 24Gi memory with a 4 CPU limit."
         },
         "nodeSelector": {
           "$ref": "#/definitions/stringMap",
@@ -136,7 +131,7 @@
         "persistence": {
           "required": ["storageClass"],
           "type": "object",
-          "description": "Required. Persistent storage for DB Sync state.",
+          "description": "Required. Persistent storage for DB Sync state. Recommended starting points: 10Gi for preview/preprod and 20Gi for mainnet.",
           "x-supernodeCategory": "required",
           "additionalProperties": false,
           "properties": {

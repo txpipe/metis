@@ -2272,7 +2272,7 @@
           },
           "credentials": {
             "type": "object",
-            "description": "Required. Vault location for PostgreSQL credentials consumed by both Postgres and Cardano DB Sync. The Vault record should include username, password, database, and connection keys. The connection key is for downstream Midnight workloads.",
+            "description": "Required. Vault location for PostgreSQL credentials consumed by both Postgres and Cardano DB Sync. The Vault record should include username, password, and database keys.",
             "x-supernodeCategory": "required",
             "required": ["vaultStaticSecret"],
             "additionalProperties": false,
@@ -2296,11 +2296,6 @@
                   "database": {
                     "type": "string",
                     "default": "database"
-                  },
-                  "connection": {
-                    "type": "string",
-                    "description": "Key containing the downstream PostgreSQL connection string for Midnight.",
-                    "default": "connection"
                   }
                 }
               }
@@ -2323,7 +2318,7 @@
               },
               "resources": {
                 "$ref": "#/definitions/resources",
-                "description": "Optional. Kubernetes CPU and memory requests and limits for PostgreSQL."
+                "description": "Optional. Kubernetes CPU and memory requests and limits for PostgreSQL. Recommended starting points: preview/preprod request 500m CPU and 4Gi memory with a 2 CPU limit; mainnet request 500m CPU and 16Gi memory with a 4 CPU limit."
               },
               "nodeSelector": {
                 "$ref": "#/definitions/stringMap",
@@ -2341,7 +2336,7 @@
               },
               "persistence": {
                 "$ref": "#/definitions/persistence",
-                "description": "Required. Persistent storage for PostgreSQL data."
+                "description": "Required. Persistent storage for PostgreSQL data. Recommended starting points: 50Gi for preview/preprod and 600Gi for mainnet."
               }
             }
           },
@@ -2371,7 +2366,7 @@
               },
               "resources": {
                 "$ref": "#/definitions/resources",
-                "description": "Optional. Kubernetes CPU and memory requests and limits for Cardano DB Sync."
+                "description": "Optional. Kubernetes CPU and memory requests and limits for Cardano DB Sync. Recommended starting points: preview/preprod request 500m CPU and 4Gi memory with a 2 CPU limit; mainnet request 500m CPU and 24Gi memory with a 4 CPU limit."
               },
               "nodeSelector": {
                 "$ref": "#/definitions/stringMap",
@@ -2390,7 +2385,7 @@
               "persistence": {
                 "required": ["storageClass"],
                 "type": "object",
-                "description": "Required. Persistent storage for DB Sync state.",
+                "description": "Required. Persistent storage for DB Sync state. Recommended starting points: 10Gi for preview/preprod and 20Gi for mainnet.",
                 "x-supernodeCategory": "required",
                 "additionalProperties": false,
                 "properties": {
@@ -2608,7 +2603,7 @@
       "secrets": [
         {
           "name": "postgresCredentials",
-          "description": "PostgreSQL username, password, database, and downstream connection material synced from Vault for the chart-managed Postgres and DB Sync workloads.",
+          "description": "PostgreSQL username, password, and database material synced from Vault for the chart-managed Postgres and DB Sync workloads.",
           "required": true,
           "requiredWhen": null,
           "scope": "runtime",
@@ -2649,7 +2644,7 @@
             "description": "Approximate age of the latest synced block relative to the current wall clock.",
             "type": ["number", "null"]
           },
-          "latestBlockTime": {
+          "blockTimestamp": {
             "description": "Latest synced block timestamp as an ISO-8601 UTC string.",
             "type": ["string", "null"]
           },
@@ -3267,11 +3262,14 @@
           },
           "dbSync": {
             "type": "object",
-            "description": "Required. Vault source for the Cardano DB Sync PostgreSQL connection string. The Vault record must contain a `connection` key.",
+            "description": "Required. Cardano DB Sync workload reference plus Vault-sourced PostgreSQL credentials. The Vault record must contain `username`, `password`, and `database` keys. The chart derives the PostgreSQL libpq connection string locally from those credentials and the referenced workload endpoint.",
             "x-supernodeCategory": "required",
-            "required": ["vaultStaticSecret"],
+            "required": ["workload", "vaultStaticSecret"],
             "additionalProperties": false,
             "properties": {
+              "workload": {
+                "$ref": "#/definitions/requiredDbSyncWorkload"
+              },
               "vaultStaticSecret": {
                 "$ref": "#/definitions/requiredVaultStaticSecret"
               }
@@ -3384,7 +3382,7 @@
               },
               "path": {
                 "type": "string",
-                "description": "Required. Runtime Vault path without kv/data prefix.",
+                "description": "Required. Runtime Vault path without kv/data prefix. The Vault record must contain `username`, `password`, and `database` keys. The chart derives the PostgreSQL libpq connection string locally from those credentials and the referenced workload endpoint.",
                 "minLength": 1,
                 "x-supernodeCategory": "required"
               },
@@ -3393,13 +3391,44 @@
                 "default": "1m"
               }
             }
+          },
+          "requiredDbSyncWorkload": {
+            "type": "object",
+            "required": ["releaseName", "namespace"],
+            "additionalProperties": false,
+            "properties": {
+              "releaseName": {
+                "type": "string",
+                "description": "Required. Helm release name of the cardano-db-sync workload that exposes the PostgreSQL Service.",
+                "minLength": 1,
+                "x-supernodeCategory": "required"
+              },
+              "namespace": {
+                "type": "string",
+                "description": "Required. Kubernetes namespace of the cardano-db-sync workload.",
+                "minLength": 1,
+                "x-supernodeCategory": "required"
+              },
+              "postgresServiceName": {
+                "type": "string",
+                "description": "Optional. Override for the PostgreSQL Service name when the referenced cardano-db-sync workload customizes resource naming with nameOverride or fullnameOverride. Leave empty to use the default `<releaseName>-cardano-db-sync-postgres` convention.",
+                "default": ""
+              },
+              "postgresPort": {
+                "type": "integer",
+                "description": "Advanced, usually not modified. PostgreSQL port exposed by the cardano-db-sync workload Service.",
+                "default": 5432,
+                "minimum": 1,
+                "maximum": 65535
+              }
+            }
           }
         }
       },
       "secrets": [
         {
           "name": "dbSyncConnection",
-          "description": "Cardano DB Sync PostgreSQL connection string synced from Vault. The Vault record must expose the approved connection string under the `connection` key.",
+          "description": "Cardano DB Sync PostgreSQL credentials synced from Vault. The Vault record must expose the approved `username`, `password`, and `database` keys. The chart derives the PostgreSQL libpq connection string locally from those credentials; host, service name, and port are derived from the referenced workload unless `postgresServiceName` overrides the default service-name convention.",
           "required": true,
           "requiredWhen": null,
           "scope": "runtime",

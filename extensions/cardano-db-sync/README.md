@@ -15,6 +15,13 @@ Cardano/partner-chain workloads that need a DB Sync PostgreSQL source.
   Secret consumed by Postgres, DB Sync, and downstream Midnight workloads.
 - `values.schema.json` as the public Helm, MCP, and LLM configuration contract.
 
+## Recommended Sizing
+
+| Network | PostgreSQL CPU | PostgreSQL Memory | PostgreSQL PVC | DB Sync CPU | DB Sync Memory | DB Sync PVC |
+|---------|----------------|-------------------|----------------|-------------|----------------|-------------|
+| `preview` / `preprod` | request `500m`, limit `2` | `4Gi` | `50Gi` | request `500m`, limit `2` | `4Gi` | `10Gi` |
+| `mainnet` | request `500m`, limit `4` | `16Gi` | `600Gi` | request `500m`, limit `4` | `24Gi` | `20Gi` |
+
 ## Minimal Configuration
 
 ```yaml
@@ -45,14 +52,12 @@ keys by default:
 {
   "username": "cexplorer",
   "password": "<postgres-password>",
-  "database": "cexplorer",
-  "connection": "psql://cexplorer:<postgres-password>@<release>-cardano-db-sync-postgres:5432/cexplorer"
+  "database": "cexplorer"
 }
 ```
 
 `username`, `password`, and `database` are consumed by the Postgres and DB Sync
-pods. `connection` is intended for Midnight workloads that need the PostgreSQL
-connection string.
+pods.
 
 ## Testing
 

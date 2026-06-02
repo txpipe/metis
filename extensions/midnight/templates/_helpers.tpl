@@ -93,17 +93,35 @@ Join bootnodes into a single string.
 {{- end }}
 
 {{/*
-Resolve the Secret name for the DB sync connection string.
+Resolve the Secret name for the DB sync credentials.
 */}}
 {{- define "midnight.dbSyncSecretName" -}}
 {{- printf "%s-dbsync" (include "midnight.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
-Resolve the Secret key for the DB sync connection string.
+Resolve the DB sync PostgreSQL Service name from the workload reference.
 */}}
-{{- define "midnight.dbSyncSecretKey" -}}
-connection
+{{- define "midnight.dbSyncPostgresServiceName" -}}
+{{- if .Values.dbSync.workload.postgresServiceName }}
+{{- .Values.dbSync.workload.postgresServiceName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- printf "%s-cardano-db-sync-postgres" .Values.dbSync.workload.releaseName | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Resolve the DB sync PostgreSQL host from the workload reference.
+*/}}
+{{- define "midnight.dbSyncPostgresHost" -}}
+{{- printf "%s.%s.svc.cluster.local" (include "midnight.dbSyncPostgresServiceName" .) .Values.dbSync.workload.namespace }}
+{{- end }}
+
+{{/*
+Resolve the DB sync PostgreSQL port from the workload reference.
+*/}}
+{{- define "midnight.dbSyncPostgresPort" -}}
+{{- .Values.dbSync.workload.postgresPort | toString }}
 {{- end }}
 
 {{/*

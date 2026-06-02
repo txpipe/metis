@@ -49,7 +49,7 @@ data:
     block_height=""
     slot_num=""
     epoch=""
-    latest_block_time=""
+    block_timestamp=""
     latest_block_age_seconds=""
 
     if [ -n "$sync_row" ]; then
@@ -60,13 +60,13 @@ data:
       block_height="${1:-}"
       slot_num="${2:-}"
       epoch="${3:-}"
-      latest_block_time="${4:-}"
+      block_timestamp="${4:-}"
     else
       append_error "failed to read latest synced block from postgres"
     fi
 
-    if [ -n "$latest_block_time" ] && [ -n "$now_epoch" ]; then
-      latest_block_age_seconds=$((now_epoch - latest_block_time))
+    if [ -n "$block_timestamp" ] && [ -n "$now_epoch" ]; then
+      latest_block_age_seconds=$((now_epoch - block_timestamp))
       if [ "$latest_block_age_seconds" -lt 0 ]; then
         latest_block_age_seconds=0
       fi
@@ -90,19 +90,19 @@ data:
       fi
     }
 
-    latest_block_time_iso=""
-    if [ -n "$latest_block_time" ]; then
-      latest_block_time_iso="$(date -u -r "$latest_block_time" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || true)"
-      if [ -z "$latest_block_time_iso" ]; then
+    block_timestamp_iso=""
+    if [ -n "$block_timestamp" ]; then
+      block_timestamp_iso="$(date -u -r "$block_timestamp" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || true)"
+      if [ -z "$block_timestamp_iso" ]; then
         append_error "failed to format latest block time"
       fi
     fi
 
-    printf '{"type":"cardano-db-sync","blockHeight":%s,"slotNum":%s,"epoch":%s,"latestBlockTime":%s,"latestBlockAgeSeconds":%s,"dbSizeBytes":%s,"dbConnections":%s,"errors":%s}\n' \
+    printf '{"type":"cardano-db-sync","blockHeight":%s,"slotNum":%s,"epoch":%s,"blockTimestamp":%s,"latestBlockAgeSeconds":%s,"dbSizeBytes":%s,"dbConnections":%s,"errors":%s}\n' \
       "$(number_or_null "$block_height")" \
       "$(number_or_null "$slot_num")" \
       "$(number_or_null "$epoch")" \
-      "$(string_or_null "$latest_block_time_iso")" \
+      "$(string_or_null "$block_timestamp_iso")" \
       "$(number_or_null "$latest_block_age_seconds")" \
       "$(number_or_null "$db_size")" \
       "$(number_or_null "$db_connections")" \

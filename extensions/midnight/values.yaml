@@ -38,6 +38,11 @@ vaultAuth:
     name: vault-auth
 
 dbSync:
+  workload:
+    releaseName: ""
+    namespace: ""
+    postgresServiceName: ""
+    postgresPort: 5432
   vaultStaticSecret:
     mount: kv
     path: ""

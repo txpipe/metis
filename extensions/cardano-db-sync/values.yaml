@@ -17,14 +17,19 @@ credentials:
     username: username
     password: password
     database: database
-    connection: connection
 
 postgres:
   image:
     repository: postgres
     tag: "15.3"
   port: 5432
-  resources: {}
+  resources:
+    requests:
+      cpu: 500m
+      memory: 4Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -42,7 +47,13 @@ dbSync:
     tag: "13.7.0.5"
   replicas: 1
   network: preview
-  resources: {}
+  resources:
+    requests:
+      cpu: 500m
+      memory: 4Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}

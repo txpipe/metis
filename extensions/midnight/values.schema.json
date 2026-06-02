@@ -141,11 +141,14 @@
     "vaultAuth": { "$ref": "#/definitions/vaultAuth" },
     "dbSync": {
       "type": "object",
-      "description": "Required. Vault source for the Cardano DB Sync PostgreSQL connection string. The Vault record must contain a `connection` key.",
+      "description": "Required. Cardano DB Sync workload reference plus Vault-sourced PostgreSQL credentials. The Vault record must contain `username`, `password`, and `database` keys. The chart derives the PostgreSQL libpq connection string locally from those credentials and the referenced workload endpoint.",
       "x-supernodeCategory": "required",
-      "required": ["vaultStaticSecret"],
+      "required": ["workload", "vaultStaticSecret"],
       "additionalProperties": false,
       "properties": {
+        "workload": {
+          "$ref": "#/definitions/requiredDbSyncWorkload"
+        },
         "vaultStaticSecret": {
           "$ref": "#/definitions/requiredVaultStaticSecret"
         }
@@ -233,11 +236,42 @@
         "mount": { "type": "string", "default": "kv" },
         "path": {
           "type": "string",
-          "description": "Required. Runtime Vault path without kv/data prefix.",
+          "description": "Required. Runtime Vault path without kv/data prefix. The Vault record must contain `username`, `password`, and `database` keys. The chart derives the PostgreSQL libpq connection string locally from those credentials and the referenced workload endpoint.",
           "minLength": 1,
           "x-supernodeCategory": "required"
         },
         "refreshAfter": { "type": "string", "default": "1m" }
+      }
+    },
+    "requiredDbSyncWorkload": {
+      "type": "object",
+      "required": ["releaseName", "namespace"],
+      "additionalProperties": false,
+      "properties": {
+        "releaseName": {
+          "type": "string",
+          "description": "Required. Helm release name of the cardano-db-sync workload that exposes the PostgreSQL Service.",
+          "minLength": 1,
+          "x-supernodeCategory": "required"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Required. Kubernetes namespace of the cardano-db-sync workload.",
+          "minLength": 1,
+          "x-supernodeCategory": "required"
+        },
+        "postgresServiceName": {
+          "type": "string",
+          "description": "Optional. Override for the PostgreSQL Service name when the referenced cardano-db-sync workload customizes resource naming with nameOverride or fullnameOverride. Leave empty to use the default `<releaseName>-cardano-db-sync-postgres` convention.",
+          "default": ""
+        },
+        "postgresPort": {
+          "type": "integer",
+          "description": "Advanced, usually not modified. PostgreSQL port exposed by the cardano-db-sync workload Service.",
+          "default": 5432,
+          "minimum": 1,
+          "maximum": 65535
+        }
       }
     }
   }
