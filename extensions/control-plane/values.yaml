@@ -167,7 +167,7 @@ supernodeMcp:
   replicaCount: 1
   image:
     repository: ghcr.io/txpipe/metis-mcp
-    tag: 41d9974d893ef5d076950b8bcd3c80e80e8872f8
+    tag: fb0133dfb66bd3e87a730ecab712b23845724ef0
     pullPolicy: IfNotPresent
   auth:
     mode: trusted
@@ -175,12 +175,12 @@ supernodeMcp:
   bindAddr: 0.0.0.0:8443
   extensionCatalog:
     source: oci
-    ociRef: oci://oci.supernode.store/extension-catalog@sha256:4a5868af362d9142def5ed06bf5eea72eb75d3ed5743a387174414c958b7826c
+    ociRef: oci://oci.supernode.store/extension-catalog@sha256:a2da9c06a29414a468125e15a3665657bd24d90a222d9bc388a4474bf553b45f
     maxBytes: 1048576
     allowUntrusted: false
   skillCatalog:
     source: oci
-    ociRef: oci://oci.supernode.store/skill-catalog@sha256:20ed4fb0acf3d2424a6a56fb12ba614fa576a01b1d528a61a36c2288f0ed7dce
+    ociRef: oci://oci.supernode.store/skill-catalog@sha256:65c3e695232d1bee18658adbd96e52cea898f9dd96e2f8a133c276d1aa843319
     maxBytes: 1048576
     allowUntrusted: false
   sessionStore:
