@@ -163,9 +163,22 @@ mod tests {
     #[test]
     fn bundled_catalog_loads_skills() {
         let catalog = SkillCatalog::bundled();
+        let troubleshooting = catalog.get("general-workload-troubleshooting").unwrap();
 
         assert!(catalog.len() >= 20);
         assert!(catalog.get("cardano-relay-setup").is_some());
+        assert_eq!(
+            troubleshooting.title,
+            "General Workload Troubleshooting"
+        );
+        assert!(troubleshooting
+            .tools
+            .iter()
+            .any(|tool| tool == "workloads.list"));
+        assert!(troubleshooting
+            .tools
+            .iter()
+            .any(|tool| tool == "workloads.get"));
         assert!(catalog.get("hydra-node-troubleshooting").is_some());
     }
 

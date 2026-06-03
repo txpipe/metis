@@ -811,6 +811,10 @@ mod tests {
                     "storageClass": "standard"
                 },
                 "dbSync": {
+                    "workload": {
+                        "releaseName": "cardano-db-sync-preview",
+                        "namespace": "cardano"
+                    },
                     "vaultStaticSecret": {
                         "path": "runtime/midnight/preview/dbsync"
                     }

@@ -40,12 +40,12 @@ pub fn definitions() -> &'static [ToolDefinition] {
         ToolDefinition {
             name: "workloads.logs.get",
             title: "Get Workload Logs",
-            description: "Read bounded pod logs for one selected workload pod and container.",
+            description: "Read bounded pod logs for one selected workload pod and container, including selected-target diagnostics.",
             required_scope: Scope::Debug,
             approval_class: ApprovalClass::ReadOnlyDebug,
             read_only: true,
             destructive: false,
-            input_schema: r#"{"type":"object","required":["namespace","workload"],"properties":{"namespace":{"type":"string","pattern":"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$","maxLength":63},"workload":{"type":"string","pattern":"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$","maxLength":63},"pod":{"type":"string","description":"Exact pod name to read. Required when the workload has multiple active pods."},"container":{"type":"string","description":"Exact container or init-container name to read. Required when the selected pod has multiple loggable containers."},"tailLines":{"type":"integer","minimum":1,"maximum":1000},"sinceSeconds":{"type":"integer","minimum":1},"previous":{"type":"boolean"},"timestamps":{"type":"boolean"}},"additionalProperties":false}"#,
+            input_schema: r#"{"type":"object","required":["namespace","workload"],"properties":{"namespace":{"type":"string","pattern":"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$","maxLength":63},"workload":{"type":"string","pattern":"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$","maxLength":63},"pod":{"type":"string","description":"Exact pod name to read. Required when the workload has multiple active pods."},"container":{"type":"string","description":"Exact container or init-container name to read. Required when the selected pod has multiple loggable containers."},"tailLines":{"type":"integer","minimum":1,"maximum":1000},"sinceSeconds":{"type":"integer","minimum":1},"previous":{"type":"boolean","description":"When true, read logs from the previous terminated instance of the selected container."},"timestamps":{"type":"boolean"}},"additionalProperties":false}"#,
         },
         ToolDefinition {
             name: "workloads.metrics.get",

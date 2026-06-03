@@ -244,6 +244,22 @@
       "contentPath": "../skills/dolos-supernode-deployment.md"
     },
     {
+      "id": "general-workload-troubleshooting",
+      "title": "General Workload Troubleshooting",
+      "description": "Troubleshoot a workload with MCP-first inspection of status, logs, metrics, events, and dependencies.",
+      "tags": ["workload", "troubleshooting", "kubernetes"],
+      "extensions": [],
+      "tools": [
+        "workloads.list",
+        "workloads.get",
+        "workloads.metrics.get",
+        "workloads.logs.get",
+        "cluster.events.list",
+        "vault.runtime.metadata.get"
+      ],
+      "contentPath": "../skills/general-workload-troubleshooting.md"
+    },
+    {
       "id": "hydra-head-operations",
       "title": "Hydra Head Operations",
       "description": "Guide MCP-supported inspection for Hydra head operations.",

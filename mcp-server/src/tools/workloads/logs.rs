@@ -71,6 +71,7 @@ pub(crate) async fn get(arguments: Option<&JsonObject>) -> CallToolResult {
             "sinceSeconds": since_seconds,
             "previous": previous,
             "timestamps": timestamps,
+            "diagnostics": selected_target_diagnostics(&pods, &target, previous),
             "logs": logs,
         })),
         Err(error) => kube_error("workloads.logs.get", error),
@@ -217,6 +218,33 @@ fn loggable_container_names(pod: &Pod) -> Vec<String> {
     containers
 }
 
+fn selected_target_diagnostics(
+    pods: &[Pod],
+    target: &ResolvedLogTarget,
+    requested_previous: bool,
+) -> serde_json::Value {
+    pods.iter()
+        .find(|pod| pod.metadata.name.as_deref() == Some(target.pod.as_str()))
+        .map(|pod| {
+            k8s_summaries::selected_container_diagnostics(pod, &target.container, requested_previous)
+        })
+        .unwrap_or_else(|| {
+            json!({
+                "pod": target.pod,
+                "container": target.container,
+                "requestedPrevious": requested_previous,
+                "ready": null,
+                "restartCount": null,
+                "state": null,
+                "stateDetails": null,
+                "lastState": null,
+                "lastStateDetails": null,
+                "lastTerminationReason": null,
+                "previousLogsAvailable": false,
+            })
+        })
+}
+
 async fn workload_log_pods(
     client: &KubernetesClient,
     namespace: &str,
@@ -254,10 +282,15 @@ fn get_optional<T>(result: Result<T, kube::Error>) -> Result<Option<T>, kube::Er
 #[cfg(test)]
 mod tests {
     use k8s_openapi::api::core::v1::Container;
+    use k8s_openapi::api::core::v1::ContainerState;
+    use k8s_openapi::api::core::v1::ContainerStateRunning;
+    use k8s_openapi::api::core::v1::ContainerStateTerminated;
     use k8s_openapi::api::core::v1::PodSpec;
     use k8s_openapi::api::core::v1::PodStatus;
+    use k8s_openapi::api::core::v1::ContainerStatus;
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
     use serde_json::Value;
+    use serde_json::json;
 
     use super::*;
 
@@ -337,7 +370,137 @@ mod tests {
         );
     }
 
+    #[test]
+    fn selected_target_diagnostics_report_previous_container_death_for_normal_container() {
+        let pods = vec![pod_with_statuses(
+            "relay-0",
+            &["cardano-node"],
+            &[],
+            vec![ContainerStatus {
+                name: "cardano-node".to_string(),
+                ready: true,
+                restart_count: 2,
+                state: Some(ContainerState {
+                    running: Some(ContainerStateRunning::default()),
+                    ..Default::default()
+                }),
+                last_state: Some(ContainerState {
+                    terminated: Some(ContainerStateTerminated {
+                        exit_code: 137,
+                        reason: Some("OOMKilled".to_string()),
+                        message: Some("container ran out of memory".to_string()),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }],
+            vec![],
+        )];
+
+        let target = resolve_log_target("cardano", "relay", &pods, Some("relay-0"), Some("cardano-node"))
+            .unwrap();
+
+        assert_eq!(
+            selected_target_diagnostics(&pods, &target, true),
+            json!({
+                "pod": "relay-0",
+                "container": "cardano-node",
+                "requestedPrevious": true,
+                "ready": true,
+                "restartCount": 2,
+                "state": "running",
+                "stateDetails": {
+                    "type": "running"
+                },
+                "lastState": "terminated",
+                "lastStateDetails": {
+                    "type": "terminated",
+                    "reason": "OOMKilled",
+                    "message": "container ran out of memory",
+                    "exitCode": 137
+                },
+                "lastTerminationReason": "OOMKilled",
+                "previousLogsAvailable": true,
+            })
+        );
+    }
+
+    #[test]
+    fn selected_target_diagnostics_also_work_for_init_container_if_selected() {
+        let pods = vec![pod_with_statuses(
+            "relay-0",
+            &["cardano-node"],
+            &["bootstrap"],
+            vec![],
+            vec![ContainerStatus {
+                name: "bootstrap".to_string(),
+                ready: false,
+                restart_count: 1,
+                state: Some(ContainerState {
+                    terminated: Some(ContainerStateTerminated {
+                        exit_code: 1,
+                        reason: Some("Error".to_string()),
+                        message: Some("init failed".to_string()),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+                last_state: Some(ContainerState {
+                    terminated: Some(ContainerStateTerminated {
+                        exit_code: 1,
+                        reason: Some("Error".to_string()),
+                        message: Some("init failed".to_string()),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }],
+        )];
+
+        let target = resolve_log_target("cardano", "relay", &pods, Some("relay-0"), Some("bootstrap"))
+            .unwrap();
+
+        assert_eq!(
+            selected_target_diagnostics(&pods, &target, false),
+            json!({
+                "pod": "relay-0",
+                "container": "bootstrap",
+                "requestedPrevious": false,
+                "ready": false,
+                "restartCount": 1,
+                "state": "terminated",
+                "stateDetails": {
+                    "type": "terminated",
+                    "reason": "Error",
+                    "message": "init failed",
+                    "exitCode": 1
+                },
+                "lastState": "terminated",
+                "lastStateDetails": {
+                    "type": "terminated",
+                    "reason": "Error",
+                    "message": "init failed",
+                    "exitCode": 1
+                },
+                "lastTerminationReason": "Error",
+                "previousLogsAvailable": true,
+            })
+        );
+    }
+
     fn pod_with_containers(name: &str, containers: &[&str], init_containers: &[&str]) -> Pod {
+        pod_with_statuses(name, containers, init_containers, vec![], vec![])
+    }
+
+    fn pod_with_statuses(
+        name: &str,
+        containers: &[&str],
+        init_containers: &[&str],
+        container_statuses: Vec<ContainerStatus>,
+        init_container_statuses: Vec<ContainerStatus>,
+    ) -> Pod {
         Pod {
             metadata: ObjectMeta {
                 name: Some(name.to_string()),
@@ -351,6 +514,9 @@ mod tests {
             }),
             status: Some(PodStatus {
                 phase: Some("Running".to_string()),
+                container_statuses: (!container_statuses.is_empty()).then_some(container_statuses),
+                init_container_statuses: (!init_container_statuses.is_empty())
+                    .then_some(init_container_statuses),
                 ..Default::default()
             }),
         }

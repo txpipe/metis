@@ -1,4 +1,5 @@
 use rmcp::model::{CallToolResult, JsonObject};
+use serde_json::Value;
 use serde_json::json;
 
 use crate::catalog::ExtensionCatalog;
@@ -94,25 +95,56 @@ pub(crate) async fn get(
         );
     }
 
-    success(json!({
-        "namespace": namespace,
-        "name": name,
-        "source": "kubernetes-api+helm-secrets",
-        "helmRelease": helm_release,
-        "deployment": deployment,
-        "statefulSet": stateful_set,
-        "pod": pod,
-        "relatedPods": pods,
-        "logTargets": k8s_summaries::pod_log_target_summaries(&pod_items),
-        "relatedServices": k8s_summaries::service_summaries(services.clone(), true),
-        "outputs": outputs::outputs_for_release(
-            &namespace,
-            &name,
-            helm_release.as_ref(),
-            &services.items,
-            catalog,
-        ),
+    let outputs = outputs::outputs_for_release(
+        &namespace,
+        &name,
+        helm_release.as_ref(),
+        &services.items,
+        catalog,
+    );
+
+    success(build_workload_response(WorkloadResponse {
+        namespace: &namespace,
+        name: &name,
+        helm_release: helm_release.map(|value| json!(value)),
+        deployment,
+        stateful_set,
+        pod,
+        pods,
+        pod_items: &pod_items,
+        related_services: k8s_summaries::service_summaries(services.clone(), true),
+        outputs: outputs.into_iter().map(|value| json!(value)).collect(),
     }))
+}
+
+struct WorkloadResponse<'a> {
+    namespace: &'a str,
+    name: &'a str,
+    helm_release: Option<Value>,
+    deployment: Option<Value>,
+    stateful_set: Option<Value>,
+    pod: Option<Value>,
+    pods: Vec<Value>,
+    pod_items: &'a [k8s_openapi::api::core::v1::Pod],
+    related_services: Vec<Value>,
+    outputs: Vec<Value>,
+}
+
+fn build_workload_response(response: WorkloadResponse<'_>) -> Value {
+    json!({
+        "namespace": response.namespace,
+        "name": response.name,
+        "source": "kubernetes-api+helm-secrets",
+        "helmRelease": response.helm_release,
+        "deployment": response.deployment,
+        "statefulSet": response.stateful_set,
+        "pod": response.pod,
+        "relatedPods": response.pods,
+        "diagnostics": k8s_summaries::workload_diagnostics(response.pod_items),
+        "logTargets": k8s_summaries::pod_log_target_summaries(response.pod_items),
+        "relatedServices": response.related_services,
+        "outputs": response.outputs,
+    })
 }
 
 fn get_optional<T>(result: Result<T, kube::Error>) -> Result<Option<T>, kube::Error> {
@@ -120,5 +152,85 @@ fn get_optional<T>(result: Result<T, kube::Error>) -> Result<Option<T>, kube::Er
         Ok(value) => Ok(Some(value)),
         Err(kube::Error::Api(error)) if error.code == 404 => Ok(None),
         Err(error) => Err(error),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use k8s_openapi::api::core::v1::{
+        Container, ContainerState, ContainerStateRunning, ContainerStateTerminated,
+        ContainerStatus, Pod, PodSpec, PodStatus,
+    };
+    use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
+    use serde_json::Value;
+
+    #[test]
+    fn response_includes_additive_diagnostics_and_existing_fields() {
+        let pod_items = vec![Pod {
+            metadata: ObjectMeta {
+                name: Some("demo-pod".into()),
+                ..Default::default()
+            },
+            spec: Some(PodSpec {
+                containers: vec![Container {
+                    name: "app".into(),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }),
+            status: Some(PodStatus {
+                phase: Some("Running".into()),
+                container_statuses: Some(vec![ContainerStatus {
+                    name: "app".into(),
+                    ready: true,
+                    restart_count: 3,
+                    state: Some(ContainerState {
+                        running: Some(ContainerStateRunning::default()),
+                        ..Default::default()
+                    }),
+                    last_state: Some(ContainerState {
+                        terminated: Some(ContainerStateTerminated {
+                            exit_code: 137,
+                            reason: Some("OOMKilled".into()),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            }),
+        }];
+
+        let response = build_workload_response(WorkloadResponse {
+            namespace: "default",
+            name: "demo",
+            helm_release: None,
+            deployment: None,
+            stateful_set: None,
+            pod: None,
+            pods: pod_items.iter().map(k8s_summaries::pod_summary).collect::<Vec<_>>(),
+            pod_items: &pod_items,
+            related_services: Vec::<Value>::new(),
+            outputs: Vec::<Value>::new(),
+        });
+
+        assert_eq!(response.pointer("/diagnostics/totalRestartCount"), Some(&json!(3)));
+        assert_eq!(
+            response.pointer("/diagnostics/containersWithRestarts/0/pod"),
+            Some(&json!("demo-pod"))
+        );
+        assert_eq!(
+            response.pointer("/diagnostics/containersWithRestarts/0/container"),
+            Some(&json!("app"))
+        );
+        assert_eq!(
+            response.pointer("/diagnostics/containersWithRestarts/0/lastTerminationReason"),
+            Some(&json!("OOMKilled"))
+        );
+        assert_eq!(response.pointer("/diagnostics/oomKilled"), Some(&json!(true)));
+        assert!(response.pointer("/logTargets/0/containers/0/name").is_some());
+        assert!(response.pointer("/relatedPods/0/metadata/name").is_some());
     }
 }
