@@ -68,7 +68,11 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
         {{- $listenAddress := printf "UNIX-LISTEN:%s,reuseaddr,fork,unlink-early" $nodeSocketPath -}}
-        {{- $targetAddress := printf "OPENSSL:%s,verify=0" $upstreamAddress }}
+        {{- $socketProxyTlsEnabled := default false .Values.cardanoNode.socketProxyTls.enabled -}}
+        {{- $targetAddress := printf "TCP:%s" $upstreamAddress -}}
+        {{- if $socketProxyTlsEnabled -}}
+        {{- $targetAddress = printf "OPENSSL:%s,verify=0" $upstreamAddress -}}
+        {{- end }}
         - name: node-socket-proxy
           image: "{{ .Values.cardanoNode.socketProxyImage.repository }}:{{ .Values.cardanoNode.socketProxyImage.tag }}"
           imagePullPolicy: IfNotPresent
