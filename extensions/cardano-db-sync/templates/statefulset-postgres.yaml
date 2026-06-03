@@ -50,7 +50,7 @@ spec:
               protocol: TCP
           volumeMounts:
             - name: data
-              mountPath: /var/lib/postgresql/data
+              mountPath: /var/lib/postgresql
             - name: metrics-scripts
               mountPath: /opt/metis/bin/metrics.sh
               subPath: metrics.sh
