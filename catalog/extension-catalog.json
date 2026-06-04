@@ -429,40 +429,256 @@
       "dependencies": [],
       "metrics": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": true,
+        "additionalProperties": false,
         "properties": {
+          "aboutToLeadCount": {
+            "description": "Times the node was about to lead a slot since startup, for block-producing nodes.",
+            "type": ["number", "null"]
+          },
+          "adoptedCount": {
+            "description": "Forged blocks adopted by the chain since startup, for block-producing nodes.",
+            "type": ["number", "null"]
+          },
           "blockHeight": {
             "description": "Latest block number observed by the node.",
+            "type": ["number", "null"]
+          },
+          "blocksLate": {
+            "description": "Blocks observed later than five seconds by the block fetch client.",
+            "type": ["number", "null"]
+          },
+          "blocksServed": {
+            "description": "Blocks served to peers by this node since startup.",
+            "type": ["number", "null"]
+          },
+          "blocksWithin1s": {
+            "description": "Percentage of observed blocks arriving within 1 second.",
+            "type": ["number", "null"]
+          },
+          "blocksWithin3s": {
+            "description": "Percentage of observed blocks arriving within 3 seconds.",
+            "type": ["number", "null"]
+          },
+          "blocksWithin5s": {
+            "description": "Percentage of observed blocks arriving within 5 seconds.",
+            "type": ["number", "null"]
+          },
+          "connectionBiDir": {
+            "description": "Current bidirectional connection count.",
+            "type": ["number", "null"]
+          },
+          "connectionDuplex": {
+            "description": "Current full duplex connection count.",
+            "type": ["number", "null"]
+          },
+          "connectionUniDir": {
+            "description": "Current unidirectional connection count.",
+            "type": ["number", "null"]
+          },
+          "density": {
+            "description": "Recent chain density reported by the node, expressed as a percentage.",
             "type": ["number", "null"]
           },
           "epoch": {
             "description": "Current epoch observed by the node.",
             "type": ["number", "null"]
           },
+          "epochLength": {
+            "description": "Number of slots in the current Cardano epoch from Shelley genesis.",
+            "type": ["number", "null"]
+          },
+          "epochProgressPercent": {
+            "description": "Percentage of the current epoch completed from slot-in-epoch and Shelley genesis epoch length.",
+            "type": ["number", "null"]
+          },
+          "epochTimeRemainingSeconds": {
+            "description": "Approximate time remaining in the current epoch derived from Shelley genesis timing.",
+            "type": ["number", "null"]
+          },
           "errors": {
+            "description": "Warnings or collection errors emitted by the metrics script.",
             "items": {
               "type": "string"
             },
             "type": "array"
           },
+          "forgedCount": {
+            "description": "Blocks forged by the node since startup, for block-producing nodes.",
+            "type": ["number", "null"]
+          },
+          "forgingEnabled": {
+            "description": "Whether this node currently has forging enabled.",
+            "type": ["boolean", "null"]
+          },
+          "forks": {
+            "description": "Number of chain forks the node has observed since startup.",
+            "type": ["number", "null"]
+          },
+          "gcMajorCount": {
+            "description": "Number of major garbage collections since startup.",
+            "type": ["number", "null"]
+          },
+          "gcMinorCount": {
+            "description": "Number of minor garbage collections since startup.",
+            "type": ["number", "null"]
+          },
+          "inboundGovernorHot": {
+            "description": "Inbound governor hot connection count reported by the node.",
+            "type": ["number", "null"]
+          },
+          "inboundGovernorWarm": {
+            "description": "Inbound governor warm connection count reported by the node.",
+            "type": ["number", "null"]
+          },
+          "invalidCount": {
+            "description": "Derived count of forged blocks that were not adopted, clamped at zero.",
+            "type": ["number", "null"]
+          },
+          "kesExpirationSeconds": {
+            "description": "Approximate seconds until KES key expiry, when available.",
+            "type": ["number", "null"]
+          },
+          "kesExpirationTime": {
+            "description": "Estimated KES key expiry time as an ISO-8601 timestamp, when available.",
+            "type": ["string", "null"]
+          },
+          "kesPeriod": {
+            "description": "Current KES period reported by the node, when available.",
+            "type": ["number", "null"]
+          },
+          "kesRemaining": {
+            "description": "Remaining KES periods before key expiry, when available.",
+            "type": ["number", "null"]
+          },
+          "lastBlockDelaySeconds": {
+            "description": "Latest observed block propagation delay.",
+            "type": ["number", "null"]
+          },
+          "leaderCount": {
+            "description": "Slots where the node was leader since startup, for block-producing nodes.",
+            "type": ["number", "null"]
+          },
+          "memHeapBytes": {
+            "description": "Heap memory currently reserved by the node RTS.",
+            "type": ["number", "null"]
+          },
+          "memLiveBytes": {
+            "description": "Live RTS memory currently retained by the node process.",
+            "type": ["number", "null"]
+          },
+          "missedSlots": {
+            "description": "Slots missed by the node since startup, when available.",
+            "type": ["number", "null"]
+          },
+          "nextLeaderSlot": {
+            "description": "Next scheduled leadership slot number, for block-producing nodes. Computed in the background and may be blank on first read; try again in a few minutes.",
+            "type": ["number", "null"]
+          },
+          "nextLeaderTime": {
+            "description": "Next scheduled leadership slot time as an ISO-8601 timestamp. Computed in the background and may be blank on first read; try again in a few minutes.",
+            "type": ["string", "null"]
+          },
+          "nextLeaderTimeRemainingSeconds": {
+            "description": "Approximate seconds until the next scheduled leadership slot. Computed in the background and may be blank on first read; try again in a few minutes.",
+            "type": ["number", "null"]
+          },
+          "nodeRevision": {
+            "description": "Cardano node build revision reported by the metrics endpoint.",
+            "type": ["string", "null"]
+          },
+          "nodeVersion": {
+            "description": "Cardano node build version reported by the metrics endpoint.",
+            "type": ["string", "null"]
+          },
+          "opCertOnChain": {
+            "description": "Operational certificate counter observed on chain, when available.",
+            "type": ["number", "null"]
+          },
+          "opCertOnDisk": {
+            "description": "Operational certificate counter found on disk, when available.",
+            "type": ["number", "null"]
+          },
+          "peerSelectionCold": {
+            "description": "Peer selection cold state count for outbound connections.",
+            "type": ["number", "null"]
+          },
+          "peerSelectionHot": {
+            "description": "Peer selection hot state count for outbound connections.",
+            "type": ["number", "null"]
+          },
+          "peerSelectionWarm": {
+            "description": "Peer selection warm state count for outbound connections.",
+            "type": ["number", "null"]
+          },
           "peersIncoming": {
-            "description": "Incoming peer connection count.",
+            "description": "Active inbound node connections.",
             "type": ["number", "null"]
           },
           "peersOutgoing": {
-            "description": "Outgoing peer connection count.",
+            "description": "Active outbound node connections.",
+            "type": ["number", "null"]
+          },
+          "pendingTx": {
+            "description": "Transactions currently in the mempool.",
+            "type": ["number", "null"]
+          },
+          "pendingTxBytes": {
+            "description": "Buffered mempool transaction size when available.",
+            "type": ["number", "null"]
+          },
+          "role": {
+            "const": "block-producer"
+          },
+          "scheduledIdealCount": {
+            "description": "Expected leadership slots for the current epoch based on active stake. Computed in the background and may be blank on first read; try again in a few minutes.",
+            "type": ["number", "null"]
+          },
+          "scheduledLeaderCount": {
+            "description": "Leadership slots scheduled for the current epoch, for block-producing nodes. Computed in the background and may be blank on first read; try again in a few minutes.",
+            "type": ["number", "null"]
+          },
+          "scheduledLuckPercent": {
+            "description": "Scheduled leader slots as a percentage of ideal expected slots. Computed in the background and may be blank on first read; try again in a few minutes.",
+            "type": ["number", "null"]
+          },
+          "slotInEpoch": {
+            "description": "Current slot within the active epoch observed by the node.",
+            "type": ["number", "null"]
+          },
+          "slotLength": {
+            "description": "Slot duration in seconds from Shelley genesis.",
             "type": ["number", "null"]
           },
           "slotNum": {
-            "description": "Absolute slot number observed by the node.",
+            "description": "Absolute slot number observed by the node across the chain timeline.",
+            "type": ["number", "null"]
+          },
+          "syncPercent": {
+            "description": "Estimated sync percentage against the computed reference tip.",
+            "type": ["number", "null"]
+          },
+          "systemStartUnix": {
+            "description": "Shelley system start timestamp as Unix seconds.",
+            "type": ["number", "null"]
+          },
+          "tipDiffSlots": {
+            "description": "Difference between the computed reference tip and the node tip.",
+            "type": ["number", "null"]
+          },
+          "tipRefSlot": {
+            "description": "Reference chain tip computed from the Shelley genesis system start and slot length.",
+            "type": ["number", "null"]
+          },
+          "txProcessed": {
+            "description": "Total transactions processed by the node since startup.",
             "type": ["number", "null"]
           },
           "type": {
             "const": "apex-fusion"
           }
         },
-        "required": ["type", "errors"],
-        "title": "Apex Fusion Relay Metrics",
+        "required": ["type", "role", "errors"],
+        "title": "Apex Fusion Block Producer Metrics",
         "type": "object"
       },
       "metricsCollection": {
@@ -1481,15 +1697,15 @@
             "type": ["number", "null"]
           },
           "nextLeaderSlot": {
-            "description": "Next scheduled leadership slot number, for block-producing nodes.",
+            "description": "Next scheduled leadership slot number, for block-producing nodes. Computed in the background and may be blank on first read; try again in a few minutes.",
             "type": ["number", "null"]
           },
           "nextLeaderTime": {
-            "description": "Next scheduled leadership slot time as an ISO-8601 timestamp.",
+            "description": "Next scheduled leadership slot time as an ISO-8601 timestamp. Computed in the background and may be blank on first read; try again in a few minutes.",
             "type": ["string", "null"]
           },
           "nextLeaderTimeRemainingSeconds": {
-            "description": "Approximate seconds until the next scheduled leadership slot.",
+            "description": "Approximate seconds until the next scheduled leadership slot. Computed in the background and may be blank on first read; try again in a few minutes.",
             "type": ["number", "null"]
           },
           "nodeRevision": {
@@ -1540,15 +1756,15 @@
             "const": "block-producer"
           },
           "scheduledIdealCount": {
-            "description": "Expected leadership slots for the current epoch based on active stake.",
+            "description": "Expected leadership slots for the current epoch based on active stake. Computed in the background and may be blank on first read; try again in a few minutes.",
             "type": ["number", "null"]
           },
           "scheduledLeaderCount": {
-            "description": "Leadership slots scheduled for the current epoch, for block-producing nodes.",
+            "description": "Leadership slots scheduled for the current epoch, for block-producing nodes. Computed in the background and may be blank on first read; try again in a few minutes.",
             "type": ["number", "null"]
           },
           "scheduledLuckPercent": {
-            "description": "Scheduled leader slots as a percentage of ideal expected slots.",
+            "description": "Scheduled leader slots as a percentage of ideal expected slots. Computed in the background and may be blank on first read; try again in a few minutes.",
             "type": ["number", "null"]
           },
           "slotInEpoch": {

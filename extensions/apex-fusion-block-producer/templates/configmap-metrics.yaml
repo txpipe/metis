@@ -1,29 +1,521 @@
+{{- $configMapName := include "apex-fusion.metricsConfigMapName" . -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "apex-fusion.metricsConfigMapName" . }}
+  name: {{ $configMapName }}
   labels:
     {{- include "apex-fusion.labels" . | nindent 4 }}
 data:
   metrics.sh: |-
-    #!/usr/bin/env sh
+    #!/usr/bin/env bash
     set -u
+
+    errors=()
+
+    append_error() {
+      errors+=("$1")
+    }
+
+    command_exists() {
+      command -v "$1" >/dev/null 2>&1
+    }
+
+    metric_value() {
+      local metrics_text="$1"
+      shift
+
+      local metric_name
+      for metric_name in "$@"; do
+        local value
+        value="$(printf '%s\n' "$metrics_text" | awk -v key="$metric_name" '$1 == key { print $2; exit }')"
+        if [ -n "$value" ]; then
+          printf '%s' "$value"
+          return 0
+        fi
+      done
+
+      return 1
+    }
+
+    sanitize_cache_key() {
+      printf '%s' "$1" | tr -c '[:alnum:]._-' '_'
+    }
+
     metrics="$(curl -s --fail "http://127.0.0.1:{{ .Values.node.metricsPort }}/metrics" || wget -qO- "http://127.0.0.1:{{ .Values.node.metricsPort }}/metrics" || true)"
-    metric_value() { printf '%s\n' "$metrics" | awk -v key="$1" '$1 == key { print $2; exit }'; }
-    json_number_or_null() { if printf '%s' "$1" | grep -Eq '^-?[0-9]+([.][0-9]+)?$'; then printf '%s' "$1"; else printf 'null'; fi; }
-    errors="[]"
-    if [ -z "$metrics" ]; then errors='["failed to read node metrics"]'; fi
-    block_height="$(metric_value cardano_node_metrics_blockNum_int)"
-    epoch="$(metric_value cardano_node_metrics_epoch_int)"
-    slot_num="$(metric_value cardano_node_metrics_slotNum_int)"
-    leader_count="$(metric_value cardano_node_metrics_Forge_node_is_leader_int)"
-    adopted_count="$(metric_value cardano_node_metrics_Forge_adopted_int)"
-    forged_count="$(metric_value cardano_node_metrics_Forge_forged_int)"
-    printf '{"type":"apex-fusion","role":"block-producer","blockHeight":%s,"epoch":%s,"slotNum":%s,"leaderCount":%s,"adoptedCount":%s,"forgedCount":%s,"errors":%s}\n' \
-      "$(json_number_or_null "$block_height")" \
-      "$(json_number_or_null "$epoch")" \
-      "$(json_number_or_null "$slot_num")" \
-      "$(json_number_or_null "$leader_count")" \
-      "$(json_number_or_null "$adopted_count")" \
-      "$(json_number_or_null "$forged_count")" \
-      "$errors"
+    if [ -z "$metrics" ]; then
+      append_error "failed to read node metrics"
+    fi
+
+    build_info_line="$(printf '%s\n' "$metrics" | awk '$1 ~ /^cardano_node_metrics_cardano_build_info/ { print; exit }')"
+    node_version=""
+    node_revision=""
+
+    if [ -n "$build_info_line" ]; then
+      node_version="$(printf '%s\n' "$build_info_line" | awk 'match($0, /version="[^"]+"/) { print substr($0, RSTART + 9, RLENGTH - 10); exit }')"
+      node_revision="$(printf '%s\n' "$build_info_line" | awk 'match($0, /revision="[^"]+"/) { print substr($0, RSTART + 10, 8); exit }')"
+    fi
+
+    block_height="$(metric_value "$metrics" cardano_node_metrics_blockNum_int || true)"
+    epoch="$(metric_value "$metrics" cardano_node_metrics_epoch_int || true)"
+    slot_num="$(metric_value "$metrics" cardano_node_metrics_slotNum_int || true)"
+    slot_in_epoch="$(metric_value "$metrics" cardano_node_metrics_slotInEpoch_int || true)"
+    density="$(metric_value "$metrics" cardano_node_metrics_density_real || true)"
+    forks="$(metric_value "$metrics" cardano_node_metrics_forks_int cardano_node_metrics_forks_counter cardano_node_metrics_forks || true)"
+    tx_processed="$(metric_value "$metrics" cardano_node_metrics_txsProcessedNum_int cardano_node_metrics_txsProcessedNum_counter || true)"
+    pending_tx="$(metric_value "$metrics" cardano_node_metrics_txsInMempool_int || true)"
+    pending_tx_bytes="$(metric_value "$metrics" cardano_node_metrics_mempoolBytes_int || true)"
+    forging_enabled="$(metric_value "$metrics" cardano_node_metrics_forging_enabled_int cardano_node_metrics_forging_enabled || true)"
+    peers_incoming="$(metric_value "$metrics" cardano_node_metrics_connectionManager_incomingConns_int cardano_node_metrics_connectionManager_inboundConns_int cardano_node_metrics_connectionManager_incomingConns cardano_node_metrics_connectionManager_inboundConns || true)"
+    peers_outgoing="$(metric_value "$metrics" cardano_node_metrics_connectionManager_outgoingConns_int cardano_node_metrics_connectionManager_outboundConns_int cardano_node_metrics_connectionManager_outgoingConns cardano_node_metrics_connectionManager_outboundConns || true)"
+    connection_uni_dir="$(metric_value "$metrics" cardano_node_metrics_connectionManager_unidirectionalConns_int cardano_node_metrics_connectionManager_unidirectionalConns || true)"
+    connection_bi_dir="$(metric_value "$metrics" cardano_node_metrics_connectionManager_duplexConns_int cardano_node_metrics_connectionManager_duplexConns || true)"
+    connection_duplex="$(metric_value "$metrics" cardano_node_metrics_connectionManager_fullDuplexConns_int cardano_node_metrics_connectionManager_fullDuplexConns || true)"
+    inbound_governor_warm="$(metric_value "$metrics" cardano_node_metrics_inboundGovernor_warm_int cardano_node_metrics_inboundGovernor_warm || true)"
+    inbound_governor_hot="$(metric_value "$metrics" cardano_node_metrics_inboundGovernor_hot_int cardano_node_metrics_inboundGovernor_hot || true)"
+    peer_selection_cold="$(metric_value "$metrics" cardano_node_metrics_peerSelection_cold_int cardano_node_metrics_peerSelection_Cold_int cardano_node_metrics_peerSelection_cold cardano_node_metrics_peerSelection_Cold || true)"
+    peer_selection_warm="$(metric_value "$metrics" cardano_node_metrics_peerSelection_warm_int cardano_node_metrics_peerSelection_Warm_int cardano_node_metrics_peerSelection_warm cardano_node_metrics_peerSelection_Warm || true)"
+    peer_selection_hot="$(metric_value "$metrics" cardano_node_metrics_peerSelection_hot_int cardano_node_metrics_peerSelection_Hot_int cardano_node_metrics_peerSelection_hot cardano_node_metrics_peerSelection_Hot || true)"
+    last_block_delay_seconds="$(metric_value "$metrics" cardano_node_metrics_blockfetchclient_blockdelay_s cardano_node_metrics_blockfetchclient_blockdelay_real || true)"
+    blocks_served="$(metric_value "$metrics" cardano_node_metrics_served_block_counter cardano_node_metrics_served_block_count_int || true)"
+    blocks_late="$(metric_value "$metrics" cardano_node_metrics_blockfetchclient_lateblocks_counter cardano_node_metrics_blockfetchclient_lateblocks || true)"
+    blocks_within_1s="$(metric_value "$metrics" cardano_node_metrics_blockfetchclient_blockdelay_cdfOne_real cardano_node_metrics_blockfetchclient_blockdelay_cdfOne || true)"
+    blocks_within_3s="$(metric_value "$metrics" cardano_node_metrics_blockfetchclient_blockdelay_cdfThree_real cardano_node_metrics_blockfetchclient_blockdelay_cdfThree || true)"
+    blocks_within_5s="$(metric_value "$metrics" cardano_node_metrics_blockfetchclient_blockdelay_cdfFive_real cardano_node_metrics_blockfetchclient_blockdelay_cdfFive || true)"
+    mem_live_bytes="$(metric_value "$metrics" cardano_node_metrics_RTS_gcLiveBytes_int || true)"
+    mem_heap_bytes="$(metric_value "$metrics" cardano_node_metrics_RTS_gcHeapBytes_int || true)"
+    gc_minor_count="$(metric_value "$metrics" cardano_node_metrics_RTS_gcMinorNum_int || true)"
+    gc_major_count="$(metric_value "$metrics" cardano_node_metrics_RTS_gcMajorNum_int || true)"
+    kes_period="$(metric_value "$metrics" cardano_node_metrics_currentKESPeriod_int || true)"
+    kes_remaining="$(metric_value "$metrics" cardano_node_metrics_remainingKESPeriods_int || true)"
+    kes_expiration_time=""
+    kes_expiration_seconds=""
+    op_cert_on_disk=""
+    op_cert_on_chain=""
+    leader_count="$(metric_value "$metrics" cardano_node_metrics_Forge_node_is_leader_int cardano_node_metrics_Forge_node_is_leader_counter || true)"
+    adopted_count="$(metric_value "$metrics" cardano_node_metrics_Forge_adopted_int cardano_node_metrics_Forge_adopted_counter || true)"
+    forged_count="$(metric_value "$metrics" cardano_node_metrics_Forge_forged_int cardano_node_metrics_Forge_forged_counter || true)"
+    about_to_lead_count="$(metric_value "$metrics" cardano_node_metrics_Forge_forge_about_to_lead_int cardano_node_metrics_Forge_forge_about_to_lead_counter cardano_node_metrics_Forge_about_to_lead_int cardano_node_metrics_Forge_about_to_lead_counter || true)"
+    missed_slots="$(metric_value "$metrics" cardano_node_metrics_slotsMissedNum_int cardano_node_metrics_slotsMissed_int || true)"
+
+    shelley_genesis_path="${METIS_SHELLEY_GENESIS_PATH:-}"
+    byron_genesis_path="${METIS_BYRON_GENESIS_PATH:-}"
+    epoch_length=""
+    slot_length=""
+    slots_per_kes_period=""
+    active_slots_coeff=""
+    system_start_raw=""
+    system_start_unix=""
+    byron_start_unix=""
+    byron_epoch_length=""
+    byron_slot_length=""
+    shelley_transition_epoch="${METIS_SHELLEY_TRANSITION_EPOCH:-}"
+
+    if [ -n "$shelley_genesis_path" ]; then
+      if [ -r "$shelley_genesis_path" ]; then
+        epoch_length="$(jq -r '.epochLength // empty' "$shelley_genesis_path" 2>/dev/null || true)"
+        slot_length="$(jq -r '.slotLength // empty' "$shelley_genesis_path" 2>/dev/null || true)"
+        slots_per_kes_period="$(jq -r '.slotsPerKESPeriod // empty' "$shelley_genesis_path" 2>/dev/null || true)"
+        active_slots_coeff="$(jq -r '.activeSlotsCoeff // empty' "$shelley_genesis_path" 2>/dev/null || true)"
+        system_start_raw="$(jq -r '.systemStart // empty' "$shelley_genesis_path" 2>/dev/null || true)"
+        if [ -n "$system_start_raw" ]; then
+          system_start_unix="$(jq -nr --arg value "$system_start_raw" '
+            def normalize_system_start:
+              sub("\\.[0-9]+Z$"; "Z")
+              | sub("\\+00:00$"; "Z");
+            $value
+            | normalize_system_start as $normalized
+            | (try ($normalized | fromdateiso8601) catch empty)
+              // (try ($normalized | strptime("%Y-%m-%dT%H:%M:%SZ") | mktime) catch empty)
+          ' 2>/dev/null || true)"
+        fi
+        if [ -z "$epoch_length" ]; then
+          append_error "epochLength missing in $shelley_genesis_path"
+        fi
+        if [ -z "$slot_length" ]; then
+          append_error "slotLength missing in $shelley_genesis_path"
+        fi
+        if [ -z "$active_slots_coeff" ]; then
+          append_error "activeSlotsCoeff missing in $shelley_genesis_path"
+        fi
+        if [ -z "$system_start_raw" ]; then
+          append_error "systemStart missing in $shelley_genesis_path"
+        elif [ -z "$system_start_unix" ]; then
+          append_error "failed to parse systemStart '$system_start_raw'"
+        fi
+      else
+        append_error "shelley genesis file is not readable: $shelley_genesis_path"
+      fi
+    else
+      append_error "METIS_SHELLEY_GENESIS_PATH is not set"
+    fi
+
+    if [ -n "$byron_genesis_path" ]; then
+      if [ -r "$byron_genesis_path" ]; then
+        byron_start_unix="$(jq -r '.startTime // empty' "$byron_genesis_path" 2>/dev/null || true)"
+        byron_k="$(jq -r '.protocolConsts.k // empty' "$byron_genesis_path" 2>/dev/null || true)"
+        byron_slot_length_ms="$(jq -r '.blockVersionData.slotDuration // empty' "$byron_genesis_path" 2>/dev/null || true)"
+
+        if [ -n "$byron_k" ]; then
+          byron_epoch_length="$((10 * byron_k))"
+        fi
+
+        if [ -n "$byron_slot_length_ms" ]; then
+          byron_slot_length="$(jq -nr --arg value "$byron_slot_length_ms" '($value | tonumber?) / 1000' 2>/dev/null || true)"
+        fi
+      else
+        append_error "byron genesis file is not readable: $byron_genesis_path"
+      fi
+    fi
+
+    now_epoch="$(date +%s 2>/dev/null || true)"
+    cache_dir="/tmp/metis-metrics"
+    mkdir -p "$cache_dir" 2>/dev/null || true
+    tip_ref_slot=""
+
+    if [ -n "$slot_length" ] && [ -n "$system_start_unix" ] && [ -n "$now_epoch" ]; then
+      if [ -n "$byron_start_unix" ] && [ -n "$byron_epoch_length" ] && [ -n "$byron_slot_length" ]; then
+        tip_ref_slot="$(jq -nr \
+          --arg now "$now_epoch" \
+          --arg shelleyStart "$system_start_unix" \
+          --arg slotLength "$slot_length" \
+          --arg byronStart "$byron_start_unix" \
+          --arg byronEpochLength "$byron_epoch_length" \
+          --arg byronSlotLength "$byron_slot_length" \
+          --arg transitionEpoch "$shelley_transition_epoch" '
+            ($now | tonumber?) as $now |
+            ($shelleyStart | tonumber?) as $shelleyStart |
+            ($slotLength | tonumber?) as $slotLength |
+            ($byronStart | tonumber?) as $byronStart |
+            ($byronEpochLength | tonumber?) as $byronEpochLength |
+            ($byronSlotLength | tonumber?) as $byronSlotLength |
+            ($transitionEpoch | tonumber?) as $transitionEpoch |
+            if $now == null or $shelleyStart == null or $slotLength == null or $slotLength <= 0 or $byronStart == null or $byronEpochLength == null or $byronEpochLength < 0 or $byronSlotLength == null or $byronSlotLength <= 0 then empty
+            else
+              (($transitionEpoch // ((($shelleyStart - $byronStart) / ($byronEpochLength * $byronSlotLength)) | floor))) as $effectiveTransitionEpoch |
+              ($effectiveTransitionEpoch * $byronEpochLength) as $byronSlots |
+              ($byronStart + ($byronSlots * $byronSlotLength)) as $byronEnd |
+              if $now < $byronEnd then (((($now - $byronStart) / $byronSlotLength) | floor) | if . < 0 then 0 else . end)
+              else ($byronSlots + ((($now - $byronEnd) / $slotLength) | floor))
+              end
+            end' 2>/dev/null || true)"
+      fi
+
+      if [ -z "$tip_ref_slot" ]; then
+        tip_ref_slot="$(jq -nr --arg now "$now_epoch" --arg systemStart "$system_start_unix" --arg slotLength "$slot_length" '($now | tonumber?) as $now | ($systemStart | tonumber?) as $systemStart | ($slotLength | tonumber?) as $slotLength | if $now == null or $systemStart == null or $slotLength == null or $slotLength <= 0 then empty else (((($now - $systemStart) / $slotLength) | floor) | if . < 0 then 0 else . end) end' 2>/dev/null || true)"
+      fi
+    fi
+
+    scheduled_leader_count=""
+    scheduled_ideal_count=""
+    scheduled_luck_percent=""
+    next_leader_slot=""
+    next_leader_time=""
+    next_leader_time_remaining_seconds=""
+
+    node_role="${METIS_NODE_ROLE:-relay}"
+    if [ "$node_role" = "block-producer" ]; then
+      leader_count="${leader_count:-0}"
+      adopted_count="${adopted_count:-0}"
+      forged_count="${forged_count:-0}"
+      pool_id="${METIS_POOL_ID:-}"
+      vrf_skey_path="${METIS_VRF_SKEY_PATH:-}"
+      op_cert_path="${METIS_OP_CERT_PATH:-}"
+      network_arg_name=""
+      network_arg_value=""
+
+      if [ -z "$pool_id" ]; then
+        append_error "METIS_POOL_ID is not set for block producer"
+      fi
+
+      if [ -z "$vrf_skey_path" ]; then
+        append_error "METIS_VRF_SKEY_PATH is not set for block producer"
+      elif [ ! -r "$vrf_skey_path" ]; then
+        append_error "vrf signing key is not readable: $vrf_skey_path"
+      fi
+
+      if [ "${CARDANO_NETWORK:-}" = "mainnet" ] || [ "${CARDANO_NETWORK:-}" = "prime-mainnet" ]; then
+        network_arg_name="--mainnet"
+      elif [ -n "${METIS_CARDANO_NETWORK_MAGIC:-}" ]; then
+        network_arg_name="--testnet-magic"
+        network_arg_value="${METIS_CARDANO_NETWORK_MAGIC}"
+      else
+        append_error "METIS_CARDANO_NETWORK_MAGIC is not set for non-mainnet block producer"
+      fi
+
+      if ! command_exists cardano-cli; then
+        append_error "cardano-cli is not available in the node container"
+      elif [ -n "$pool_id" ] && [ -n "$vrf_skey_path" ] && [ -r "$vrf_skey_path" ] && [ -n "$network_arg_name" ] && [ -r "$shelley_genesis_path" ]; then
+        pool_cache_key="$(sanitize_cache_key "$pool_id")"
+        leadership_cache_file="${cache_dir}/leadership-${epoch:-unknown}-${pool_cache_key}.json"
+        leadership_lock_file="${leadership_cache_file}.lock"
+        leadership_schedule=""
+        leadership_query_args=(cardano-cli query leadership-schedule "$network_arg_name")
+        if [ -n "$network_arg_value" ]; then
+          leadership_query_args+=("$network_arg_value")
+        fi
+        leadership_query_args+=(--genesis "$shelley_genesis_path" --stake-pool-id "$pool_id" --vrf-signing-key-file "$vrf_skey_path" --current --output-json)
+
+        if [ -f "$leadership_lock_file" ]; then
+          lock_mtime="$(stat -c %Y "$leadership_lock_file" 2>/dev/null || echo 0)"
+          if [ -n "$now_epoch" ] && [ "$lock_mtime" -gt 0 ] && [ $((now_epoch - lock_mtime)) -gt 900 ]; then
+            rm -f "$leadership_lock_file"
+          fi
+        fi
+
+        if [ -r "$leadership_cache_file" ]; then
+          leadership_schedule="$(cat "$leadership_cache_file" 2>/dev/null || true)"
+        fi
+
+        if [ -z "$leadership_schedule" ] || ! printf '%s' "$leadership_schedule" | jq -e 'type == "array"' >/dev/null 2>&1; then
+          if [ ! -f "$leadership_lock_file" ]; then
+            : > "$leadership_lock_file"
+            (
+              tmp_file="${leadership_cache_file}.tmp"
+              if command_exists timeout; then
+                timeout 240 "${leadership_query_args[@]}" >"$tmp_file" 2>/dev/null
+              else
+                "${leadership_query_args[@]}" >"$tmp_file" 2>/dev/null
+              fi
+
+              if jq -e 'type == "array"' "$tmp_file" >/dev/null 2>&1; then
+                mv "$tmp_file" "$leadership_cache_file"
+              else
+                rm -f "$tmp_file"
+              fi
+
+              rm -f "$leadership_lock_file"
+            ) >/dev/null 2>&1 & disown
+          fi
+          leadership_schedule=""
+        fi
+
+        if [ -z "$leadership_schedule" ] || ! printf '%s' "$leadership_schedule" | jq -e 'type == "array"' >/dev/null 2>&1; then
+          append_error "current leadership schedule is not ready yet; refresh is in progress"
+        else
+          scheduled_leader_count="$(printf '%s' "$leadership_schedule" | jq -r 'length' 2>/dev/null || true)"
+          next_leader_slot="$(printf '%s' "$leadership_schedule" | jq -r --argjson now "$now_epoch" '[.[] | . as $slot | ((try (($slot.slotTime // "") | fromdateiso8601) catch empty)) as $timestamp | select($timestamp != null and $timestamp > $now) | { slotNumber: ($slot.slotNumber // empty), timestamp: $timestamp }] | sort_by(.timestamp) | .[0].slotNumber // empty' 2>/dev/null || true)"
+          next_leader_time="$(printf '%s' "$leadership_schedule" | jq -r --argjson now "$now_epoch" '[.[] | . as $slot | ((try (($slot.slotTime // "") | fromdateiso8601) catch empty)) as $timestamp | select($timestamp != null and $timestamp > $now) | { slotTime: ($slot.slotTime // empty), timestamp: $timestamp }] | sort_by(.timestamp) | .[0].slotTime // empty' 2>/dev/null || true)"
+        fi
+
+        stake_snapshot="$(
+          if [ -n "$network_arg_value" ]; then
+            cardano-cli query stake-snapshot "$network_arg_name" "$network_arg_value" --stake-pool-id "$pool_id" 2>/dev/null
+          else
+            cardano-cli query stake-snapshot "$network_arg_name" --stake-pool-id "$pool_id" 2>/dev/null
+          fi
+        )"
+
+        if [ -z "$stake_snapshot" ] || ! printf '%s' "$stake_snapshot" | jq -e 'type == "object"' >/dev/null 2>&1; then
+          append_error "failed to query current stake snapshot"
+        else
+          pool_stake_set="$(printf '%s' "$stake_snapshot" | jq -r '(.pools | to_entries | .[0].value.stakeSet) // (.pools | to_entries | .[0].value.poolStakeSet) // empty' 2>/dev/null || true)"
+          total_stake_set="$(printf '%s' "$stake_snapshot" | jq -r '.total.stakeSet // .total.activeStakeSet // empty' 2>/dev/null || true)"
+
+          if [ -z "$pool_stake_set" ]; then
+            append_error "stakeSet missing for pool $pool_id"
+          fi
+
+          if [ -z "$total_stake_set" ]; then
+            append_error "total stakeSet missing in stake snapshot"
+          elif [ "$total_stake_set" = "0" ]; then
+            append_error "total stakeSet is zero in stake snapshot"
+          fi
+
+          if [ -n "$pool_stake_set" ] && [ -n "$total_stake_set" ] && [ "$total_stake_set" != "0" ] && [ -n "$active_slots_coeff" ] && [ -n "$epoch_length" ]; then
+            scheduled_ideal_count="$(jq -nr --arg poolStake "$pool_stake_set" --arg totalStake "$total_stake_set" --arg activeSlotsCoeff "$active_slots_coeff" --arg epochLength "$epoch_length" '($poolStake | tonumber?) as $poolStake | ($totalStake | tonumber?) as $totalStake | ($activeSlotsCoeff | tonumber?) as $activeSlotsCoeff | ($epochLength | tonumber?) as $epochLength | if $poolStake == null or $totalStake == null or $totalStake <= 0 or $activeSlotsCoeff == null or $epochLength == null then empty else (($poolStake / $totalStake) * $activeSlotsCoeff * $epochLength) end' 2>/dev/null || true)"
+          fi
+        fi
+
+        if [ -n "$scheduled_leader_count" ] && [ -n "$scheduled_ideal_count" ]; then
+          scheduled_luck_percent="$(jq -nr --arg leaderCount "$scheduled_leader_count" --arg idealCount "$scheduled_ideal_count" '($leaderCount | tonumber?) as $leaderCount | ($idealCount | tonumber?) as $idealCount | if $leaderCount == null or $idealCount == null or $idealCount <= 0 then empty else (($leaderCount / $idealCount) * 100) end' 2>/dev/null || true)"
+        fi
+
+        if [ -n "$next_leader_time" ]; then
+          next_leader_time_remaining_seconds="$(jq -nr --arg value "$next_leader_time" --arg now "$now_epoch" '($value | fromdateiso8601?) as $timestamp | ($now | tonumber?) as $now | if $timestamp == null or $now == null then empty else (($timestamp - $now) | if . < 0 then 0 else . end) end' 2>/dev/null || true)"
+        fi
+
+        if [ -n "$op_cert_path" ] && [ -r "$op_cert_path" ]; then
+          kes_info_file="${cache_dir}/kes-info-$(sanitize_cache_key "$pool_id").json"
+          if command_exists timeout; then
+            if [ -n "$network_arg_value" ]; then
+              timeout 30 cardano-cli query kes-period-info "$network_arg_name" "$network_arg_value" --op-cert-file "$op_cert_path" --out-file "$kes_info_file" >/dev/null 2>/dev/null || true
+            else
+              timeout 30 cardano-cli query kes-period-info "$network_arg_name" --op-cert-file "$op_cert_path" --out-file "$kes_info_file" >/dev/null 2>/dev/null || true
+            fi
+          elif [ -n "$network_arg_value" ]; then
+            cardano-cli query kes-period-info "$network_arg_name" "$network_arg_value" --op-cert-file "$op_cert_path" --out-file "$kes_info_file" >/dev/null 2>/dev/null || true
+          else
+            cardano-cli query kes-period-info "$network_arg_name" --op-cert-file "$op_cert_path" --out-file "$kes_info_file" >/dev/null 2>/dev/null || true
+          fi
+
+          if [ -r "$kes_info_file" ]; then
+            kes_period="$(jq -r '.qKesCurrentKesPeriod // empty' "$kes_info_file" 2>/dev/null || printf '%s' "$kes_period")"
+            kes_remaining="$(jq -r 'if .qKesEndKesInterval != null and .qKesCurrentKesPeriod != null then ((.qKesEndKesInterval - .qKesCurrentKesPeriod) | tostring) else empty end' "$kes_info_file" 2>/dev/null || printf '%s' "$kes_remaining")"
+            kes_expiration_time="$(jq -r '.qKesKesKeyExpiry // empty' "$kes_info_file" 2>/dev/null || true)"
+            op_cert_on_disk="$(jq -r '.qKesOnDiskOperationalCertificateNumber // empty' "$kes_info_file" 2>/dev/null || true)"
+            op_cert_on_chain="$(jq -r '.qKesNodeStateOperationalCertificateNumber // empty' "$kes_info_file" 2>/dev/null || true)"
+            if [ -n "$kes_expiration_time" ]; then
+              kes_expiration_seconds="$(jq -nr --arg value "$kes_expiration_time" --arg now "$now_epoch" '($value | fromdateiso8601?) as $timestamp | ($now | tonumber?) as $now | if $timestamp == null or $now == null then empty else (($timestamp - $now) | if . < 0 then 0 else . end) end' 2>/dev/null || true)"
+            fi
+          fi
+        fi
+      fi
+    fi
+
+    errors_json='[]'
+    if [ ${#errors[@]} -gt 0 ]; then
+      errors_json="$(printf '%s\n' "${errors[@]}" | jq -R . | jq -s .)"
+    fi
+
+    jq -n \
+      --arg blockHeight "$block_height" \
+      --arg epoch "$epoch" \
+      --arg slotNum "$slot_num" \
+      --arg slotInEpoch "$slot_in_epoch" \
+      --arg density "$density" \
+      --arg forks "$forks" \
+      --arg txProcessed "$tx_processed" \
+      --arg pendingTx "$pending_tx" \
+      --arg pendingTxBytes "$pending_tx_bytes" \
+      --arg nodeVersion "$node_version" \
+      --arg nodeRevision "$node_revision" \
+      --arg forgingEnabled "$forging_enabled" \
+      --arg peersIncoming "$peers_incoming" \
+      --arg peersOutgoing "$peers_outgoing" \
+      --arg connectionUniDir "$connection_uni_dir" \
+      --arg connectionBiDir "$connection_bi_dir" \
+      --arg connectionDuplex "$connection_duplex" \
+      --arg inboundGovernorWarm "$inbound_governor_warm" \
+      --arg inboundGovernorHot "$inbound_governor_hot" \
+      --arg peerSelectionCold "$peer_selection_cold" \
+      --arg peerSelectionWarm "$peer_selection_warm" \
+      --arg peerSelectionHot "$peer_selection_hot" \
+      --arg lastBlockDelaySeconds "$last_block_delay_seconds" \
+      --arg blocksServed "$blocks_served" \
+      --arg blocksLate "$blocks_late" \
+      --arg blocksWithin1s "$blocks_within_1s" \
+      --arg blocksWithin3s "$blocks_within_3s" \
+      --arg blocksWithin5s "$blocks_within_5s" \
+      --arg memLiveBytes "$mem_live_bytes" \
+      --arg memHeapBytes "$mem_heap_bytes" \
+      --arg gcMinorCount "$gc_minor_count" \
+      --arg gcMajorCount "$gc_major_count" \
+      --arg kesPeriod "$kes_period" \
+      --arg kesRemaining "$kes_remaining" \
+      --arg opCertOnDisk "$op_cert_on_disk" \
+      --arg opCertOnChain "$op_cert_on_chain" \
+      --arg leaderCount "$leader_count" \
+      --arg adoptedCount "$adopted_count" \
+      --arg forgedCount "$forged_count" \
+      --arg aboutToLeadCount "$about_to_lead_count" \
+      --arg missedSlots "$missed_slots" \
+      --arg epochLength "$epoch_length" \
+      --arg slotLength "$slot_length" \
+      --arg slotsPerKESPeriod "$slots_per_kes_period" \
+      --arg activeSlotsCoeff "$active_slots_coeff" \
+      --arg systemStartUnix "$system_start_unix" \
+      --arg nowEpoch "$now_epoch" \
+      --arg tipRefSlot "$tip_ref_slot" \
+      --arg kesExpirationTime "$kes_expiration_time" \
+      --arg kesExpirationSeconds "$kes_expiration_seconds" \
+      --arg scheduledLeaderCount "$scheduled_leader_count" \
+      --arg scheduledIdealCount "$scheduled_ideal_count" \
+      --arg scheduledLuckPercent "$scheduled_luck_percent" \
+      --arg nextLeaderSlot "$next_leader_slot" \
+      --arg nextLeaderTime "$next_leader_time" \
+      --arg nextLeaderTimeRemainingSeconds "$next_leader_time_remaining_seconds" \
+      --arg nodeRole "$node_role" \
+      --argjson errors "$errors_json" \
+      '
+        def nullable_number($value):
+          if $value == "" then null else ($value | tonumber?) end;
+        def nullable_string($value):
+          if $value == "" then null else $value end;
+        def nullable_boolean_metric($value):
+          if $value == "" then null
+          elif ($value | tonumber?) == 1 then true
+          elif ($value | tonumber?) == 0 then false
+          else null
+          end;
+        def clamp($value; $min; $max):
+          if $value < $min then $min
+          elif $value > $max then $max
+          else $value
+          end;
+
+        (nullable_number($slotNum)) as $slotNumValue |
+        (nullable_number($slotInEpoch)) as $slotInEpochValue |
+        (nullable_number($epochLength)) as $epochLengthValue |
+        (nullable_number($slotLength)) as $slotLengthValue |
+        (nullable_number($systemStartUnix)) as $systemStartUnixValue |
+        (nullable_number($nowEpoch)) as $nowEpochValue |
+        (nullable_number($kesRemaining)) as $kesRemainingValue |
+        (nullable_number($slotsPerKESPeriod)) as $slotsPerKESPeriodValue |
+        (nullable_number($tipRefSlot)) as $tipRefSlotValue |
+        (nullable_number($kesExpirationSeconds)) as $kesExpirationSecondsValue |
+        (nullable_string($kesExpirationTime)) as $kesExpirationTimeValue |
+        (if $kesExpirationSecondsValue != null then $kesExpirationSecondsValue elif $kesRemainingValue != null and $slotsPerKESPeriodValue != null and $slotLengthValue != null then (($kesRemainingValue * $slotsPerKESPeriodValue * $slotLengthValue) | floor) else null end) as $resolvedKesExpirationSeconds |
+        {
+          type: "apex-fusion",
+          role: $nodeRole,
+          blockHeight: nullable_number($blockHeight),
+          epoch: nullable_number($epoch),
+          slotNum: $slotNumValue,
+          slotInEpoch: $slotInEpochValue,
+          density: (nullable_number($density) | if . == null then null else . * 100 end),
+          forks: nullable_number($forks),
+          txProcessed: nullable_number($txProcessed),
+          pendingTx: nullable_number($pendingTx),
+          pendingTxBytes: nullable_number($pendingTxBytes),
+          nodeVersion: nullable_string($nodeVersion),
+          nodeRevision: nullable_string($nodeRevision),
+          forgingEnabled: nullable_boolean_metric($forgingEnabled),
+          peersIncoming: nullable_number($peersIncoming),
+          peersOutgoing: nullable_number($peersOutgoing),
+          connectionUniDir: nullable_number($connectionUniDir),
+          connectionBiDir: nullable_number($connectionBiDir),
+          connectionDuplex: nullable_number($connectionDuplex),
+          inboundGovernorWarm: nullable_number($inboundGovernorWarm),
+          inboundGovernorHot: nullable_number($inboundGovernorHot),
+          peerSelectionCold: nullable_number($peerSelectionCold),
+          peerSelectionWarm: nullable_number($peerSelectionWarm),
+          peerSelectionHot: nullable_number($peerSelectionHot),
+          lastBlockDelaySeconds: nullable_number($lastBlockDelaySeconds),
+          blocksServed: nullable_number($blocksServed),
+          blocksLate: nullable_number($blocksLate),
+          blocksWithin1s: (nullable_number($blocksWithin1s) | if . == null then null else . * 100 end),
+          blocksWithin3s: (nullable_number($blocksWithin3s) | if . == null then null else . * 100 end),
+          blocksWithin5s: (nullable_number($blocksWithin5s) | if . == null then null else . * 100 end),
+          memLiveBytes: nullable_number($memLiveBytes),
+          memHeapBytes: nullable_number($memHeapBytes),
+          gcMinorCount: nullable_number($gcMinorCount),
+          gcMajorCount: nullable_number($gcMajorCount),
+          epochLength: $epochLengthValue,
+          slotLength: $slotLengthValue,
+          systemStartUnix: $systemStartUnixValue,
+          kesPeriod: nullable_number($kesPeriod),
+          kesRemaining: $kesRemainingValue,
+          opCertOnDisk: nullable_number($opCertOnDisk),
+          opCertOnChain: nullable_number($opCertOnChain),
+          leaderCount: nullable_number($leaderCount),
+          adoptedCount: nullable_number($adoptedCount),
+          forgedCount: nullable_number($forgedCount),
+          aboutToLeadCount: nullable_number($aboutToLeadCount),
+          invalidCount: (if nullable_number($forgedCount) != null and nullable_number($adoptedCount) != null then ((nullable_number($forgedCount) - nullable_number($adoptedCount)) | if . < 0 then 0 else . end) else null end),
+          missedSlots: nullable_number($missedSlots),
+          scheduledLeaderCount: nullable_number($scheduledLeaderCount),
+          scheduledIdealCount: nullable_number($scheduledIdealCount),
+          scheduledLuckPercent: nullable_number($scheduledLuckPercent),
+          nextLeaderSlot: nullable_number($nextLeaderSlot),
+          nextLeaderTime: nullable_string($nextLeaderTime),
+          nextLeaderTimeRemainingSeconds: nullable_number($nextLeaderTimeRemainingSeconds),
+          epochProgressPercent: (if $slotInEpochValue != null and $epochLengthValue != null and $epochLengthValue > 0 then (($slotInEpochValue / $epochLengthValue) * 100) else null end),
+          epochTimeRemainingSeconds: (if $slotInEpochValue != null and $epochLengthValue != null and $slotLengthValue != null then ((($epochLengthValue - $slotInEpochValue) * $slotLengthValue) | if . < 0 then 0 else . end) else null end),
+          tipRefSlot: $tipRefSlotValue,
+          tipDiffSlots: (if $tipRefSlotValue != null and $slotNumValue != null then ($tipRefSlotValue - $slotNumValue) else null end),
+          syncPercent: (if $tipRefSlotValue != null and $tipRefSlotValue > 0 and $slotNumValue != null then clamp((($slotNumValue / $tipRefSlotValue) * 100); 0; 100) else null end),
+          kesExpirationSeconds: $resolvedKesExpirationSeconds,
+          kesExpirationTime: (if $kesExpirationTimeValue != null then $kesExpirationTimeValue elif $resolvedKesExpirationSeconds != null and $nowEpochValue != null then (($nowEpochValue + $resolvedKesExpirationSeconds) | todateiso8601) else null end),
+          errors: $errors
+        }
+      '
