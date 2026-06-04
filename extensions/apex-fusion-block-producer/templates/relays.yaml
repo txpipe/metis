@@ -3,6 +3,7 @@
 {{- $proxyChecksum := include (print $.Template.BasePath "/configmap-proxy.yaml") . | sha256sum -}}
 {{- $networkMagic := include "apex-fusion.networkMagic" . -}}
 {{- $shelleyTransitionEpoch := include "apex-fusion.shelleyTransitionEpoch" . -}}
+{{- $svcType := default "ClusterIP" .Values.service.type -}}
 {{- range $index := until (int .Values.relays.count) }}
 {{- $relayName := include "apex-fusion.relayName" (dict "context" $ "index" $index) -}}
 {{- $component := printf "relay-%v" $index -}}
@@ -14,8 +15,24 @@ metadata:
   labels:
     {{- include "apex-fusion.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $component }}
+    {{- with $.Values.service.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $.Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
-  type: ClusterIP
+  type: {{ $svcType }}
+  {{- with $.Values.service.clusterIP }}
+  clusterIP: {{ . }}
+  {{- end }}
+  {{- with $.Values.service.loadBalancerIP }}
+  loadBalancerIP: {{ . }}
+  {{- end }}
+  {{- with $.Values.service.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ . }}
+  {{- end }}
   selector:
     app.kubernetes.io/name: {{ include "apex-fusion.name" $ }}
     app.kubernetes.io/instance: {{ $.Release.Name }}
@@ -25,14 +42,23 @@ spec:
       port: {{ $.Values.service.n2nPort }}
       targetPort: n2n
       protocol: TCP
+      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) $.Values.service.n2nNodePort }}
+      nodePort: {{ $.Values.service.n2nNodePort }}
+      {{- end }}
     - name: n2c
       port: {{ $.Values.service.n2cPort }}
       targetPort: n2c
       protocol: TCP
+      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) $.Values.service.n2cNodePort }}
+      nodePort: {{ $.Values.service.n2cNodePort }}
+      {{- end }}
     - name: metrics
       port: {{ $.Values.service.metricsPort }}
       targetPort: metrics
       protocol: TCP
+      {{- if and (or (eq $svcType "NodePort") (eq $svcType "LoadBalancer")) $.Values.service.metricsNodePort }}
+      nodePort: {{ $.Values.service.metricsNodePort }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

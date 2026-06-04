@@ -29,6 +29,11 @@ relays:
 If `relays.count` is greater than zero, the chart creates managed relay
 StatefulSets and points the producer `topology.json` at those relay Services.
 
+The block producer Service is always kept private as `ClusterIP`. The
+configurable `service.*` values apply to the managed relay Services created by
+this chart. Set `service.type: LoadBalancer` only when those managed relays
+need external node-to-node connectivity.
+
 If `relays.count` is `0`, provide at least one trusted relay:
 
 ```yaml

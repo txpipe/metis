@@ -32,21 +32,21 @@
     },
     "service": {
       "type": "object",
-      "description": "Optional. Producer Service settings and default ports used by managed relay Services. Keep ClusterIP for private producer deployments.",
+      "description": "Optional. Managed relay Service settings. The block producer Service is always a private ClusterIP Service. Use LoadBalancer only when managed relays need external node-to-node access.",
       "additionalProperties": false,
       "properties": {
-        "type": { "type": "string", "enum": ["ClusterIP", "NodePort", "LoadBalancer"], "default": "ClusterIP" },
-        "annotations": { "$ref": "#/definitions/stringMap" },
-        "labels": { "$ref": "#/definitions/stringMap" },
-        "clusterIP": { "type": "string", "default": "" },
-        "loadBalancerIP": { "type": "string", "default": "" },
-        "externalTrafficPolicy": { "type": "string", "enum": ["", "Cluster", "Local"], "default": "" },
-        "n2nPort": { "type": "integer", "description": "Node-to-node Service port.", "default": 3000 },
-        "n2nNodePort": { "type": ["integer", "null"], "default": null },
-        "n2cPort": { "type": "integer", "description": "Node-to-client Service port exposed through the proxy sidecar.", "default": 3307 },
-        "n2cNodePort": { "type": ["integer", "null"], "default": null },
-        "metricsPort": { "type": "integer", "description": "Metrics Service port.", "default": 12798 },
-        "metricsNodePort": { "type": ["integer", "null"], "default": null }
+        "type": { "type": "string", "enum": ["ClusterIP", "NodePort", "LoadBalancer"], "default": "ClusterIP", "description": "Service type used for each managed relay Service. The block producer Service always stays ClusterIP." },
+        "annotations": { "$ref": "#/definitions/stringMap", "description": "Optional annotations applied to each managed relay Service." },
+        "labels": { "$ref": "#/definitions/stringMap", "description": "Optional labels applied to each managed relay Service." },
+        "clusterIP": { "type": "string", "default": "", "description": "Optional fixed clusterIP for each managed relay Service when supported by Kubernetes." },
+        "loadBalancerIP": { "type": "string", "default": "", "description": "Optional static LoadBalancer IP for each managed relay Service when service.type=LoadBalancer and the platform supports it." },
+        "externalTrafficPolicy": { "type": "string", "enum": ["", "Cluster", "Local"], "default": "", "description": "Optional externalTrafficPolicy for each managed relay Service when exposed with NodePort or LoadBalancer." },
+        "n2nPort": { "type": "integer", "description": "Service port exposed by each managed relay for node-to-node traffic.", "default": 3000 },
+        "n2nNodePort": { "type": ["integer", "null"], "default": null, "description": "Optional fixed nodePort for the managed relay node-to-node port when service.type is NodePort or LoadBalancer." },
+        "n2cPort": { "type": "integer", "description": "Service port exposed by each managed relay for node-to-client traffic through the proxy sidecar.", "default": 3307 },
+        "n2cNodePort": { "type": ["integer", "null"], "default": null, "description": "Optional fixed nodePort for the managed relay node-to-client port when service.type is NodePort or LoadBalancer." },
+        "metricsPort": { "type": "integer", "description": "Service port exposed by each managed relay for metrics.", "default": 12798 },
+        "metricsNodePort": { "type": ["integer", "null"], "default": null, "description": "Optional fixed nodePort for the managed relay metrics port when service.type is NodePort or LoadBalancer." }
       }
     },
     "persistence": {

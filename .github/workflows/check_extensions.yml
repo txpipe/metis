@@ -42,6 +42,9 @@ jobs:
           - name: debug
             valuesArgs: "-f cardano-block-producer/ci/values-debug.yaml"
             dir: cardano-block-producer
+          - name: relay-loadbalancer
+            valuesArgs: "-f cardano-block-producer/ci/values-relay-loadbalancer.yaml"
+            dir: cardano-block-producer
           - name: trusted-relay
             valuesArgs: "-f cardano-block-producer/ci/values-trusted-relay.yaml"
             dir: cardano-block-producer
@@ -56,6 +59,9 @@ jobs:
             dir: apex-fusion-block-producer
           - name: debug
             valuesArgs: "-f apex-fusion-block-producer/ci/values-debug.yaml"
+            dir: apex-fusion-block-producer
+          - name: relay-loadbalancer
+            valuesArgs: "-f apex-fusion-block-producer/ci/values-relay-loadbalancer.yaml"
             dir: apex-fusion-block-producer
           - name: trusted-relay
             valuesArgs: "-f apex-fusion-block-producer/ci/values-trusted-relay.yaml"

@@ -14,6 +14,8 @@ helm install vector-producer ./apex-fusion-block-producer \
 
 By default `relays.count=1`, which creates one managed relay and points the producer topology at it. If you set `relays.count=0`, provide `relays.trusted` explicitly. MCP does not auto-resolve trusted relays; use `workloads.list` to inspect candidate `apex-fusion-relay` workloads.
 
+The block producer Service is always kept private as `ClusterIP`. The configurable `service.*` values apply to the managed relay Services created by this chart. Set `service.type=LoadBalancer` only when those managed relays need external node-to-node connectivity.
+
 Set `blockProducer.debug=true` to mount the producer material and expose metrics wiring without passing forging flags to the node.
 
 Use `values.schema.json` as the public configuration contract for Helm, MCP, and LLM clients.
