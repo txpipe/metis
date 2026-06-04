@@ -92,6 +92,13 @@ Resolve the ConfigMap name for managed topology.json.
 {{- end }}
 
 {{/*
+Resolve the ConfigMap name for managed relay topology.json.
+*/}}
+{{- define "cardano-node.relayTopologyConfigMapName" -}}
+{{- printf "%s-relay-topology" (include "cardano-node.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
 Resolve a service fullname for another release/chart pair.
 */}}
 {{- define "cardano-node.releaseFullnameFor" -}}

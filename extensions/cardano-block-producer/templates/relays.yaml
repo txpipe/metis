@@ -3,6 +3,11 @@
 {{- $proxyChecksum := include (print $.Template.BasePath "/configmap-proxy.yaml") . | sha256sum -}}
 {{- $networkMagic := include "cardano-node.networkMagic" . -}}
 {{- $svcType := default "ClusterIP" .Values.service.type -}}
+{{- $relayTopologyConfigMapName := include "cardano-node.relayTopologyConfigMapName" . -}}
+{{- $relayTopologyChecksum := "" -}}
+{{- if and (not .Values.blockProducer.debug) (gt (int .Values.relays.count) 0) }}
+{{- $relayTopologyChecksum = include (print $.Template.BasePath "/configmap-relay-topology.yaml") . | sha256sum -}}
+{{- end }}
 {{- range $index := until (int .Values.relays.count) }}
 {{- $relayName := include "cardano-node.relayName" (dict "context" $ "index" $index) -}}
 {{- $component := printf "relay-%v" $index -}}
@@ -110,6 +115,9 @@ spec:
         app.kubernetes.io/component: {{ $component }}
       annotations:
         checksum/proxy-config: {{ $proxyChecksum }}
+        {{- if $relayTopologyChecksum }}
+        checksum/topology: {{ $relayTopologyChecksum }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "cardano-node.fullname" $ }}
       terminationGracePeriodSeconds: 60
@@ -156,6 +164,12 @@ spec:
               mountPath: /data
             - name: ipc
               mountPath: /ipc
+            {{- if $relayTopologyChecksum }}
+            - name: topology
+              mountPath: {{ printf "/opt/cardano/config/%s/topology.json" $.Values.node.network }}
+              subPath: topology.json
+              readOnly: true
+            {{- end }}
             - name: metrics-scripts
               mountPath: /opt/metis/bin/metrics.sh
               subPath: metrics.sh
@@ -194,6 +208,11 @@ spec:
         - name: proxy-config
           configMap:
             name: {{ $proxyConfigName }}
+        {{- if $relayTopologyChecksum }}
+        - name: topology
+          configMap:
+            name: {{ $relayTopologyConfigMapName }}
+        {{- end }}
         - name: metrics-scripts
           configMap:
             name: {{ $metricsConfigMapName }}

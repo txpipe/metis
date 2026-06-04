@@ -34,6 +34,13 @@ configurable `service.*` values apply to the managed relay Services created by
 this chart. Set `service.type: LoadBalancer` only when those managed relays
 need external node-to-node connectivity.
 
+When `relays.count > 0` and `blockProducer.debug=false`, managed relays mount a
+chart-generated `topology.json` that trusts the internal block producer Service
+over node-to-node (`n2n`). The rendered topology uses the producer Service DNS
+name, `publicRoots: []`, and `useLedgerAfterSlot: 0`. When
+`blockProducer.debug=true`, managed relays do not mount a chart-generated
+topology and instead use the default topology from the container image.
+
 If `relays.count` is `0`, provide at least one trusted relay:
 
 ```yaml

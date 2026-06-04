@@ -45,6 +45,10 @@ app.kubernetes.io/component: apex-fusion
 {{- printf "%s-topology" (include "apex-fusion.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
+{{- define "apex-fusion.relayTopologyConfigMapName" -}}
+{{- printf "%s-relay-topology" (include "apex-fusion.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
 {{- define "apex-fusion.blockProducerSecretName" -}}
 {{- printf "%s-block-producer" (include "apex-fusion.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}

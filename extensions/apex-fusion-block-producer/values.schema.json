@@ -34,7 +34,7 @@
       "required": ["vaultStaticSecret"],
       "additionalProperties": false,
       "properties": {
-        "debug": { "type": "boolean", "description": "Optional. Mount producer material and emit block-producer metrics env, but do not pass forging flags to the node.", "default": false },
+        "debug": { "type": "boolean", "description": "Optional. Mount producer material and emit block-producer metrics env, but do not pass forging flags to the node. When true, managed relays keep the image-default topology instead of mounting a chart-generated topology that points at the internal producer Service.", "default": false },
         "poolId": { "type": "string", "description": "Optional but recommended. Pool ID used by metrics for leader schedule calculations.", "default": "" },
         "mountPath": { "type": "string", "description": "Advanced, usually not modified. Mount path for producer runtime material.", "default": "/block-producer" },
         "kesKeyFile": { "type": "string", "description": "Advanced, usually not modified. KES signing key filename in the Vault-synced Secret.", "default": "kes.skey" },

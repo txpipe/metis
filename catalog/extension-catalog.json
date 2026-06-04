@@ -225,7 +225,7 @@
             "properties": {
               "debug": {
                 "default": false,
-                "description": "Optional. Mount producer material and emit block-producer metrics env, but do not pass forging flags to the node.",
+                "description": "Optional. Mount producer material and emit block-producer metrics env, but do not pass forging flags to the node. When true, managed relays keep the image-default topology instead of mounting a chart-generated topology that points at the internal producer Service.",
                 "type": "boolean"
               },
               "kesKeyFile": {
@@ -1187,7 +1187,7 @@
             "properties": {
               "debug": {
                 "default": false,
-                "description": "Optional. When true, do not pass KES/VRF/op-cert runtime flags, but still mount producer material and expose block producer schedule metrics.",
+                "description": "Optional. When true, do not pass KES/VRF/op-cert runtime flags, but still mount producer material and expose block producer schedule metrics. When true, managed relays keep the image-default topology instead of mounting a chart-generated topology that points at the internal producer Service.",
                 "type": "boolean"
               },
               "kesKeyFile": {

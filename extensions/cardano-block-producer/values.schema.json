@@ -91,7 +91,7 @@
       "required": ["poolId", "vaultStaticSecret"],
       "additionalProperties": false,
       "properties": {
-        "debug": { "type": "boolean", "description": "Optional. When true, do not pass KES/VRF/op-cert runtime flags, but still mount producer material and expose block producer schedule metrics.", "default": false },
+        "debug": { "type": "boolean", "description": "Optional. When true, do not pass KES/VRF/op-cert runtime flags, but still mount producer material and expose block producer schedule metrics. When true, managed relays keep the image-default topology instead of mounting a chart-generated topology that points at the internal producer Service.", "default": false },
         "poolId": { "type": "string", "description": "Required. Stake pool ID used by metrics to compute leadership schedule.", "minLength": 1 },
         "mountPath": { "type": "string", "description": "Advanced, usually not modified. Mount path for synced producer runtime material.", "default": "/block-producer" },
         "kesKeyFile": { "type": "string", "description": "Advanced, usually not modified. KES signing key filename in the Vault-synced secret.", "default": "kes.skey" },

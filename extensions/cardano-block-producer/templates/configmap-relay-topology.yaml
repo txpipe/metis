@@ -1,0 +1,16 @@
+{{- if and (not .Values.blockProducer.debug) (gt (int .Values.relays.count) 0) }}
+{{- $producerServiceName := include "cardano-node.fullname" . -}}
+{{- $producerAddress := printf "%s.%s.svc.cluster.local" $producerServiceName .Release.Namespace -}}
+{{- $accessPoint := dict "address" $producerAddress "port" .Values.service.n2nPort -}}
+{{- $localRoots := list (dict "accessPoints" (list $accessPoint) "advertise" false "valency" 1) -}}
+{{- $topology := dict "localRoots" $localRoots "publicRoots" (list) "useLedgerAfterSlot" 0 -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cardano-node.relayTopologyConfigMapName" . }}
+  labels:
+    {{- include "cardano-node.labels" . | nindent 4 }}
+data:
+  topology.json: |
+{{ toPrettyJson $topology | indent 4 }}
+{{- end }}
