@@ -175,12 +175,12 @@ supernodeMcp:
   bindAddr: 0.0.0.0:8443
   extensionCatalog:
     source: oci
-    ociRef: oci://oci.supernode.store/extension-catalog@sha256:17f3e0c4e469fa3f8b1692f636d4023244ffde815f3848cdd6d23e7e1752667e
+    ociRef: oci://oci.supernode.store/extension-catalog@sha256:1f2d451cc08d64246e691f75de427b28d09903b037a8654a9e0a230e2985329d
     maxBytes: 1048576
     allowUntrusted: false
   skillCatalog:
     source: oci
-    ociRef: oci://oci.supernode.store/skill-catalog@sha256:8995151b315844a2a0db0bfc25716a4572765f1badc1514a41d602191c42fbe5
+    ociRef: oci://oci.supernode.store/skill-catalog@sha256:6ec7c988b4086447b26d0b81612bfbfbdff657dad0643ef588c9c07e9559b6ac
     maxBytes: 1048576
     allowUntrusted: false
   sessionStore:
